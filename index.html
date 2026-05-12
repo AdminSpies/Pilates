@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nihuen Pilates | Administración</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root{
+      --bg:#f7f4ed; --surface:#fffdf8; --surface2:#f4f0e7; --line:#e8e1d5;
+      --ink:#2e2a24; --muted:#7a7368; --soft:#a9a08f;
+      --olive:#69795a; --olive-2:#8c987d; --gold:#c99b47; --terra:#c77d52;
+      --danger:#c75157; --warn:#d19036; --ok:#5f8b5b; --blue:#5a79a6;
+      --shadow:0 18px 48px rgba(54,46,35,.08); --shadow2:0 8px 22px rgba(54,46,35,.07);
+    }
+    *{box-sizing:border-box}
+    html{background:var(--bg)}
+    body{margin:0;background:radial-gradient(circle at 82% 0%,#fff 0,#f8f5ee 34%,#f1ece3 100%);color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;letter-spacing:-.01em}
+    .glass{background:rgba(255,253,248,.92);backdrop-filter:blur(18px);border:1px solid var(--line);box-shadow:var(--shadow)}
+    .app-shell{max-width:1900px;margin:10px auto;border:1px solid var(--line);border-radius:22px;overflow:hidden;background:rgba(255,253,248,.9);box-shadow:0 24px 70px rgba(40,34,26,.11)}
+    .sidebar{background:#fbfaf6;border-right:1px solid var(--line);box-shadow:none!important;padding:22px 16px!important}
+    .brand-mark{width:118px;margin:0 auto 28px;text-align:center;color:var(--olive)}
+    .brand-leaf{width:34px;height:42px;margin:0 auto 5px;position:relative}
+    .brand-leaf:before,.brand-leaf:after{content:"";position:absolute;border:2px solid var(--olive);border-radius:80% 0 80% 0;transform:rotate(-35deg);opacity:.85}
+    .brand-leaf:before{width:16px;height:24px;left:8px;top:0}.brand-leaf:after{width:13px;height:20px;right:3px;top:14px;transform:rotate(35deg)}
+    .brand-title{font-family:Georgia,serif;font-size:28px;line-height:.9;letter-spacing:.12em;text-transform:uppercase;color:#788467}.brand-sub{font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:#788467;margin-top:7px}
+    .tab{height:52px;border:0;border-radius:12px;padding:0 16px;color:#4e4a43;font-weight:750;text-align:left;width:100%;display:flex;align-items:center;gap:13px;background:transparent;transition:.18s;cursor:pointer}
+    .tab span:first-child{width:19px;height:19px;border-radius:6px;border:1.7px solid currentColor;display:inline-flex;align-items:center;justify-content:center;font-size:0;opacity:.82}.tab span:first-child:after{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+    .tab.active,.tab:hover{background:#e9e7dc;color:#39452f}.tab.active{box-shadow:inset 0 0 0 1px rgba(105,121,90,.12)}
+    .role-card{position:absolute;left:16px;right:16px;bottom:22px;border-radius:16px;background:linear-gradient(150deg,#eef0e5,#f9f5e9);border:1px solid var(--line);padding:16px;color:#686153;font-size:13px;line-height:1.45}.role-card:after{content:"";display:block;height:58px;background:linear-gradient(135deg,#d8c8aa,#f6eee1);border-radius:14px;margin-top:14px}
+    .main{background:#fffefa;min-height:calc(100vh - 20px)}
+    .topbar{height:86px;margin:-4px -4px 20px -4px;padding:18px 28px;display:grid;grid-template-columns:240px minmax(260px,520px) 1fr auto;align-items:center;gap:22px;border-bottom:1px solid var(--line);background:rgba(255,253,248,.82);backdrop-filter:blur(16px)}
+    .topbar-title{font-family:Georgia,serif;font-size:34px;color:#4e5b3e;letter-spacing:-.03em}.topbar-search{height:46px;border:1px solid var(--line);background:#fff;border-radius:999px;padding:0 18px;display:flex;align-items:center;gap:12px;box-shadow:inset 0 1px 0 rgba(255,255,255,.85)}
+    .topbar-search input{border:0;outline:0;background:transparent;width:100%;font-size:14px;color:var(--ink)}.topbar-search:after{content:"";width:17px;height:17px;border:2px solid #9d9688;border-radius:50%;box-shadow:8px 8px 0 -6px #9d9688;transform:rotate(-12deg)}
+    .user-pill{height:54px;display:flex;align-items:center;gap:12px;border:1px solid var(--line);background:#fffdf8;border-radius:999px;padding:6px 14px 6px 8px;box-shadow:var(--shadow2)}.avatar{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#d6c1a6,#7d8d68);display:grid;place-items:center;color:white;font-weight:900}.user-pill b{font-size:14px}.user-pill small{display:block;color:var(--muted);font-weight:700}.bell{position:relative;width:42px;height:42px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;background:#fff}.bell:before{content:"";width:13px;height:14px;border:2px solid #423b32;border-radius:9px 9px 5px 5px}.bell:after{content:"3";position:absolute;right:4px;top:1px;background:#c9534d;color:white;font-size:10px;font-weight:900;border-radius:999px;padding:2px 5px}
+    .btn{border:0;border-radius:12px;padding:.78rem 1rem;font-weight:800;transition:.16s;display:inline-flex;align-items:center;justify-content:center;gap:.5rem;white-space:nowrap;cursor:pointer}.btn:hover{transform:translateY(-1px)}
+    .btn-primary{background:#69795a;color:white}.btn-soft{background:#ece9df;color:#4c473f;border:1px solid #ded7ca}.btn-gold{background:#e7d8b6;color:#5b4520;border:1px solid #d9c592}.btn-danger{background:#f4dedb;color:#963f42;border:1px solid #e7c6c1}
+    .input{width:100%;border:1px solid var(--line);border-radius:12px;padding:.82rem .9rem;background:#fffefa;outline:none;font-weight:650}.input:focus{border-color:#9aaa83;box-shadow:0 0 0 4px rgba(105,121,90,.13)}.label{font-size:.78rem;font-weight:850;color:#70685d;margin-bottom:.35rem;display:block}
+    .card{background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow2)}.panel-title{font-size:17px;font-weight:950;display:flex;align-items:center;gap:9px;color:#2d2922}.panel-title:before{content:"";width:18px;height:18px;border:1.8px solid #889178;border-radius:5px;display:inline-block}
+    .metric-grid{display:grid;grid-template-columns:repeat(8,minmax(132px,1fr));gap:14px}.metric{min-height:112px;padding:18px;border-radius:15px;background:#fffdf8;border:1px solid var(--line);box-shadow:var(--shadow2);position:relative;overflow:hidden}.metric:before{content:"";position:absolute;left:18px;top:19px;width:30px;height:30px;border:2px solid currentColor;border-radius:9px;opacity:.82}.metric.ok{color:var(--olive)}.metric.gold{color:var(--gold)}.metric.warn{color:var(--warn)}.metric.danger{color:var(--danger)}.metric .labelm{margin-left:48px;color:#4d4841;font-size:13px;font-weight:800}.metric .valuem{margin-left:48px;margin-top:5px;color:#1f1d1a;font-size:26px;font-weight:950;letter-spacing:-.04em}.metric .subm{margin-left:48px;margin-top:9px;color:#7e776b;font-size:12px;font-weight:750}.metric .subm.up{color:#647a50}
+    .quickbar{padding:18px}.quick-grid{display:flex;gap:16px;flex-wrap:wrap;margin-top:14px}.quick-grid .btn{min-width:150px;height:48px;background:#efede4;color:#4a453d;border:1px solid #ded8ca}
+    .dashboard-grid{display:grid;grid-template-columns:minmax(560px,1.45fr) minmax(420px,.95fr) 280px;gap:14px}.dash-lower{display:grid;grid-template-columns:1.05fr 1.05fr .9fr;gap:14px;margin-top:14px}.dash-panel{padding:18px;min-height:245px}.agenda-mini{display:grid;grid-template-columns:52px repeat(7,minmax(82px,1fr));border-top:1px solid var(--line);border-left:1px solid var(--line);margin-top:15px;overflow:hidden;border-radius:12px}.agenda-cell{min-height:62px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:8px;background:#fffefa;font-size:12px}.agenda-head{background:#fbf7ef;font-weight:900;min-height:38px;text-align:center;color:#5b554c}.agenda-hour{background:#fbf7ef;font-weight:900;color:#7b7368}.class-chip{border:1px solid #ded7c7;background:#fbfaf4;border-radius:8px;padding:7px;font-size:10px;line-height:1.2;box-shadow:0 5px 14px rgba(60,50,35,.06)}.class-chip.full{border-color:#dfb177;background:#fff6ea}.class-chip b{display:block;font-size:10px}.class-chip small{display:flex;justify-content:space-between;margin-top:5px;color:#686055}.complete-tag{display:inline-block;margin-top:4px;background:#ed8d34;color:white;border-radius:6px;padding:2px 6px;font-size:9px;font-weight:950}
+    .mini-table{width:100%;border-collapse:collapse;margin-top:13px}.mini-table th{text-align:left;color:#655e54;font-size:12px;padding:10px;border-bottom:1px solid var(--line)}.mini-table td{font-size:13px;padding:12px 10px;border-bottom:1px solid #efeadf}.occupancy{height:7px;background:#efe9df;border-radius:999px;overflow:hidden}.occupancy span{display:block;height:100%;background:#79905f;border-radius:999px}.occupancy.full span{background:#ce575c}.occupancy.mid span{background:#e0a542}
+    .phone-preview{background:#141414;border-radius:34px;padding:10px;box-shadow:0 26px 48px rgba(0,0,0,.25);align-self:start}.phone-screen{background:#fffdf8;border-radius:27px;padding:15px;min-height:545px;color:#29261f}.phone-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}.phone-title{font-family:Georgia,serif;color:#536044;font-size:20px}.phone-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.phone-card{border:1px solid var(--line);border-radius:13px;padding:12px;background:#fff}.phone-card small{font-size:10px;color:#70685d;font-weight:800}.phone-card b{display:block;font-size:19px;margin-top:5px}.phone-list{margin-top:12px;border:1px solid var(--line);border-radius:14px;background:#fff;padding:12px}.phone-row{display:flex;justify-content:space-between;font-size:11px;border-bottom:1px solid #eee7dc;padding:8px 0}.phone-nav{margin-top:18px;display:flex;justify-content:space-between;font-size:10px;color:#746c60;font-weight:850}
+    .badge{border-radius:999px;padding:.28rem .62rem;font-size:.72rem;font-weight:900;display:inline-flex;align-items:center;gap:.25rem}.badge-ok{background:#e5efdf;color:#4f7447}.badge-warn{background:#fbedd8;color:#936124}.badge-danger{background:#f6dddd;color:#8c3d3d}.badge-muted{background:#ece7dd;color:#6b6258}.badge-full{background:#ead7d3;color:#8c493d}.badge-gold{background:#f2e3bc;color:#77581f}.badge-blue{background:#e2eaf5;color:#43658f}
+    .table{width:100%;border-collapse:separate;border-spacing:0 .55rem}.table th{text-align:left;font-size:.72rem;color:#7a7064;text-transform:uppercase;letter-spacing:.06em;padding:0 .75rem}.table td{background:#fffdf8;padding:.78rem .75rem;border-top:1px solid #eadfcf;border-bottom:1px solid #eadfcf}.table td:first-child{border-left:1px solid #eadfcf;border-radius:13px 0 0 13px}.table td:last-child{border-right:1px solid #eadfcf;border-radius:0 13px 13px 0}
+    .modal{position:fixed;inset:0;background:rgba(34,30,25,.44);display:none;align-items:center;justify-content:center;padding:1rem;z-index:50}.modal.show{display:flex}.modal-box{max-height:92vh;overflow:auto;width:min(920px,100%)}.hide-scrollbar::-webkit-scrollbar{display:none}.hide-scrollbar{scrollbar-width:none}
+    @media(max-width:1500px){.metric-grid{grid-template-columns:repeat(4,1fr)}.dashboard-grid{grid-template-columns:1fr}.dash-lower{grid-template-columns:1fr 1fr}.phone-preview{display:none}}
+    @media(max-width:980px){.topbar{height:auto;grid-template-columns:1fr auto;padding:14px}.topbar-title{font-size:27px}.topbar-search{grid-column:1 / -1;grid-row:2}.user-pill{display:none}.metric-grid{grid-template-columns:repeat(2,1fr)}.dash-lower{grid-template-columns:1fr}.agenda-mini{grid-template-columns:48px repeat(7,92px);overflow:auto}.desktop-table{display:none}.mobile-card{display:block}.sidebar{position:fixed;left:-100%;top:0;bottom:0;z-index:45;width:82%;max-width:330px;transition:.25s}.sidebar.open{left:0}.mobile-overlay.show{display:block}.main{padding-left:0!important}.modal-box{max-height:88vh}.btn{width:100%}.app-shell{margin:0;border-radius:0}.role-card{position:static;margin-top:18px}.main{min-height:100vh}.metric{min-height:104px}}
+    @media(min-width:981px){.mobile-card{display:none}.mobile-only{display:none!important}.main{padding-left:250px}.sidebar{position:fixed;left:calc((100vw - min(1900px,100vw))/2);top:10px;bottom:10px;width:250px;border-radius:22px 0 0 22px}.mobile-overlay{display:none!important}}
+  </style>
+</head>
+<body class="min-h-screen">
+  <div id="toast" class="fixed top-4 right-4 z-[70] hidden max-w-sm rounded-2xl bg-[#2e2a24] px-4 py-3 text-sm font-bold text-white shadow-2xl"></div>
+
+  <section id="loginView" class="min-h-screen flex items-center justify-center p-4">
+    <div class="glass w-full max-w-md rounded-[2rem] p-7">
+      <div class="mb-7 text-center">
+        <div class="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-[#efe3ce] text-3xl font-black text-[#5f6b4d]">NP</div>
+        <h1 class="text-3xl font-black tracking-tight">Nihuen Pilates</h1>
+        <p class="mt-2 text-sm font-semibold text-[#7d7466]">Administración de Pilates Reformer</p>
+      </div>
+      <form id="loginForm" class="space-y-4">
+        <div><label class="label">Usuario</label><input id="loginUser" class="input" value="admin" autocomplete="username" /></div>
+        <div><label class="label">Clave</label><input id="loginPass" type="password" class="input" value="admin123" autocomplete="current-password" /></div>
+        <button class="btn btn-primary w-full" type="submit">Ingresar</button>
+        <p id="loginError" class="hidden rounded-2xl bg-red-50 p-3 text-sm font-bold text-red-700">Usuario o clave incorrectos.</p>
+      </form>
+      <div class="mt-5 rounded-2xl bg-[#f3eadb] p-4 text-xs leading-relaxed text-[#655c52]">
+        <b>Datos de prueba</b><br>
+        Admin general: admin / admin123<br>
+        Personal parcial: profe / profe123<br>
+        <span id="syncStatus">Conectando con Firebase...</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="appView" class="hidden min-h-screen app-shell">
+    <div id="overlay" class="mobile-overlay fixed inset-0 z-40 hidden bg-black/40"></div>
+    <aside id="sidebar" class="sidebar glass overflow-y-auto p-4 hide-scrollbar">
+      <div class="brand-mark">
+        <div class="brand-leaf"></div>
+        <div class="brand-title">Nihuen</div>
+        <div class="brand-sub">Pilates</div>
+      </div>
+      <p id="roleText" class="mb-3 px-3 text-xs font-bold text-[#7d7466]"></p>
+      <nav id="nav" class="space-y-2"></nav>
+      <button id="logoutBtn" class="btn btn-danger mt-5 w-full">Cerrar sesión</button>
+      <div class="role-card">
+        <b>Vista limitada por rol</b><br>
+        El administrador parcial solo ve sus clases, horarios y clientes asignados.
+      </div>
+    </aside>
+
+    <main class="main min-h-screen p-4 md:p-7">
+      <header class="topbar">
+        <div>
+          <button id="menuBtn" class="btn btn-soft mobile-only mb-3">Menú</button>
+          <div id="pageTitle" class="topbar-title">Nihuen Pilates</div>
+          <p id="pageSubtitle" class="hidden">Resumen general de administración</p>
+        </div>
+        <label class="topbar-search"><input id="globalSearch" placeholder="Buscar clientes, clases, pagos, personal..." onkeydown="if(event.key==='Enter'){filters.q=this.value;go('clientes')}"></label>
+        <div></div>
+        <div class="flex items-center gap-3">
+          <div class="bell"></div>
+          <div class="user-pill"><div class="avatar" id="avatarInitials">NP</div><div><b id="userName"></b><small id="todayText"></small></div></div>
+        </div>
+      </header>
+      <div id="content"></div>
+    </main>
+  </section>
+
+  <div id="modal" class="modal">
+    <div class="modal-box card p-5">
+      <div class="mb-4 flex items-start justify-between gap-3">
+        <div><h3 id="modalTitle" class="text-2xl font-black"></h3><p id="modalSubtitle" class="mt-1 text-sm font-semibold text-[#7d7466]"></p></div>
+        <button onclick="closeModal()" class="btn btn-soft !w-auto">Cerrar</button>
+      </div>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCEQ6SI_8QQLDzki3X08IUFXANERuoBxv8",
+  authDomain: "nihuenpilates-52af0.firebaseapp.com",
+  projectId: "nihuenpilates-52af0",
+  storageBucket: "nihuenpilates-52af0.firebasestorage.app",
+  messagingSenderId: "323117949902",
+  appId: "1:323117949902:web:5a24052cc1f2ffa874019f"
+};
+const FIRESTORE_DOC_PATH = 'appState/main';
+let firestore = null;
+let firebaseOnline = false;
+let remoteLoaded = false;
+let applyingRemote = false;
+let unsubscribeRealtime = null;
+const MAX_CUPO = 8;
+const days = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+const payMethods = ['Efectivo','Transferencia','Mercado Pago','Tarjeta','Otro'];
+const initialData = {
+  settings:{studioName:'Nihuen Pilates', allowPartialPaymentsView:false},
+  users:[
+    {id:uid(),apellido:'General',nombre:'Admin',dni:'10000000',fechaNacimiento:'1990-01-01',direccion:'-',telefono:'-',titulos:'Administración',usuario:'admin',passwordHash:'admin123',rol:'general',estado:'Activo',horariosAsignados:[],createdAt:now(),updatedAt:now()},
+    {id:'u_profe',apellido:'Suárez',nombre:'Camila',dni:'30111222',fechaNacimiento:'1989-05-10',direccion:'Cipolletti',telefono:'2990000000',titulos:'Instructora Pilates Reformer',usuario:'profe',passwordHash:'profe123',rol:'parcial',estado:'Activo',horariosAsignados:[],createdAt:now(),updatedAt:now()}
+  ],
+  clients:[
+    {id:'c1',apellido:'Pérez',nombre:'Laura',dni:'35111222',fechaNacimiento:'1994-03-10',telefono:'299111222',direccion:'Cipolletti',estado:'Activo',planId:'p2',fechaAlta:todayISO(),observaciones:'Sin lesiones reportadas',createdAt:now(),updatedAt:now()},
+    {id:'c2',apellido:'Gómez',nombre:'Martina',dni:'36222333',fechaNacimiento:'1992-09-21',telefono:'299333444',direccion:'Neuquén',estado:'Activo',planId:'p3',fechaAlta:todayISO(),observaciones:'Prefiere horarios tarde',createdAt:now(),updatedAt:now()},
+    {id:'c3',apellido:'Ruiz',nombre:'Sofía',dni:'37444555',fechaNacimiento:'1998-07-11',telefono:'299555666',direccion:'Cipolletti',estado:'Activo',planId:'p1',fechaAlta:todayISO(),observaciones:'Clase individual',createdAt:now(),updatedAt:now()}
+  ],
+  plans:[
+    {id:'p1',nombre:'Clase individual',clasesSemanales:1,precio:8000,estado:'Activo',descripcion:'Una clase suelta',createdAt:now(),updatedAt:now()},
+    {id:'p2',nombre:'1 vez por semana',clasesSemanales:1,precio:28000,estado:'Activo',descripcion:'Plan mensual básico',createdAt:now(),updatedAt:now()},
+    {id:'p3',nombre:'2 veces por semana',clasesSemanales:2,precio:48000,estado:'Activo',descripcion:'Plan mensual intermedio',createdAt:now(),updatedAt:now()},
+    {id:'p4',nombre:'3 veces por semana',clasesSemanales:3,precio:65000,estado:'Activo',descripcion:'Plan mensual avanzado',createdAt:now(),updatedAt:now()},
+    {id:'p5',nombre:'4 veces por semana',clasesSemanales:4,precio:78000,estado:'Activo',descripcion:'Plan mensual intensivo',createdAt:now(),updatedAt:now()}
+  ],
+  classes:[
+    {id:'cl1',dia:'Lunes',hora:'08:00',personalId:'u_profe',clientesIds:['c1','c2'],cupoMaximo:8,estado:'Activa',observaciones:'',createdAt:now(),updatedAt:now()},
+    {id:'cl2',dia:'Miércoles',hora:'18:00',personalId:'u_profe',clientesIds:['c2'],cupoMaximo:8,estado:'Activa',observaciones:'',createdAt:now(),updatedAt:now()}
+  ],
+  schedules:[],
+  payments:[
+    {id:'pay1',clienteId:'c1',planId:'p2',monto:28000,fechaPago:todayISO(),mesAbonado:monthKey(),medioPago:'Transferencia',estado:'Pagado',observaciones:'',registradoPor:'admin',createdAt:now(),updatedAt:now()},
+    {id:'pay2',clienteId:'c2',planId:'p3',monto:48000,fechaPago:'',mesAbonado:monthKey(),medioPago:'Mercado Pago',estado:'Pendiente',observaciones:'',registradoPor:'admin',createdAt:now(),updatedAt:now()}
+  ]
+};
+let db = loadDB();
+let currentUser = null;
+let currentSection = 'dashboard';
+let filters = {};
+
+function uid(){return 'id_'+Math.random().toString(36).slice(2,10)+'_'+Date.now().toString(36)}
+function now(){return new Date().toISOString()}
+function todayISO(){return new Date().toISOString().slice(0,10)}
+function monthKey(d=new Date()){return d.toISOString().slice(0,7)}
+function money(n){return '$ '+Number(n||0).toLocaleString('es-AR')}
+function normalizeDB(data){
+  const base = structuredClone(initialData);
+  const merged = {...base, ...(data || {})};
+  merged.settings = {...base.settings, ...(data?.settings || {})};
+  ['users','clients','plans','classes','schedules','payments'].forEach(k=>{
+    if(!Array.isArray(merged[k])) merged[k] = [];
+  });
+  if(!merged.schedules.length && merged.classes.length) merged.schedules = buildSchedules(merged);
+  return merged;
+}
+function saveLocal(){localStorage.setItem('nihuenPilatesDB',JSON.stringify(db))}
+function saveDB(){
+  saveLocal();
+  if(firebaseOnline && firestore && !applyingRemote){
+    firestore.doc(FIRESTORE_DOC_PATH).set({
+      payload: JSON.parse(JSON.stringify(db)),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    },{merge:false}).catch(err=>{
+      console.error('Firestore save error',err);
+      toast('No se pudo guardar en Firebase. Revisar reglas de Firestore.');
+    });
+  }
+}
+function loadDB(){
+  const raw=localStorage.getItem('nihuenPilatesDB');
+  if(raw){try{return normalizeDB(JSON.parse(raw))}catch(e){}}
+  const copy=structuredClone(initialData);
+  copy.schedules = buildSchedules(copy);
+  localStorage.setItem('nihuenPilatesDB',JSON.stringify(copy));
+  return copy;
+}
+async function initFirebaseRealtime(){
+  try{
+    if(!window.firebase) throw new Error('Firebase SDK no cargó');
+    if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    firestore = firebase.firestore();
+    firebaseOnline = true;
+    try{await firestore.enablePersistence({synchronizeTabs:true})}catch(e){console.warn('Persistencia local Firebase no disponible',e?.code||e)}
+    subscribeRealtime();
+  }catch(err){
+    console.error('Firebase init error',err);
+    firebaseOnline = false;
+    toast('Firebase no inició. La app queda en modo local.');
+  }
+}
+function subscribeRealtime(){
+  if(!firestore) return;
+  if(unsubscribeRealtime) unsubscribeRealtime();
+  unsubscribeRealtime = firestore.doc(FIRESTORE_DOC_PATH).onSnapshot(async snap=>{
+    if(!snap.exists){
+      const seed = normalizeDB(db);
+      await firestore.doc(FIRESTORE_DOC_PATH).set({payload:seed,createdAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:false});
+      return;
+    }
+    const remote = snap.data()?.payload;
+    if(!remote) return;
+    applyingRemote = true;
+    db = normalizeDB(remote);
+    saveLocal();
+    applyingRemote = false;
+    remoteLoaded = true;
+    if(currentUser){
+      const freshUser = db.users.find(u=>u.id===currentUser.id || u.usuario===currentUser.usuario);
+      if(!freshUser || freshUser.estado!=='Activo'){
+        currentUser=null;
+        document.getElementById('appView').classList.add('hidden');
+        document.getElementById('loginView').classList.remove('hidden');
+        toast('La sesión fue cerrada porque el usuario cambió o fue dado de baja.');
+      }else{
+        currentUser=freshUser;
+        render();
+      }
+    }
+  },err=>{
+    console.error('Firestore realtime error',err);
+    toast('Sin sincronización en tiempo real. Revisar permisos de Firestore.');
+  });
+}
+function buildSchedules(data){return data.classes.flatMap(cl=>cl.clientesIds.map(cid=>({id:uid(),clienteId:cid,personalId:cl.personalId,dia:cl.dia,horario:cl.hora,claseId:cl.id,estado:cl.estado==='Activa'?'Activo':'Cancelado',createdAt:now(),updatedAt:now()})))}
+function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.remove('hidden');setTimeout(()=>el.classList.add('hidden'),2600)}
+function isGeneral(){return currentUser?.rol==='general'}
+function canViewPayments(){return isGeneral() || db.settings.allowPartialPaymentsView}
+function canSeeClass(cl){return isGeneral() || cl.personalId===currentUser.id}
+function getClient(id){return db.clients.find(x=>x.id===id)}
+function getUser(id){return db.users.find(x=>x.id===id)}
+function getPlan(id){return db.plans.find(x=>x.id===id)}
+function visibleClasses(){return db.classes.filter(canSeeClass)}
+function visibleClients(){if(isGeneral())return db.clients; const ids=new Set(visibleClasses().flatMap(c=>c.clientesIds)); return db.clients.filter(c=>ids.has(c.id))}
+function statusBadge(s){const map={Activo:'badge-ok',Activa:'badge-ok',Pagado:'badge-ok',Pendiente:'badge-warn',Vencido:'badge-danger',Parcial:'badge-warn',Inactivo:'badge-muted',Cancelada:'badge-danger',Cancelado:'badge-danger',Finalizada:'badge-muted',Reprogramado:'badge-warn'};return `<span class="badge ${map[s]||'badge-muted'}">${s}</span>`}
+function cupoBadge(cl){const used=cl.clientesIds.length; return `<span class="badge ${used>=MAX_CUPO?'badge-full':'badge-gold'}">${used}/${MAX_CUPO}${used>=MAX_CUPO?' Completo':''}</span>`}
+function normalize(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
+function matchesText(obj,q,fields){if(!q)return true;const n=normalize(q);return fields.some(f=>normalize(obj[f]).includes(n))}
+function closeModal(){document.getElementById('modal').classList.remove('show')}
+function openModal(title,subtitle,html){document.getElementById('modalTitle').textContent=title;document.getElementById('modalSubtitle').textContent=subtitle||'';document.getElementById('modalBody').innerHTML=html;document.getElementById('modal').classList.add('show')}
+
+const sections = [
+  ['dashboard','Dashboard','Resumen general',''],['clientes','Clientes','Altas, bajas y modificaciones',''],['personal','Personal','Usuarios y profesores',''],['planes','Planes y Precios','Configuración de planes',''],['horarios','Horarios','Asignaciones por alumno',''],['clases','Clases','Cupos y alumnos',''],['pagos','Pagos','Estado mensual',''],['agenda','Agenda Semanal','Vista por día y hora',''],['reportes','Reportes','Indicadores principales',''],['config','Configuración','Datos generales',''],['perfil','Perfil','Sesión actual','']
+];
+function allowedSections(){return isGeneral()?sections:sections.filter(s=>!['personal','planes','reportes','config'].includes(s[0]) && (s[0]!=='pagos'||canViewPayments()))}
+function renderNav(){document.getElementById('nav').innerHTML=allowedSections().map(([id,name,,icon])=>`<button class="tab ${currentSection===id?'active':''}" onclick="go('${id}')"><span>${icon}</span><span>${name}</span></button>`).join('')}
+function go(id){currentSection=id;filters={};document.getElementById('sidebar').classList.remove('open');document.getElementById('overlay').classList.remove('show');render()}
+function render(){
+  if(!currentUser)return;
+  const meta=sections.find(s=>s[0]===currentSection)||sections[0];
+  document.getElementById('pageTitle').textContent=currentSection==='dashboard'?'Nihuen Pilates':meta[1];document.getElementById('pageSubtitle').textContent=meta[2];
+  document.getElementById('userName').textContent=currentUser.nombre+' '+currentUser.apellido;document.getElementById('todayText').textContent=isGeneral()?'Administrador':'Personal';const av=document.getElementById('avatarInitials'); if(av) av.textContent=(currentUser.nombre[0]||'N')+(currentUser.apellido[0]||'P');
+  document.getElementById('roleText').textContent=isGeneral()?'Administrador general':'Administrador parcial';
+  renderNav();
+  const map={dashboard:renderDashboard,clientes:renderClientes,personal:renderPersonal,planes:renderPlanes,clases:renderClases,horarios:renderHorarios,pagos:renderPagos,agenda:renderAgenda,reportes:renderReportes,config:renderConfig,perfil:renderPerfil};
+  document.getElementById('content').innerHTML=(map[currentSection]||renderDashboard)();
+}
+function stat(label,value,sub,type='ok'){
+  return `<div class="metric ${type}"><div class="labelm">${label}</div><div class="valuem">${value}</div>${sub?`<div class="subm ${String(sub).includes('↑')?'up':''}">${sub}</div>`:''}</div>`
+}
+function renderDashboard(){
+  const activeClients=db.clients.filter(c=>c.estado==='Activo').length;
+  const activeUsers=db.users.filter(u=>u.estado==='Activo').length;
+  const todayName=new Date().toLocaleDateString('es-AR',{weekday:'long'}).replace(/^./,m=>m.toUpperCase());
+  const visible=visibleClasses().filter(c=>c.estado==='Activa');
+  const dayClasses=visible.filter(c=>c.dia===todayName);
+  const cuposToday=dayClasses.reduce((a,c)=>a+(MAX_CUPO-c.clientesIds.length),0);
+  const pending=db.payments.filter(p=>p.estado==='Pendiente').length;
+  const overdue=db.payments.filter(p=>p.estado==='Vencido').length;
+  const pendingAmount=db.payments.filter(p=>p.estado==='Pendiente').reduce((a,p)=>a+Number(p.monto),0);
+  const overdueAmount=db.payments.filter(p=>p.estado==='Vencido').reduce((a,p)=>a+Number(p.monto),0);
+  const monthIncome=db.payments.filter(p=>p.estado==='Pagado'&&p.mesAbonado===monthKey()).reduce((a,p)=>a+Number(p.monto),0);
+  const totalSlots=visible.length*MAX_CUPO;
+  const occupied=visible.reduce((a,c)=>a+c.clientesIds.length,0);
+  const occupancyPct=totalSlots?Math.round((occupied/totalSlots)*100):0;
+  const cuposAll=visible.reduce((a,c)=>a+(MAX_CUPO-c.clientesIds.length),0);
+  const full=visible.filter(c=>c.clientesIds.length>=MAX_CUPO).length;
+  return `<div class="metric-grid">
+    ${stat('Clientes activos',activeClients,'↑ 12 vs mes pasado','ok')}
+    ${stat('Personal activo',activeUsers,'sin cambios','ok')}
+    ${stat('Clases de hoy',dayClasses.length,'Ver agenda','ok')}
+    ${canViewPayments()?stat('Pagos pendientes',pending,money(pendingAmount),'warn'):''}
+    ${canViewPayments()?stat('Pagos vencidos',overdue,money(overdueAmount),'danger'):''}
+    ${canViewPayments()?stat('Ingresos del mes',money(monthIncome),'↑ pagos registrados','ok'):''}
+    ${stat('Horarios completos',occupancyPct+'%','de las clases','gold')}
+    ${stat('Cupos disponibles',cuposAll,'de 8 por clase','ok')}
+  </div>
+  <section class="card quickbar mt-4">
+    <h3 class="panel-title">Accesos rápidos</h3>
+    <div class="quick-grid">
+      ${isGeneral()?'<button onclick="newClient()" class="btn">Nuevo cliente</button><button onclick="newPayment()" class="btn">Nuevo pago</button><button onclick="newClass()" class="btn">Nueva clase</button><button onclick="newUser()" class="btn">Nuevo personal</button>':'<button onclick="go(\'clases\')" class="btn">Mis clases</button>'}
+      <button onclick="go('agenda')" class="btn">Ver horarios</button>
+      ${canViewPayments()?'<button onclick="filters.estado=\'Pendiente\';go(\'pagos\')" class="btn">Ver pagos pendientes</button>':''}
+    </div>
+  </section>
+  <div class="dashboard-grid mt-4">
+    <section class="card dash-panel">
+      <div class="flex items-center justify-between gap-3"><h3 class="panel-title">Agenda semanal</h3><button onclick="go('agenda')" class="btn btn-soft !w-auto !py-2">Ver agenda completa</button></div>
+      ${agendaMini()}
+    </section>
+    <section class="card dash-panel">
+      <div class="flex items-center justify-between gap-3"><h3 class="panel-title">Pagos recientes</h3><button onclick="go('pagos')" class="btn btn-soft !w-auto !py-2">Ver todos</button></div>
+      ${paymentsMini()}
+    </section>
+    <aside class="phone-preview">${phonePreview(activeClients,dayClasses.length,pending,overdue,dayClasses)}</aside>
+  </div>
+  <div class="dash-lower">
+    <section class="card dash-panel"><h3 class="panel-title">Clases y ocupación</h3>${occupationMini()}</section>
+    <section class="card dash-panel"><h3 class="panel-title">Clientes destacados</h3>${clientsMini()}</section>
+    <section class="card dash-panel"><h3 class="panel-title">Permisos y roles</h3>${rolesMini()}</section>
+  </div>`
+}
+function agendaMini(){
+  const hours=['07:00','08:00','09:00','10:00','18:00','19:00'];
+  const short=['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+  let html='<div class="agenda-mini"><div class="agenda-cell agenda-head"></div>'+short.map((d,i)=>`<div class="agenda-cell agenda-head">${d}</div>`).join('');
+  hours.forEach(h=>{html+=`<div class="agenda-cell agenda-hour">${h}</div>`; days.forEach(d=>{const cl=visibleClasses().find(c=>c.dia===d&&c.hora===h); html+=`<div class="agenda-cell">${cl?classChip(cl):''}</div>`})});
+  return html+'</div>';
+}
+function classChip(cl){const full=cl.clientesIds.length>=MAX_CUPO;return `<div onclick="viewClass('${cl.id}')" class="class-chip ${full?'full':''}"><b>${cl.hora} Reformer</b><small><span>${shortUser(cl.personalId)}</span><span>${cl.clientesIds.length}/8</span></small>${full?'<span class="complete-tag">Completo</span>':''}</div>`}
+function shortUser(id){const u=getUser(id);return u?`${u.nombre?.[0]||''}. ${u.apellido||''}`:'Sin prof.'}
+function paymentsMini(){const list=[...db.payments].sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||'')).slice(0,6);if(!canViewPayments())return '<p class="mt-4 text-sm font-bold text-[#7d7466]">Sin permiso para ver pagos.</p>'; if(!list.length)return '<p class="mt-4 text-sm font-bold text-[#7d7466]">Sin pagos cargados.</p>'; return `<table class="mini-table"><thead><tr><th>Cliente</th><th>Plan</th><th>Estado</th><th>Fecha</th><th>Medio</th><th>Monto</th></tr></thead><tbody>${list.map(p=>`<tr><td>${clientName(p.clienteId)}</td><td>${getPlan(p.planId)?.nombre||'-'}</td><td>${statusBadge(p.estado)}</td><td>${p.fechaPago||'-'}</td><td>${p.medioPago||'-'}</td><td>${money(p.monto)}</td></tr>`).join('')}</tbody></table>`}
+function occupationMini(){const list=visibleClasses().slice(0,6); if(!list.length)return '<p class="mt-4 text-sm font-bold text-[#7d7466]">Sin clases cargadas.</p>'; return `<table class="mini-table"><thead><tr><th>Clase</th><th>Día</th><th>Hora</th><th>Profesor</th><th>Ocupación</th><th>Estado</th></tr></thead><tbody>${list.map(c=>{const pct=Math.round(c.clientesIds.length/MAX_CUPO*100);const cls=c.clientesIds.length>=8?'full':c.clientesIds.length>=7?'mid':'';return `<tr><td>Reformer</td><td>${c.dia}</td><td>${c.hora}</td><td>${shortUser(c.personalId)}</td><td><div class="occupancy ${cls}"><span style="width:${pct}%"></span></div><small>${c.clientesIds.length}/8</small></td><td>${c.clientesIds.length>=8?statusBadge('Completo'):statusBadge('Disponible')}</td></tr>`}).join('')}</tbody></table>`}
+function clientsMini(){const list=db.clients.filter(c=>c.estado==='Activo').slice(0,6);return `<table class="mini-table"><thead><tr><th>Cliente</th><th>DNI</th><th>Plan</th><th>Estado</th><th>Último pago</th></tr></thead><tbody>${list.map(c=>`<tr><td>${c.nombre} ${c.apellido}</td><td>${c.dni}</td><td>${getPlan(c.planId)?.nombre||'-'}</td><td>${statusBadge(c.estado)}</td><td>${paymentSummary(c.id)}</td></tr>`).join('')}</tbody></table>`}
+function rolesMini(){return `<div class="mt-4 space-y-3"><div class="rounded-2xl border border-[#e8e1d5] bg-[#fffdf8] p-4"><b>Administrador general</b><p class="mt-1 text-sm font-bold text-[#7d7466]">Acceso total a datos, precios, pagos, usuarios y reportes.</p><div class="mt-3 flex flex-wrap gap-2">${['Dashboard','Clientes','Personal','Pagos','Clases','Horarios','Reportes','Configuración'].map(x=>`<span class="badge badge-ok">${x}</span>`).join('')}</div></div><div class="rounded-2xl border border-[#e8e1d5] bg-[#fffdf8] p-4"><b>Administrador parcial / Personal</b><p class="mt-1 text-sm font-bold text-[#7d7466]">Acceso limitado a clases, horarios y clientes asignados.</p><div class="mt-3 flex flex-wrap gap-2">${['Dashboard limitado','Mis clases','Mis horarios','Clientes asignados'].map(x=>`<span class="badge badge-warn">${x}</span>`).join('')}</div></div></div>`}
+function phonePreview(active,classes,pending,overdue,dayClasses){return `<div class="phone-screen"><div class="phone-top"><b>9:41</b><span></span></div><div class="flex items-center justify-between"><span></span><div class="phone-title">Nihuen Pilates</div><div class="bell" style="width:28px;height:28px"></div></div><h3 class="mt-5 mb-3 text-lg font-black">Dashboard</h3><div class="phone-grid"><div class="phone-card"><small>Clientes activos</small><b>${active}</b></div><div class="phone-card"><small>Clases de hoy</small><b>${classes}</b></div><div class="phone-card"><small>Pagos pendientes</small><b>${pending}</b></div><div class="phone-card"><small>Pagos vencidos</small><b>${overdue}</b></div></div><div class="phone-list"><div class="flex justify-between"><b>Agenda de hoy</b><small>Ver agenda</small></div>${(dayClasses.length?dayClasses:visibleClasses().slice(0,3)).slice(0,3).map(c=>`<div class="phone-row"><span>${c.hora} Reformer</span><span>${shortUser(c.personalId)}</span><span>${c.clientesIds.length}/8</span></div>`).join('')}</div><div class="phone-list"><div class="flex justify-between"><b>Pagos recientes</b><small>Ver todos</small></div>${db.payments.slice(0,2).map(p=>`<div class="phone-row"><span>${clientName(p.clienteId)}</span><span>${statusBadge(p.estado)}</span></div>`).join('')}</div><div class="phone-nav"><span>Inicio</span><span>Clientes</span><span>Clases</span><span>Pagos</span><span>Más</span></div></div>`}
+function classList(list){if(!list.length)return '<p class="text-sm font-semibold text-[#7d7466]">Sin clases visibles.</p>'; return `<div class="space-y-3">${list.map(cl=>`<div class="rounded-2xl border border-[#eadfcf] bg-[#fffdf8] p-4"><div class="flex flex-wrap items-center justify-between gap-2"><b>${cl.dia} ${cl.hora}</b>${cupoBadge(cl)}</div><div class="mt-1 text-sm font-semibold text-[#7d7466]">Profesor: ${getUser(cl.personalId)?.nombre||'-'} ${getUser(cl.personalId)?.apellido||''}</div><div class="mt-2 text-xs font-bold text-[#8a8176]">${cl.clientesIds.map(id=>clientName(id)).join(', ')||'Sin alumnos'}</div></div>`).join('')}</div>`}
+function clientName(id){const c=getClient(id);return c?`${c.nombre} ${c.apellido}`:'Cliente eliminado'}
+function userName(id){const u=getUser(id);return u?`${u.nombre} ${u.apellido}`:'Sin personal'}
+
+function controls(module,extra=''){return `<div class="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between"><div class="flex flex-1 flex-col gap-3 md:flex-row"><input class="input" placeholder="Buscar" oninput="filters.q=this.value;render()" value="${filters.q||''}">${extra}</div></div>`}
+function renderClientes(){
+ const q=filters.q||'', estado=filters.estado||'', plan=filters.plan||'';
+ let list=visibleClients().filter(c=>matchesText(c,q,['nombre','apellido','dni'])).filter(c=>!estado||c.estado===estado).filter(c=>!plan||c.planId===plan);
+ const extra=`<select class="input" onchange="filters.estado=this.value;render()"><option value="">Estado</option><option ${estado==='Activo'?'selected':''}>Activo</option><option ${estado==='Inactivo'?'selected':''}>Inactivo</option></select><select class="input" onchange="filters.plan=this.value;render()"><option value="">Plan</option>${db.plans.map(p=>`<option value="${p.id}" ${plan===p.id?'selected':''}>${p.nombre}</option>`).join('')}</select>${isGeneral()?'<button onclick="newClient()" class="btn btn-primary">Nuevo</button>':''}`;
+ return controls('clientes',extra)+responsiveList(['Cliente','DNI','Plan','Estado','Pago','Acciones'],list.map(c=>[`${c.nombre} ${c.apellido}`,c.dni,getPlan(c.planId)?.nombre||'-',statusBadge(c.estado),paymentSummary(c.id),clientActions(c)]),list.map(c=>mobileClient(c)));
+}
+function paymentSummary(cid){const ps=db.payments.filter(p=>p.clienteId===cid).sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||'')); if(!ps.length)return statusBadge('Pendiente'); return statusBadge(ps[0].estado)}
+function clientActions(c){return `<div class="flex flex-wrap gap-2"><button class="btn btn-soft !px-3 !py-2 !w-auto" onclick="viewClient('${c.id}')">Ver</button>${isGeneral()?`<button class="btn btn-soft !px-3 !py-2 !w-auto" onclick="editClient('${c.id}')">Editar</button><button class="btn btn-danger !px-3 !py-2 !w-auto" onclick="lowClient('${c.id}')">Baja</button>`:''}</div>`}
+function mobileClient(c){return `<div class="card p-4"><div class="flex justify-between gap-3"><div><b>${c.nombre} ${c.apellido}</b><div class="text-sm font-semibold text-[#7d7466]">DNI ${c.dni}</div></div>${statusBadge(c.estado)}</div><div class="mt-2 text-sm"><b>Plan:</b> ${getPlan(c.planId)?.nombre||'-'}</div><div class="mt-3">${clientActions(c)}</div></div>`}
+function responsiveList(headers,rows,cards){return `<div class="desktop-table overflow-x-auto"><table class="table"><thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div><div class="mobile-card space-y-3">${cards.join('')}</div>`}
+
+function renderPersonal(){if(!isGeneral())return denied(); const q=filters.q||'', rol=filters.rol||'', estado=filters.estado||''; let list=db.users.filter(u=>matchesText(u,q,['nombre','apellido','dni','usuario'])).filter(u=>!rol||u.rol===rol).filter(u=>!estado||u.estado===estado); const extra=`<select class="input" onchange="filters.rol=this.value;render()"><option value="">Rol</option><option value="general" ${rol==='general'?'selected':''}>Administrador general</option><option value="parcial" ${rol==='parcial'?'selected':''}>Administrador parcial</option></select><select class="input" onchange="filters.estado=this.value;render()"><option value="">Estado</option><option ${estado==='Activo'?'selected':''}>Activo</option><option ${estado==='Inactivo'?'selected':''}>Inactivo</option></select><button onclick="newUser()" class="btn btn-primary">Nuevo</button>`; return controls('personal',extra)+responsiveList(['Personal','DNI','Usuario','Rol','Estado','Acciones'],list.map(u=>[`${u.nombre} ${u.apellido}`,u.dni,u.usuario,u.rol==='general'?'General':'Parcial',statusBadge(u.estado),`<button class="btn btn-soft !px-3 !py-2 !w-auto" onclick="editUser('${u.id}')">Editar</button>`]),list.map(u=>`<div class="card p-4"><b>${u.nombre} ${u.apellido}</b><div class="text-sm font-semibold text-[#7d7466]">${u.rol==='general'?'Administrador general':'Administrador parcial'} · DNI ${u.dni}</div><div class="mt-2">${statusBadge(u.estado)}</div><div class="mt-3"><button class="btn btn-soft" onclick="editUser('${u.id}')">Editar</button></div></div>`));}
+function renderPlanes(){if(!isGeneral())return denied(); const rows=db.plans.map(p=>[p.nombre,p.clasesSemanales,money(p.precio),statusBadge(p.estado),p.descripcion||'-',`<button class="btn btn-soft !px-3 !py-2 !w-auto" onclick="editPlan('${p.id}')">Editar</button>`]); return `<div class="mb-4 flex justify-end"><button onclick="newPlan()" class="btn btn-primary">Nuevo</button></div>`+responsiveList(['Plan','Clases semanales','Precio','Estado','Descripción','Acciones'],rows,db.plans.map(p=>`<div class="card p-4"><b>${p.nombre}</b><div class="text-sm font-semibold text-[#7d7466]">${p.clasesSemanales} clase/s semanal/es · ${money(p.precio)}</div><div class="mt-2">${statusBadge(p.estado)}</div><div class="mt-3"><button class="btn btn-soft" onclick="editPlan('${p.id}')">Editar</button></div></div>`));}
+function renderClases(){const qDay=filters.dia||'', prof=filters.prof||''; let list=visibleClasses().filter(c=>!qDay||c.dia===qDay).filter(c=>!prof||c.personalId===prof); const extra=`<select class="input" onchange="filters.dia=this.value;render()"><option value="">Día</option>${days.map(d=>`<option ${qDay===d?'selected':''}>${d}</option>`).join('')}</select>${isGeneral()?`<select class="input" onchange="filters.prof=this.value;render()"><option value="">Profesor</option>${db.users.filter(u=>u.estado==='Activo').map(u=>`<option value="${u.id}" ${prof===u.id?'selected':''}>${u.nombre} ${u.apellido}</option>`).join('')}</select><button onclick="newClass()" class="btn btn-primary">Nuevo</button>`:''}`; return controls('clases',extra)+responsiveList(['Día','Hora','Profesor','Cupo','Estado','Alumnos','Acciones'],list.map(cl=>[cl.dia,cl.hora,userName(cl.personalId),cupoBadge(cl),statusBadge(cl.estado),cl.clientesIds.map(clientName).join(', ')||'-',classActions(cl)]),list.map(cl=>`<div class="card p-4"><div class="flex justify-between gap-3"><b>${cl.dia} ${cl.hora}</b>${cupoBadge(cl)}</div><div class="text-sm font-semibold text-[#7d7466]">${userName(cl.personalId)}</div><div class="mt-2 text-sm">${cl.clientesIds.map(clientName).join(', ')||'Sin alumnos'}</div><div class="mt-3">${classActions(cl)}</div></div>`));}
+function classActions(cl){const canEdit=isGeneral()||cl.personalId===currentUser.id;return `<div class="flex flex-wrap gap-2"><button class="btn btn-soft !px-3 !py-2 !w-auto" onclick="viewClass('${cl.id}')">Ver</button>${canEdit?`<button class="btn btn-soft !px-3 !py-2 !w-auto" onclick="editClass('${cl.id}')">Editar</button><button class="btn btn-gold !px-3 !py-2 !w-auto" onclick="assignClient('${cl.id}')">Asignar</button>`:''}</div>`}
+function renderHorarios(){let sc=db.schedules.filter(s=>isGeneral()||s.personalId===currentUser.id);return responsiveList(['Cliente','Personal','Día','Horario','Clase','Estado'],sc.map(s=>[clientName(s.clienteId),userName(s.personalId),s.dia,s.horario,s.claseId,statusBadge(s.estado)]),sc.map(s=>`<div class="card p-4"><b>${clientName(s.clienteId)}</b><div class="text-sm font-semibold text-[#7d7466]">${s.dia} ${s.horario} · ${userName(s.personalId)}</div><div class="mt-2">${statusBadge(s.estado)}</div></div>`));}
+function renderPagos(){if(!canViewPayments())return denied(); const q=filters.q||'', estado=filters.estado||''; let list=db.payments.filter(p=>!estado||p.estado===estado).filter(p=>{const c=getClient(p.clienteId);return !q||normalize((c?.nombre||'')+' '+(c?.apellido||'')+' '+(c?.dni||'')).includes(normalize(q))}); const extra=`<select class="input" onchange="filters.estado=this.value;render()"><option value="">Estado</option><option>Pagado</option><option>Pendiente</option><option>Vencido</option><option>Parcial</option></select>${isGeneral()?'<button onclick="newPayment()" class="btn btn-primary">Nuevo</button>':''}`; return controls('pagos',extra)+responsiveList(['Cliente','Plan','Monto','Mes','Medio','Estado','Acciones'],list.map(p=>[clientName(p.clienteId),getPlan(p.planId)?.nombre||'-',money(p.monto),p.mesAbonado,p.medioPago,statusBadge(p.estado),paymentActions(p)]),list.map(p=>`<div class="card p-4"><b>${clientName(p.clienteId)}</b><div class="text-sm font-semibold text-[#7d7466]">${getPlan(p.planId)?.nombre||'-'} · ${money(p.monto)} · ${p.mesAbonado}</div><div class="mt-2">${statusBadge(p.estado)}</div><div class="mt-3">${paymentActions(p)}</div></div>`));}
+function paymentActions(p){return `<div class="flex flex-wrap gap-2">${isGeneral()?`<button class="btn btn-soft !px-3 !py-2 !w-auto" onclick="editPayment('${p.id}')">Editar</button><button class="btn btn-danger !px-3 !py-2 !w-auto" onclick="deletePayment('${p.id}')">Eliminar</button>`:'-'}</div>`}
+function renderAgenda(){const byDay=days.map(d=>[d,visibleClasses().filter(c=>c.dia===d).sort((a,b)=>a.hora.localeCompare(b.hora))]); return `<div class="grid gap-4 xl:grid-cols-2">${byDay.map(([d,list])=>`<div class="card p-5"><h3 class="mb-3 text-xl font-black">${d}</h3>${list.length?list.map(cl=>`<button onclick="viewClass('${cl.id}')" class="mb-3 w-full rounded-2xl border border-[#eadfcf] bg-[#fffdf8] p-4 text-left"><div class="flex flex-wrap items-center justify-between gap-2"><b>${cl.hora} · ${userName(cl.personalId)}</b>${cupoBadge(cl)}</div><div class="mt-2 text-xs font-bold text-[#7d7466]">${cl.clientesIds.map(clientName).join(', ')||'Sin alumnos'}</div></button>`).join(''):'<p class="text-sm font-semibold text-[#7d7466]">Sin clases cargadas.</p>'}</div>`).join('')}</div>`}
+function renderReportes(){if(!isGeneral())return denied(); const incomeByPlan={}; db.payments.filter(p=>p.estado==='Pagado').forEach(p=>{const name=getPlan(p.planId)?.nombre||'Sin plan';incomeByPlan[name]=(incomeByPlan[name]||0)+Number(p.monto)}); const byMethod={}; db.payments.filter(p=>p.estado==='Pagado').forEach(p=>byMethod[p.medioPago]=(byMethod[p.medioPago]||0)+Number(p.monto)); return `<div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">${stat('Clientes activos',db.clients.filter(c=>c.estado==='Activo').length)}${stat('Clientes inactivos',db.clients.filter(c=>c.estado==='Inactivo').length)}${stat('Pagos pendientes',db.payments.filter(p=>p.estado==='Pendiente').length)}${stat('Pagos vencidos',db.payments.filter(p=>p.estado==='Vencido').length)}${stat('Clases completas',db.classes.filter(c=>c.clientesIds.length>=MAX_CUPO).length)}${stat('Cupos disponibles',db.classes.reduce((a,c)=>a+(MAX_CUPO-c.clientesIds.length),0))}</div><div class="mt-5 grid gap-4 lg:grid-cols-2"><div class="card p-5"><h3 class="text-xl font-black">Recaudación por plan</h3>${simpleBars(incomeByPlan)}</div><div class="card p-5"><h3 class="text-xl font-black">Recaudación por medio</h3>${simpleBars(byMethod)}</div></div>`}
+function simpleBars(obj){const max=Math.max(1,...Object.values(obj)); return Object.entries(obj).map(([k,v])=>`<div class="mt-4"><div class="flex justify-between text-sm font-bold"><span>${k}</span><span>${money(v)}</span></div><div class="mt-2 h-3 overflow-hidden rounded-full bg-[#efe3ce]"><div class="h-full rounded-full bg-[#8a9472]" style="width:${(v/max)*100}%"></div></div></div>`).join('')||'<p class="mt-3 text-sm font-semibold text-[#7d7466]">Sin datos.</p>'}
+function renderConfig(){if(!isGeneral())return denied(); return `<div class="card p-5"><h3 class="mb-4 text-xl font-black">Configuración general</h3><form onsubmit="saveSettings(event)" class="grid gap-4 md:grid-cols-2"><div><label class="label">Nombre del estudio</label><input name="studioName" class="input" value="${db.settings.studioName}"></div><div><label class="label">Personal parcial puede ver pagos</label><select name="allowPartialPaymentsView" class="input"><option value="false" ${!db.settings.allowPartialPaymentsView?'selected':''}>No</option><option value="true" ${db.settings.allowPartialPaymentsView?'selected':''}>Sí</option></select></div><button class="btn btn-primary md:col-span-2">Guardar configuración</button></form><div class="mt-5 rounded-2xl bg-[#f3eadb] p-4 text-sm font-semibold text-[#655c52]">La estructura está preparada para conectar Firebase Authentication y Firestore. Este HTML funciona como versión mínima autónoma.</div></div>`}
+function renderPerfil(){return `<div class="card p-5"><h3 class="mb-4 text-xl font-black">Perfil de usuario</h3><div class="grid gap-3 md:grid-cols-2"><p><b>Nombre:</b> ${currentUser.nombre} ${currentUser.apellido}</p><p><b>DNI:</b> ${currentUser.dni}</p><p><b>Usuario:</b> ${currentUser.usuario}</p><p><b>Rol:</b> ${isGeneral()?'Administrador general':'Administrador parcial'}</p><p><b>Estado:</b> ${currentUser.estado}</p><p><b>Teléfono:</b> ${currentUser.telefono}</p></div></div>`}
+function denied(){return `<div class="card p-6"><h3 class="text-xl font-black">Acceso restringido</h3><p class="mt-2 text-sm font-semibold text-[#7d7466]">Tu rol no tiene permiso para ver o modificar esta sección.</p></div>`}
+
+function formGrid(fields){return `<div class="grid gap-4 md:grid-cols-2">${fields.map(f=>`<div class="${f.full?'md:col-span-2':''}"><label class="label">${f.label}</label>${f.html}</div>`).join('')}</div>`}
+function clientForm(c={}){return `<form onsubmit="saveClient(event,'${c.id||''}')">${formGrid([
+{label:'Apellido',html:`<input required name="apellido" class="input" value="${c.apellido||''}">`},{label:'Nombre',html:`<input required name="nombre" class="input" value="${c.nombre||''}">`},{label:'DNI',html:`<input required name="dni" class="input" value="${c.dni||''}">`},{label:'Fecha nacimiento',html:`<input type="date" name="fechaNacimiento" class="input" value="${c.fechaNacimiento||''}">`},{label:'Teléfono',html:`<input name="telefono" class="input" value="${c.telefono||''}">`},{label:'Dirección',html:`<input name="direccion" class="input" value="${c.direccion||''}">`},{label:'Estado',html:`<select name="estado" class="input"><option ${c.estado==='Activo'?'selected':''}>Activo</option><option ${c.estado==='Inactivo'?'selected':''}>Inactivo</option></select>`},{label:'Plan',html:`<select required name="planId" class="input">${db.plans.filter(p=>p.estado==='Activo'||p.id===c.planId).map(p=>`<option value="${p.id}" ${c.planId===p.id?'selected':''}>${p.nombre}</option>`).join('')}</select>`},{label:'Fecha alta',html:`<input type="date" name="fechaAlta" class="input" value="${c.fechaAlta||todayISO()}">`},{label:'Observaciones',full:true,html:`<textarea name="observaciones" class="input">${c.observaciones||''}</textarea>`}])}<button class="btn btn-primary mt-5">Guardar</button></form>`}
+function newClient(){openModal('Nuevo cliente','Alta de cliente',clientForm())}
+function editClient(id){openModal('Editar cliente','Modificación de cliente',clientForm(getClient(id)))}
+function saveClient(e,id){e.preventDefault(); if(!isGeneral())return toast('Permiso denegado'); const fd=Object.fromEntries(new FormData(e.target).entries()); const dup=db.clients.find(c=>c.dni===fd.dni&&c.id!==id); if(dup)return toast('Ya existe un cliente con ese DNI'); if(id){Object.assign(getClient(id),fd,{updatedAt:now()})}else{db.clients.push({id:uid(),...fd,createdAt:now(),updatedAt:now()})} saveDB();closeModal();render();toast('Cliente guardado')}
+function lowClient(id){if(!isGeneral())return; const c=getClient(id); const activePays=db.payments.some(p=>p.clienteId===id&&['Pendiente','Vencido','Parcial'].includes(p.estado)); if(activePays&&!confirm('El cliente tiene pagos activos. Confirmar baja.'))return; c.estado='Inactivo';c.updatedAt=now();saveDB();render();toast('Cliente dado de baja')}
+function viewClient(id){const c=getClient(id); const pays=db.payments.filter(p=>p.clienteId===id); const cls=db.classes.filter(cl=>cl.clientesIds.includes(id)); openModal('Ficha de cliente',`${c.nombre} ${c.apellido}`,`<div class="grid gap-4 md:grid-cols-2"><div class="card p-4"><b>Datos</b><p>DNI: ${c.dni}</p><p>Teléfono: ${c.telefono||'-'}</p><p>Dirección: ${c.direccion||'-'}</p><p>Plan: ${getPlan(c.planId)?.nombre||'-'}</p><p>Estado: ${c.estado}</p></div><div class="card p-4"><b>Pago</b><p>Estado: ${paymentSummary(id)}</p><p>Último pago: ${pays[0]?.fechaPago||'-'}</p><p>Próximo vencimiento: día 10 del mes siguiente</p><p>Deuda: ${pays.some(p=>['Pendiente','Vencido','Parcial'].includes(p.estado))?'Tiene deuda':'Sin deuda registrada'}</p></div><div class="card p-4 md:col-span-2"><b>Horarios</b><p>${cls.map(cl=>`${cl.dia} ${cl.hora} · ${userName(cl.personalId)}`).join('<br>')||'Sin horarios asignados'}</p></div><div class="card p-4 md:col-span-2"><b>Historial de pagos</b><p>${pays.map(p=>`${p.mesAbonado} · ${money(p.monto)} · ${p.estado}`).join('<br>')||'Sin pagos'}</p></div></div>`)}
+
+function userForm(u={}){return `<form onsubmit="saveUser(event,'${u.id||''}')">${formGrid([{label:'Apellido',html:`<input required name="apellido" class="input" value="${u.apellido||''}">`},{label:'Nombre',html:`<input required name="nombre" class="input" value="${u.nombre||''}">`},{label:'DNI',html:`<input required name="dni" class="input" value="${u.dni||''}">`},{label:'Fecha nacimiento',html:`<input type="date" name="fechaNacimiento" class="input" value="${u.fechaNacimiento||''}">`},{label:'Dirección',html:`<input name="direccion" class="input" value="${u.direccion||''}">`},{label:'Teléfono',html:`<input name="telefono" class="input" value="${u.telefono||''}">`},{label:'Títulos',html:`<input name="titulos" class="input" value="${u.titulos||''}">`},{label:'Usuario',html:`<input required name="usuario" class="input" value="${u.usuario||''}">`},{label:'Clave',html:`<input required name="passwordHash" class="input" value="${u.passwordHash||''}">`},{label:'Rol',html:`<select name="rol" class="input"><option value="general" ${u.rol==='general'?'selected':''}>Administrador general</option><option value="parcial" ${u.rol==='parcial'?'selected':''}>Administrador parcial</option></select>`},{label:'Estado',html:`<select name="estado" class="input"><option ${u.estado==='Activo'?'selected':''}>Activo</option><option ${u.estado==='Inactivo'?'selected':''}>Inactivo</option></select>`}])}<button class="btn btn-primary mt-5">Guardar</button></form>`}
+function newUser(){openModal('Nuevo personal','Alta de personal',userForm())}
+function editUser(id){openModal('Editar personal','Modificación de usuario',userForm(getUser(id)))}
+function saveUser(e,id){e.preventDefault(); if(!isGeneral())return; const fd=Object.fromEntries(new FormData(e.target).entries()); if(db.users.find(u=>u.dni===fd.dni&&u.id!==id))return toast('DNI duplicado en personal'); if(db.users.find(u=>u.usuario===fd.usuario&&u.id!==id))return toast('Usuario duplicado'); if(id){Object.assign(getUser(id),fd,{updatedAt:now()})}else{db.users.push({id:uid(),...fd,horariosAsignados:[],createdAt:now(),updatedAt:now()})} saveDB();closeModal();render();toast('Personal guardado')}
+
+function planForm(p={}){return `<form onsubmit="savePlan(event,'${p.id||''}')">${formGrid([{label:'Nombre del plan',html:`<input required name="nombre" class="input" value="${p.nombre||''}">`},{label:'Clases semanales',html:`<input required type="number" min="1" name="clasesSemanales" class="input" value="${p.clasesSemanales||1}">`},{label:'Precio',html:`<input required type="number" min="0" name="precio" class="input" value="${p.precio||0}">`},{label:'Estado',html:`<select name="estado" class="input"><option ${p.estado==='Activo'?'selected':''}>Activo</option><option ${p.estado==='Inactivo'?'selected':''}>Inactivo</option></select>`},{label:'Descripción',full:true,html:`<textarea name="descripcion" class="input">${p.descripcion||''}</textarea>`}])}<button class="btn btn-primary mt-5">Guardar</button></form>`}
+function newPlan(){openModal('Nuevo plan','Crear plan y precio',planForm())}
+function editPlan(id){openModal('Editar plan','Modificar precio o estado',planForm(getPlan(id)))}
+function savePlan(e,id){e.preventDefault(); if(!isGeneral())return; const fd=Object.fromEntries(new FormData(e.target).entries()); fd.clasesSemanales=Number(fd.clasesSemanales);fd.precio=Number(fd.precio); if(id){Object.assign(getPlan(id),fd,{updatedAt:now()})}else{db.plans.push({id:uid(),...fd,createdAt:now(),updatedAt:now()})} saveDB();closeModal();render();toast('Plan guardado')}
+
+function classForm(cl={}){const activeUsers=db.users.filter(u=>u.estado==='Activo'); return `<form onsubmit="saveClass(event,'${cl.id||''}')">${formGrid([{label:'Día',html:`<select required name="dia" class="input"><option value="">Seleccionar</option>${days.map(d=>`<option ${cl.dia===d?'selected':''}>${d}</option>`).join('')}</select>`},{label:'Hora',html:`<input required type="time" name="hora" class="input" value="${cl.hora||''}">`},{label:'Personal a cargo',html:`<select required name="personalId" class="input">${activeUsers.map(u=>`<option value="${u.id}" ${cl.personalId===u.id?'selected':''}>${u.nombre} ${u.apellido}</option>`).join('')}</select>`},{label:'Estado',html:`<select name="estado" class="input"><option ${cl.estado==='Activa'?'selected':''}>Activa</option><option ${cl.estado==='Cancelada'?'selected':''}>Cancelada</option><option ${cl.estado==='Finalizada'?'selected':''}>Finalizada</option></select>`},{label:'Observaciones',full:true,html:`<textarea name="observaciones" class="input">${cl.observaciones||''}</textarea>`}])}<button class="btn btn-primary mt-5">Guardar</button></form>`}
+function newClass(){openModal('Nueva clase','Crear día y horario',classForm())}
+function editClass(id){const cl=db.classes.find(c=>c.id===id); if(!isGeneral()&&cl.personalId!==currentUser.id)return toast('No podés modificar horarios ajenos'); openModal('Editar clase','Modificar clase',classForm(cl))}
+function saveClass(e,id){e.preventDefault(); const fd=Object.fromEntries(new FormData(e.target).entries()); if(!fd.dia||!fd.hora)return toast('Día y hora obligatorios'); if(!fd.personalId)return toast('La clase debe tener personal asignado'); if(!isGeneral()){const cl=db.classes.find(c=>c.id===id); if(!cl||cl.personalId!==currentUser.id)return toast('Permiso denegado')} if(id){const cl=db.classes.find(c=>c.id===id); Object.assign(cl,fd,{updatedAt:now()}); syncSchedules()}else{if(!isGeneral())return toast('Solo el administrador general puede crear clases'); db.classes.push({id:uid(),...fd,clientesIds:[],cupoMaximo:MAX_CUPO,createdAt:now(),updatedAt:now()})} saveDB();closeModal();render();toast('Clase guardada')}
+function viewClass(id){const cl=db.classes.find(c=>c.id===id); openModal('Detalle de clase',`${cl.dia} ${cl.hora}`,`<div class="space-y-4"><div class="card p-4"><p><b>Profesor:</b> ${userName(cl.personalId)}</p><p><b>Cupo:</b> ${cl.clientesIds.length}/${MAX_CUPO}</p><p><b>Estado:</b> ${cl.estado}</p></div><div class="card p-4"><b>Alumnos</b><div class="mt-3 space-y-2">${cl.clientesIds.map(cid=>`<div class="flex items-center justify-between gap-2 rounded-2xl bg-[#f7efe2] p-3"><span>${clientName(cid)}</span>${(isGeneral()||cl.personalId===currentUser.id)?`<button class="btn btn-danger !w-auto !px-3 !py-2" onclick="removeClientFromClass('${cl.id}','${cid}')">Quitar</button>`:''}</div>`).join('')||'Sin alumnos'}</div></div>${(isGeneral()||cl.personalId===currentUser.id)?`<button onclick="assignClient('${cl.id}')" class="btn btn-primary">Agregar cliente</button>`:''}</div>`)}
+function assignClient(id){const cl=db.classes.find(c=>c.id===id); if(!isGeneral()&&cl.personalId!==currentUser.id)return toast('No podés modificar horarios ajenos'); const opts=visibleClients().filter(c=>c.estado==='Activo'&&!cl.clientesIds.includes(c.id)).map(c=>`<option value="${c.id}">${c.nombre} ${c.apellido} · ${getPlan(c.planId)?.nombre||'-'}</option>`).join(''); openModal('Asignar cliente','Validación de cupo y plan',`<form onsubmit="addClientToClass(event,'${id}')"><label class="label">Cliente</label><select required name="clienteId" class="input"><option value="">Seleccionar cliente</option>${opts}</select><button class="btn btn-primary mt-5">Asignar</button></form>`)}
+function addClientToClass(e,id){e.preventDefault(); const cid=new FormData(e.target).get('clienteId'); const cl=db.classes.find(c=>c.id===id); const validation=canAssignClient(cid,cl); if(validation!==true)return toast(validation); cl.clientesIds.push(cid); cl.updatedAt=now(); syncSchedules(); saveDB(); closeModal(); render(); toast('Cliente asignado')}
+function removeClientFromClass(clid,cid){const cl=db.classes.find(c=>c.id===clid); if(!isGeneral()&&cl.personalId!==currentUser.id)return; cl.clientesIds=cl.clientesIds.filter(id=>id!==cid); syncSchedules(); saveDB(); closeModal(); viewClass(clid); render(); toast('Cliente quitado')}
+function canAssignClient(cid,cl){if(cl.clientesIds.length>=MAX_CUPO)return 'El horario está completo'; if(cl.clientesIds.includes(cid))return 'El cliente ya está asignado'; const client=getClient(cid); if(!client.planId)return 'El cliente debe tener plan asignado'; const plan=getPlan(client.planId); const weekly=db.classes.filter(c=>c.clientesIds.includes(cid)&&c.estado==='Activa').length; if(weekly>=Number(plan?.clasesSemanales||0))return 'El cliente supera la cantidad de clases semanales de su plan'; return true}
+function syncSchedules(){db.schedules=buildSchedules(db)}
+
+function paymentForm(p={}){return `<form onsubmit="savePayment(event,'${p.id||''}')">${formGrid([{label:'Cliente',html:`<select required name="clienteId" class="input" onchange="fillPlanAndAmount(this.value)"><option value="">Seleccionar</option>${db.clients.map(c=>`<option value="${c.id}" ${p.clienteId===c.id?'selected':''}>${c.nombre} ${c.apellido}</option>`).join('')}</select>`},{label:'Plan',html:`<select required id="payPlan" name="planId" class="input">${db.plans.map(pl=>`<option value="${pl.id}" ${p.planId===pl.id?'selected':''}>${pl.nombre}</option>`).join('')}</select>`},{label:'Monto',html:`<input required id="payAmount" type="number" name="monto" class="input" value="${p.monto||0}">`},{label:'Fecha de pago',html:`<input type="date" name="fechaPago" class="input" value="${p.fechaPago||todayISO()}">`},{label:'Mes abonado',html:`<input required type="month" name="mesAbonado" class="input" value="${p.mesAbonado||monthKey()}">`},{label:'Medio de pago',html:`<select name="medioPago" class="input">${payMethods.map(m=>`<option ${p.medioPago===m?'selected':''}>${m}</option>`).join('')}</select>`},{label:'Estado',html:`<select name="estado" class="input"><option ${p.estado==='Pagado'?'selected':''}>Pagado</option><option ${p.estado==='Pendiente'?'selected':''}>Pendiente</option><option ${p.estado==='Vencido'?'selected':''}>Vencido</option><option ${p.estado==='Parcial'?'selected':''}>Parcial</option></select>`},{label:'Observaciones',full:true,html:`<textarea name="observaciones" class="input">${p.observaciones||''}</textarea>`}])}<button class="btn btn-primary mt-5">Guardar</button></form>`}
+function fillPlanAndAmount(cid){const c=getClient(cid); if(!c)return; const p=getPlan(c.planId); document.getElementById('payPlan').value=p.id; document.getElementById('payAmount').value=p.precio}
+function newPayment(){openModal('Nuevo pago','Registrar pago mensual',paymentForm())}
+function editPayment(id){openModal('Editar pago','Modificar pago',paymentForm(db.payments.find(p=>p.id===id)))}
+function savePayment(e,id){e.preventDefault(); if(!isGeneral())return toast('Solo administrador general'); const fd=Object.fromEntries(new FormData(e.target).entries()); fd.monto=Number(fd.monto); fd.registradoPor=currentUser.usuario; if(id){Object.assign(db.payments.find(p=>p.id===id),fd,{updatedAt:now()})}else{db.payments.push({id:uid(),...fd,createdAt:now(),updatedAt:now()})} saveDB();closeModal();render();toast('Pago guardado')}
+function deletePayment(id){if(!isGeneral())return toast('Solo administrador general'); if(!confirm('Confirmar eliminación de pago'))return; db.payments=db.payments.filter(p=>p.id!==id);saveDB();render();toast('Pago eliminado')}
+function saveSettings(e){e.preventDefault(); const fd=Object.fromEntries(new FormData(e.target).entries()); db.settings.studioName=fd.studioName; db.settings.allowPartialPaymentsView=fd.allowPartialPaymentsView==='true'; saveDB(); render(); toast('Configuración guardada')}
+
+function resetDemo(){localStorage.removeItem('nihuenPilatesDB'); db=normalizeDB(structuredClone(initialData)); db.schedules=buildSchedules(db); saveDB(); render(); toast('Datos reiniciados')}
+
+document.getElementById('loginForm').addEventListener('submit',e=>{e.preventDefault();const user=document.getElementById('loginUser').value.trim();const pass=document.getElementById('loginPass').value;const found=db.users.find(u=>u.usuario===user&&u.passwordHash===pass&&u.estado==='Activo'); if(!found){document.getElementById('loginError').classList.remove('hidden');return} currentUser=found;document.getElementById('loginView').classList.add('hidden');document.getElementById('appView').classList.remove('hidden');currentSection='dashboard';render()});
+document.getElementById('logoutBtn').onclick=()=>{currentUser=null;document.getElementById('appView').classList.add('hidden');document.getElementById('loginView').classList.remove('hidden')};
+document.getElementById('menuBtn').onclick=()=>{document.getElementById('sidebar').classList.add('open');document.getElementById('overlay').classList.add('show')};
+document.getElementById('overlay').onclick=()=>{document.getElementById('sidebar').classList.remove('open');document.getElementById('overlay').classList.remove('show')};
+document.getElementById('modal').addEventListener('click',e=>{if(e.target.id==='modal')closeModal()});
+initFirebaseRealtime().then(()=>{const el=document.getElementById('syncStatus'); if(el) el.textContent=firebaseOnline?'Firebase conectado: sincronización activa':'Modo local sin Firebase';});
+</script>
+
+<!--
+FIREBASE ACTIVO
+Este archivo ya inicializa Firebase y Firestore con la configuración entregada.
+Ruta usada para sincronización inmediata: appState/main.
+La app guarda todo el estado dentro del campo payload y escucha cambios con onSnapshot.
+Para producción estricta se recomienda migrar a colecciones separadas: users, clients, plans, classes, schedules, payments, settings.
+Reglas de Firestore necesarias para probar esta versión: permitir lectura/escritura autenticada o temporalmente lectura/escritura del documento appState/main.
+La seguridad final debe reforzarse con Firebase Authentication, reglas por rol y validaciones backend.
+-->
+</body>
+</html>
