@@ -5965,126 +5965,2350 @@ window.openSelectedWhatsAppReminders = avisarSeleccionadosPorWhatsApp;
 </script>
 <!-- NIH_MANUAL_PAYMENTS_FLOATING_MENU_FIX_END -->
 
-
-
-<!-- NIH_WEEKLY_ADMIN_LOGIC_PATCH_START -->
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<!-- NIH_REAL_STUDIO_ADMIN_WEEKLY_LOGIC_START -->
+<style>
+  .nih-alert{border:1px solid #d8b56d;background:#fff7df;color:#5f4d24;border-radius:18px;padding:14px 16px;font-weight:800;margin:0 0 16px}
+  .nih-alert button{width:auto!important;margin-left:10px}
+  .nih-schedule-editor{display:grid;gap:10px}
+  .nih-schedule-row{display:grid;grid-template-columns:1fr 1fr 1.2fr auto;gap:10px;align-items:end;border:1px solid var(--line,#DED6C8);background:#fffdf8;border-radius:14px;padding:10px}
+  .nih-week-grid{overflow-x:auto;border:1px solid var(--line,#DED6C8);border-radius:18px;background:#fffdf8}
+  .nih-week-table{width:100%;min-width:860px;border-collapse:separate;border-spacing:0}
+  .nih-week-table th,.nih-week-table td{border-bottom:1px solid #eadfcf;border-right:1px solid #eadfcf;vertical-align:top;padding:10px}
+  .nih-week-table th{background:#f7f1e6;text-align:left;font-weight:900}
+  .nih-week-time{width:90px;font-weight:900;color:#665d52;background:#fbf7ee}
+  .nih-class-cell{display:block;width:100%;text-align:left;border:1px solid #ded6c8;border-radius:14px;background:#fff;padding:10px;margin:0;cursor:pointer}
+  .nih-class-cell.in-progress{border-color:#85c99b;background:#eefaf1;box-shadow:0 8px 24px rgba(34,197,94,.12)}
+  .nih-class-cell:hover{border-color:#9aa47d;box-shadow:0 8px 24px rgba(35,67,50,.08)}
+  .nih-class-cell b{display:block;font-size:13px}
+  .nih-class-cell small{display:block;color:#66706a;font-weight:800;margin-top:4px}
+  .nih-class-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+  .nih-class-teacher{font-size:12px;font-weight:950;color:#1f2a24}
+  .nih-class-students{max-height:72px;overflow:auto;margin-top:7px;padding-right:2px;color:#66706a;font-size:12px;font-weight:800;line-height:1.35}
+  .nih-class-badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .nih-badge-mini{display:inline-flex;align-items:center;border-radius:999px;border:1px solid #ded6c8;background:#f7f4ef;padding:4px 8px;font-size:11px;font-weight:950;color:#4b554c}
+  .nih-badge-mini.progress{border-color:#85c99b;background:#dcfce7;color:#166534}
+  .nih-student-row{display:grid;grid-template-columns:minmax(160px,1fr) auto auto;gap:10px;align-items:center;border:1px solid #eadfcf;background:#fffdf8;border-radius:14px;padding:10px}
+  .nih-inline-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+  .nih-payment-select{min-width:118px;border:1px solid #ded6c8;border-radius:999px;background:#fff;padding:8px 10px;font-weight:900}
+  .nih-section-title{font-size:18px;font-weight:950;margin:0 0 12px}
+  .nih-muted{color:#66706a;font-weight:750;font-size:13px}
+  .nih-export-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+  @media(max-width:780px){
+    .nih-schedule-row{grid-template-columns:1fr}
+    .nih-student-row{grid-template-columns:1fr}
+    .nih-inline-actions{justify-content:flex-start}
+    .topbar-search{display:none}
+  }
+</style>
 <script>
 (function(){
-  'use strict';
-  var WEEK_DAYS = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-  var PAY_STATES = ['Pagado','Pendiente','Debe'];
-  var VERIFY_STATES = ['pendiente_verificacion','aprobado','rechazado'];
-  function esc(v){return String(v == null ? '' : v).replace(/[&<>"]/g,function(ch){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch];});}
-  function attr(v){return esc(v).replace(/'/g,'&#39;');}
-  function norm(v){return String(v || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();}
-  function fullName(c){return ((c && c.apellido) ? c.apellido + ' ' : '') + ((c && c.nombre) ? c.nombre : '');}
-  function sortedClients(list){return (list || []).slice().sort(function(a,b){return norm(fullName(a)).localeCompare(norm(fullName(b)),'es');});}
-  function arr(name){ if(!db[name] || !Array.isArray(db[name])) db[name]=[]; return db[name]; }
-  function teacherOptions(selected){return arr('users').filter(function(u){return u.estado !== 'Inactivo';}).map(function(u){return '<option value="'+attr(u.id)+'" '+(selected===u.id?'selected':'')+'>'+esc((u.nombre||'')+' '+(u.apellido||''))+'</option>';}).join('');}
-  function planOptions(selected){return arr('plans').filter(function(p){return p.estado !== 'Inactivo';}).map(function(p){return '<option value="'+attr(p.id)+'" '+(selected===p.id?'selected':'')+'>'+esc(p.nombre||'-')+'</option>';}).join('');}
-  function clientOptions(selected){return sortedClients(arr('clients')).map(function(c){return '<option value="'+attr(c.id)+'" '+(selected===c.id?'selected':'')+'>'+esc(fullName(c))+'</option>';}).join('');}
-  function dayName(v){var n=norm(v); return WEEK_DAYS.find(function(d){return norm(d)===n;}) || (v || '');}
-  function clientSchedule(c){return Array.isArray(c && c.scheduleDays) ? c.scheduleDays : [];}
-  function scheduleLabel(c){var s=clientSchedule(c); return s.length ? s.map(function(x){return dayName(x.day)+' '+(x.time||'')+(x.teacherName?' · '+x.teacherName:'');}).join('<br>') : '<span class="text-sm font-bold text-[#66706A]">Sin asignación</span>';}
-  function paymentState(c){return (c && (c.paymentStatus || c.estadoPagoRapido)) || 'Pendiente';}
-  function setClientPaymentStatus(id,status){var c=getClient(id); if(!c) return; c.paymentStatus=status; c.estadoPagoRapido=status; c.updatedAt=now(); saveDB(); render(); toast('Estado de pago actualizado');}
-  window.setClientPaymentStatus=setClientPaymentStatus;
-  function migrateWeeklyModel(){
-    arr('attendance'); arr('paymentReports'); arr('importLogs');
-    sortedClients(arr('clients')).forEach(function(c){
-      if(!Array.isArray(c.scheduleDays) || !c.scheduleDays.length){
-        var fromClasses=arr('classes').filter(function(cl){return (cl.clientesIds||[]).includes(c.id);}).map(function(cl){var u=getUser(cl.personalId)||{};return {day:dayName(cl.dia),time:cl.hora||cl.horario||'',teacherId:cl.personalId||'',teacherName:((u.nombre||'')+' '+(u.apellido||'')).trim()};});
-        var fromSchedules=arr('schedules').filter(function(s){return s.clienteId===c.id;}).map(function(s){var u=getUser(s.personalId)||{};return {day:dayName(s.dia),time:s.horario||s.hora||'',teacherId:s.personalId||'',teacherName:((u.nombre||'')+' '+(u.apellido||'')).trim()};});
-        c.scheduleDays=(fromClasses.length?fromClasses:fromSchedules).filter(function(x,i,a){return x.day && x.time && a.findIndex(function(y){return norm(y.day)===norm(x.day)&&y.time===x.time;})===i;});
-      }
-      if(!c.paymentStatus){
-        var last=arr('payments').filter(function(p){return p.clienteId===c.id;}).sort(function(a,b){return String(b.fechaPago||b.createdAt||'').localeCompare(String(a.fechaPago||a.createdAt||''));})[0];
-        c.paymentStatus=last ? (last.estado==='Vencido'?'Debe':last.estado) : 'Pendiente';
+  const WEEK_DAYS = ['Lunes','Martes','Miercoles','Jueves','Viernes','Sabado'];
+  const PAYMENT_STATES = ['Pagado','Pendiente','Debe'];
+  const REPORT_STATES = ['pendiente_verificacion','aprobado','rechazado'];
+  const oldNormalizeDB = typeof normalizeDB === 'function' ? normalizeDB : null;
+  const oldSaveDB = typeof saveDB === 'function' ? saveDB : null;
+  const oldConfirmExcelImport = typeof confirmExcelImport === 'function' ? confirmExcelImport : null;
+  const oldMergeImportedData = typeof mergeImportedData === 'function' ? mergeImportedData : null;
+
+  function esc(v){
+    if(typeof escapeHtml === 'function') return escapeHtml(v);
+    return String(v == null ? '' : v).replace(/[&<>]/g,function(ch){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[ch]});
+  }
+  function attr(v){
+    if(typeof escapeAttr === 'function') return escapeAttr(v);
+    return esc(v).replace(/"/g,'&quot;');
+  }
+  function ntext(value){
+    return String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim();
+  }
+  window.normalizeText = ntext;
+  function fullName(c){return String(((c && c.nombre) || '') + ' ' + ((c && c.apellido) || '')).replace(/\s+/g,' ').trim() || 'Sin nombre'}
+  function compareByName(a,b){return ntext(fullName(a)).localeCompare(ntext(fullName(b)),'es')}
+  function getArr(name){return Array.isArray(db && db[name]) ? db[name] : []}
+  function dayLabel(value){
+    const key = ntext(value);
+    if(key.startsWith('lun')) return 'Lunes';
+    if(key.startsWith('mar')) return 'Martes';
+    if(key.startsWith('mie')) return 'Miercoles';
+    if(key.startsWith('jue')) return 'Jueves';
+    if(key.startsWith('vie')) return 'Viernes';
+    if(key.startsWith('sab')) return 'Sabado';
+    return '';
+  }
+  function dayKey(value){return ntext(dayLabel(value) || value)}
+  function timeLabel(value){
+    const raw = String(value || '').trim();
+    const m = raw.match(/(\d{1,2})(?::?(\d{2}))?/);
+    if(!m) return '';
+    return String(Number(m[1])).padStart(2,'0') + ':' + String(m[2] || '00').padStart(2,'0');
+  }
+  function clientPlan(c){return typeof getPlan === 'function' ? getPlan(c && c.planId) : getArr('plans').find(p=>p.id === (c && c.planId))}
+  function teacherName(id){return typeof userName === 'function' ? userName(id) : fullName(getArr('users').find(u=>u.id===id))}
+  function status(s){return typeof statusBadge === 'function' ? statusBadge(s || '-') : '<span class="badge">'+esc(s || '-')+'</span>'}
+  function cash(n){return typeof money === 'function' ? money(n) : '$ ' + Number(n || 0).toLocaleString('es-AR')}
+  function today(){return typeof todayISO === 'function' ? todayISO() : new Date().toISOString().slice(0,10)}
+  function month(){return typeof monthKey === 'function' ? monthKey() : new Date().toISOString().slice(0,7)}
+  function newId(){return typeof uid === 'function' ? uid() : 'id_' + Math.random().toString(36).slice(2) + Date.now().toString(36)}
+  function stamp(){return typeof now === 'function' ? now() : new Date().toISOString()}
+  function selected(a,b){return String(a || '') === String(b || '') ? 'selected' : ''}
+
+  function readClassAssignments(data, clientId){
+    const out = [];
+    (data.classes || []).forEach(function(cl){
+      if((cl.clientesIds || []).includes(clientId)){
+        out.push({
+          day: dayLabel(cl.dia) || cl.dia,
+          time: timeLabel(cl.hora),
+          teacherId: cl.personalId || '',
+          teacherName: teacherName(cl.personalId)
+        });
       }
     });
+    (data.schedules || []).forEach(function(s){
+      if(s.clienteId === clientId && !out.some(x=>dayKey(x.day)===dayKey(s.dia) && x.time===timeLabel(s.horario))){
+        out.push({
+          day: dayLabel(s.dia) || s.dia,
+          time: timeLabel(s.horario),
+          teacherId: s.personalId || '',
+          teacherName: teacherName(s.personalId)
+        });
+      }
+    });
+    return out.filter(x=>x.day && x.time);
   }
-  function rebuildClassesFromClients(){
-    var map={};
-    sortedClients(arr('clients')).forEach(function(c){clientSchedule(c).forEach(function(s){
-      var d=dayName(s.day); var t=s.time || ''; if(!d || !t) return;
-      var key=norm(d)+'|'+t+'|'+(s.teacherId||'');
-      if(!map[key]) map[key]={id:'weekly_'+norm(d).replace(/\s/g,'')+'_'+t.replace(/[^0-9]/g,'')+'_'+(s.teacherId||'sinprof'),dia:d,hora:t,personalId:s.teacherId||'',clientesIds:[],cupoMaximo:MAX_CUPO,estado:'Activa',observaciones:'Clase fija semanal',weeklyGenerated:true,createdAt:now(),updatedAt:now()};
-      if(!map[key].clientesIds.includes(c.id)) map[key].clientesIds.push(c.id);
-    });});
-    var manual=arr('classes').filter(function(cl){return !cl.weeklyGenerated && !(cl.id||'').startsWith('weekly_');});
-    db.classes=manual.concat(Object.keys(map).map(function(k){return map[k];}));
-    db.schedules=Object.keys(map).flatMap(function(k){var cl=map[k]; return cl.clientesIds.map(function(cid){return {id:'sch_'+cl.id+'_'+cid,clienteId:cid,personalId:cl.personalId,dia:cl.dia,horario:cl.hora,claseId:cl.id,estado:'Activo',weeklyGenerated:true,createdAt:now(),updatedAt:now()};});});
+  function cleanScheduleDaysForClient(c,data){
+    let list = Array.isArray(c.scheduleDays) ? c.scheduleDays : [];
+    if(!list.length) list = readClassAssignments(data || db || {}, c.id);
+    const seen = new Set();
+    return list.map(function(item){
+      const teacherId = item.teacherId || item.personalId || '';
+      return {
+        day: dayLabel(item.day || item.dia) || item.day || item.dia || '',
+        time: timeLabel(item.time || item.horario || item.hora),
+        teacherId: teacherId,
+        teacherName: item.teacherName || teacherName(teacherId)
+      };
+    }).filter(function(item){
+      const key = dayKey(item.day) + '|' + item.time + '|' + item.teacherId;
+      if(!item.day || !item.time || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   }
-  function persistAndRefresh(msg){try{rebuildClassesFromClients(); saveDB(); render(); if(msg) toast(msg);}catch(err){console.error('Firestore or render error',err); toast('No se pudo guardar. Revisar consola y reglas de Firestore.');}}
-  migrateWeeklyModel(); rebuildClassesFromClients(); saveLocal();
-  try{var idx=sections.findIndex(function(s){return s[0]==='horarios';}); if(idx>=0) sections.splice(idx,1);}catch(e){}
-  if(typeof allowedSections==='function'){
-    var oldAllowed=allowedSections;
-    window.allowedSections=function(){return oldAllowed().filter(function(s){return s[0] !== 'horarios';});};
-    allowedSections=window.allowedSections;
+  function ensureStudioData(data){
+    data = data || {};
+    ['users','clients','plans','classes','schedules','payments','attendance','paymentReports'].forEach(function(k){
+      if(!Array.isArray(data[k])) data[k] = [];
+    });
+    if(!data.settings) data.settings = {};
+    data.clients.forEach(function(c){
+      c.scheduleDays = cleanScheduleDaysForClient(c,data);
+      c.paymentStatus = c.paymentStatus || quickPaymentStatus(c,data);
+    });
+    data.clients.sort(compareByName);
+    syncClassesAndSchedules(data);
+    return data;
   }
-  var oldNormalizeDB = normalizeDB;
-  window.normalizeDB = function(data){var out=oldNormalizeDB(data); if(!Array.isArray(out.attendance)) out.attendance=[]; if(!Array.isArray(out.paymentReports)) out.paymentReports=[]; if(!Array.isArray(out.importLogs)) out.importLogs=[]; return out;};
-  normalizeDB=window.normalizeDB;
-
-  window.clientForm=function(c){c=c||{}; var s=clientSchedule(c); if(!s.length) s=[{}];
-    var rows=s.map(function(x,i){return '<div class="schedule-row grid gap-3 md:grid-cols-4" data-row="'+i+'"><label class="label">Día<select name="scheduleDay" class="input">'+WEEK_DAYS.map(function(d){return '<option value="'+d+'" '+(dayName(x.day)===d?'selected':'')+'>'+d+'</option>';}).join('')+'</select></label><label class="label">Horario<input type="time" name="scheduleTime" class="input" value="'+attr(x.time||'')+'"></label><label class="label">Profesora<select name="scheduleTeacher" class="input"><option value="">Sin profesora</option>'+teacherOptions(x.teacherId)+'</select></label><div class="flex items-end"><button type="button" class="btn btn-danger" onclick="this.closest(\'.schedule-row\').remove()">Quitar</button></div></div>';}).join('');
-    return '<form onsubmit="saveClient(event,\''+attr(c.id||'')+'\')" class="grid gap-4">'+
-      '<div class="grid gap-3 md:grid-cols-2">'+
-      '<label class="label">Nombre<input required name="nombre" class="input" value="'+attr(c.nombre||'')+'"></label>'+
-      '<label class="label">Apellido<input required name="apellido" class="input" value="'+attr(c.apellido||'')+'"></label>'+
-      '<label class="label">DNI<input name="dni" class="input" value="'+attr(c.dni||'')+'"></label>'+
-      '<label class="label">Teléfono<input name="telefono" class="input" value="'+attr(c.telefono||'')+'"></label>'+
-      '<label class="label">Estado<select name="estado" class="input"><option '+(c.estado==='Activo'?'selected':'')+'>Activo</option><option '+(c.estado==='Inactivo'?'selected':'')+'>Inactivo</option></select></label>'+
-      '<label class="label">Plan<select name="planId" class="input"><option value="">Sin plan</option>'+planOptions(c.planId)+'</select></label>'+
-      '<label class="label">Estado de pago rápido<select name="paymentStatus" class="input">'+PAY_STATES.map(function(x){return '<option '+(paymentState(c)===x?'selected':'')+'>'+x+'</option>';}).join('')+'</select></label>'+
-      '<label class="label md:col-span-2">Observaciones<textarea name="observaciones" class="input">'+esc(c.observaciones||'')+'</textarea></label>'+
-      '</div><div class="card p-4"><div class="flex flex-wrap items-center justify-between gap-3"><b>Días y horarios fijos</b><button type="button" class="btn btn-soft !w-auto" onclick="addScheduleRow()">Agregar día</button></div><div id="scheduleRows" class="mt-3 grid gap-3">'+rows+'</div></div><button class="btn btn-primary">Guardar cliente</button></form>';
+  window.normalizeDB = function(data){
+    const normalized = oldNormalizeDB ? oldNormalizeDB(data) : data;
+    return ensureStudioData(normalized);
   };
-  window.addScheduleRow=function(){var box=document.getElementById('scheduleRows'); if(!box) return; box.insertAdjacentHTML('beforeend','<div class="schedule-row grid gap-3 md:grid-cols-4"><label class="label">Día<select name="scheduleDay" class="input">'+WEEK_DAYS.map(function(d){return '<option>'+d+'</option>';}).join('')+'</select></label><label class="label">Horario<input type="time" name="scheduleTime" class="input"></label><label class="label">Profesora<select name="scheduleTeacher" class="input"><option value="">Sin profesora</option>'+teacherOptions('')+'</select></label><div class="flex items-end"><button type="button" class="btn btn-danger" onclick="this.closest(\'.schedule-row\').remove()">Quitar</button></div></div>');};
-  window.newClient=function(){showModal('Nuevo cliente','Alta completa con asignación semanal',clientForm({paymentStatus:'Pendiente'}));};
-  window.editClient=function(id){showModal('Editar cliente','Modificación de datos y horarios fijos',clientForm(getClient(id)||{}));};
-  window.saveClient=function(e,id){e.preventDefault(); if(!isGeneral()) return toast('Permiso denegado'); var fd=new FormData(e.target); var dni=(fd.get('dni')||'').trim(); if(dni && arr('clients').find(function(c){return c.dni===dni && c.id!==id;})) return toast('Ya existe un cliente con ese DNI'); var days=fd.getAll('scheduleDay'), times=fd.getAll('scheduleTime'), teachers=fd.getAll('scheduleTeacher'); var scheduleDays=[]; days.forEach(function(d,i){if(times[i]){var u=getUser(teachers[i])||{}; scheduleDays.push({day:d,time:times[i],teacherId:teachers[i]||'',teacherName:((u.nombre||'')+' '+(u.apellido||'')).trim()});}}); var data={nombre:fd.get('nombre')||'',apellido:fd.get('apellido')||'',dni:dni,telefono:fd.get('telefono')||'',estado:fd.get('estado')||'Activo',planId:fd.get('planId')||'',paymentStatus:fd.get('paymentStatus')||'Pendiente',estadoPagoRapido:fd.get('paymentStatus')||'Pendiente',observaciones:fd.get('observaciones')||'',scheduleDays:scheduleDays,updatedAt:now()}; if(id){Object.assign(getClient(id),data);}else{arr('clients').push(Object.assign({id:uid(),fechaAlta:todayISO(),createdAt:now()},data));} closeModal(); persistAndRefresh('Cliente guardado');};
+  ensureStudioData(db);
 
-  function searchBox(module,placeholder){var v=searchState[module]||''; return '<input class="input" placeholder="'+placeholder+'" value="'+attr(v)+'" oninput="searchState. '+module+'=this.value; render()">'.replace('searchState. '+module,'searchState.'+module);}
-  window.renderClientes=function(){var q=norm(searchState.clients||filters.q||''); var list=sortedClients(visibleClients()).filter(function(c){var txt=[fullName(c),c.dni,c.telefono,getPlan(c.planId)?.nombre,paymentState(c),clientSchedule(c).map(function(s){return s.day+' '+s.time;}).join(' ')].join(' '); return !q || norm(txt).includes(q);}); var head='<div class="flex flex-wrap items-center justify-between gap-3 mb-4"><div class="min-w-[240px] flex-1">'+searchBox('clients','Buscar por nombre, DNI, teléfono, plan, pago, día u horario')+'</div>'+(isGeneral()?'<button onclick="newClient()" class="btn btn-primary !w-auto">Nuevo</button>':'')+'</div>'; return head+responsiveList(['Cliente','DNI','Teléfono','Plan','Días y horarios','Pago','Estado','Acciones'],list.map(function(c){return [esc(fullName(c)),esc(c.dni||'-'),esc(c.telefono||'-'),esc(getPlan(c.planId)?.nombre||'-'),scheduleLabel(c),'<select class="input" onchange="setClientPaymentStatus(\''+attr(c.id)+'\',this.value)">'+PAY_STATES.map(function(x){return '<option '+(paymentState(c)===x?'selected':'')+'>'+x+'</option>';}).join('')+'</select>',statusBadge(c.estado||'Activo'),clientActions(c)];}),list.map(function(c){return '<div class="mobile-card p-4"><b>'+esc(fullName(c))+'</b><div class="text-sm font-bold text-[#66706A]">'+esc(c.dni||'-')+' · '+esc(getPlan(c.planId)?.nombre||'-')+'</div><div class="mt-2">'+scheduleLabel(c)+'</div><div class="mt-2">'+statusBadge(paymentState(c))+'</div><div class="mt-3">'+clientActions(c)+'</div></div>';}));};
+  function quickPaymentStatus(c,data){
+    if(c && c.paymentStatus) return c.paymentStatus;
+    const pays = ((data || db).payments || []).filter(p=>p.clienteId === (c && c.id)).sort((a,b)=>String(b.createdAt || b.fechaPago || '').localeCompare(String(a.createdAt || a.fechaPago || '')));
+    if(!pays.length) return 'Pendiente';
+    if(pays[0].estado === 'Pagado') return 'Pagado';
+    if(pays[0].estado === 'Vencido') return 'Debe';
+    return 'Pendiente';
+  }
+  function syncClassesAndSchedules(data){
+    const groups = new Map();
+    (data.clients || []).forEach(function(c){
+      cleanScheduleDaysForClient(c,data).forEach(function(s){
+        const d = dayLabel(s.day);
+        const t = timeLabel(s.time);
+        if(!d || !t) return;
+        const teacherId = s.teacherId || '';
+        const key = dayKey(d) + '|' + t + '|' + teacherId;
+        if(!groups.has(key)) groups.set(key,{day:d,time:t,teacherId:teacherId,clients:[]});
+        groups.get(key).clients.push(c.id);
+      });
+    });
+    const existing = new Map((data.classes || []).map(function(cl){return [dayKey(cl.dia)+'|'+timeLabel(cl.hora)+'|'+(cl.personalId || ''),cl]}));
+    const classes = [];
+    groups.forEach(function(g,key){
+      const old = existing.get(key) || {};
+      classes.push({
+        id: old.id || ('class_' + key.replace(/[^a-z0-9]+/gi,'_')),
+        dia: g.day,
+        hora: g.time,
+        personalId: g.teacherId,
+        clientesIds: g.clients.slice().sort(function(a,b){return compareByName((data.clients||[]).find(c=>c.id===a)||{},(data.clients||[]).find(c=>c.id===b)||{})}),
+        cupoMaximo: old.cupoMaximo || MAX_CUPO || 8,
+        estado: old.estado || 'Activa',
+        observaciones: old.observaciones || '',
+        createdAt: old.createdAt || stamp(),
+        updatedAt: stamp()
+      });
+    });
+    if(classes.length) data.classes = classes.sort((a,b)=>dayIndex(a.dia)-dayIndex(b.dia) || String(a.hora).localeCompare(String(b.hora)));
+    data.schedules = [];
+    data.classes.forEach(function(cl){
+      (cl.clientesIds || []).forEach(function(cid){
+        data.schedules.push({
+          id:'sch_' + cl.id + '_' + cid,
+          clienteId:cid,
+          personalId:cl.personalId || '',
+          dia:cl.dia,
+          horario:cl.hora,
+          claseId:cl.id,
+          estado:cl.estado === 'Activa' ? 'Activo' : 'Cancelado',
+          createdAt:stamp(),
+          updatedAt:stamp()
+        });
+      });
+    });
+  }
+  function dayIndex(day){const idx = WEEK_DAYS.map(ntext).indexOf(ntext(day)); return idx < 0 ? 99 : idx}
+  function clientScheduleText(c){
+    return cleanScheduleDaysForClient(c,db).map(s=>s.day + ' ' + s.time + (s.teacherName ? ' - ' + s.teacherName : '')).join(', ');
+  }
+  function allTimes(){
+    const set = new Set();
+    getArr('clients').forEach(c=>cleanScheduleDaysForClient(c,db).forEach(s=>set.add(s.time)));
+    if(!set.size) ['08:00','09:00','10:00','17:00','18:00','19:00','20:00'].forEach(t=>set.add(t));
+    return Array.from(set).sort();
+  }
+  function currentDayName(){return dayLabel(new Date().toLocaleDateString('es-AR',{weekday:'long'}))}
+  function slotDateTime(date,time){
+    const d = new Date(date + 'T00:00:00');
+    const parts = String(time || '00:00').split(':').map(Number);
+    d.setHours(parts[0] || 0,parts[1] || 0,0,0);
+    return d;
+  }
+  function isSlotInProgress(slot,date){
+    if(!slot || !date || date !== today()) return false;
+    if(dayKey(slot.day) !== dayKey(currentDayName())) return false;
+    const start = slotDateTime(date,slot.time);
+    const minutes = typeof getClassDurationMinutes === 'function' ? getClassDurationMinutes() : 60;
+    const end = new Date(start.getTime() + minutes * 60000);
+    const current = new Date();
+    return current >= start && current < end;
+  }
 
-  window.clientActions=function(c){if(!c) return ''; var id=attr(c.id); return '<div class="actions"><button class="btn btn-view" onclick="viewClient(\''+id+'\')">Ver perfil</button>'+(isGeneral()?'<button class="btn btn-edit" onclick="editClient(\''+id+'\')">Editar</button><button class="btn btn-low" onclick="newPaymentForClient(\''+id+'\')">Registrar pago</button><button class="btn btn-soft" onclick="changePaymentStateModal(\''+id+'\')">Cambiar estado</button><button class="btn btn-delete" onclick="deleteClient(\''+id+'\')">Eliminar</button>':'')+'</div>';};
-  window.changePaymentStateModal=function(id){var c=getClient(id); if(!c) return; showModal('Cambiar estado de pago',fullName(c),'<div class="grid gap-3">'+PAY_STATES.map(function(s){return '<button class="btn btn-soft" onclick="setClientPaymentStatus(\''+attr(id)+'\',\''+s+'\'); closeModal();">'+s+'</button>';}).join('')+'</div>');};
-  window.viewClient=function(id){var c=getClient(id); if(!c) return; var pays=arr('payments').filter(function(p){return p.clienteId===id;}); showModal('Ficha de cliente',fullName(c),'<div class="grid gap-4 md:grid-cols-2"><div class="card p-4"><b>Datos</b><p>DNI: '+esc(c.dni||'-')+'</p><p>Teléfono: '+esc(c.telefono||'-')+'</p><p>Plan: '+esc(getPlan(c.planId)?.nombre||'-')+'</p><p>Estado: '+esc(c.estado||'-')+'</p><p>Pago rápido: '+esc(paymentState(c))+'</p></div><div class="card p-4"><b>Días fijos</b><p>'+scheduleLabel(c)+'</p></div><div class="card p-4 md:col-span-2"><b>Historial de pagos</b><div class="mt-2 grid gap-2">'+(pays.length?pays.map(function(p){return '<div class="rounded-2xl border border-[#DED6C8] p-3">'+esc(p.mesAbonado||p.fechaPago||'-')+' · '+money(p.monto)+' · '+esc(p.estado||'-')+' · '+esc(p.origen||p.origin||'Manual admin')+'</div>';}).join(''):'Sin pagos')+'</div></div></div>');};
+  window.saveDB = function(){
+    ensureStudioData(db);
+    if(typeof saveLocal === 'function') saveLocal();
+    if(firebaseOnline && firestore && !applyingRemote){
+      return firestore.doc(FIRESTORE_DOC_PATH).set({
+        payload: JSON.parse(JSON.stringify(db)),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      },{merge:false}).then(function(){
+        const el = document.getElementById('syncStatus');
+        if(el) el.textContent = 'Firebase conectado: guardado sincronizado';
+        return true;
+      }).catch(function(err){
+        console.error('Firestore save error',err);
+        if(typeof toast === 'function') toast('No se pudo guardar en Firebase. El cambio quedo solo como respaldo local.');
+        throw err;
+      });
+    }
+    if(typeof oldSaveDB === 'function' && !firebaseOnline) return oldSaveDB();
+    return Promise.resolve(true);
+  };
+  async function persist(message){
+    try{
+      await window.saveDB();
+      if(message && typeof toast === 'function') toast(message);
+      return true;
+    }catch(err){
+      return false;
+    }
+  }
 
-  function weeklyClasses(){rebuildClassesFromClients(); return visibleClasses().filter(function(c){return WEEK_DAYS.includes(dayName(c.dia));}).sort(function(a,b){return WEEK_DAYS.indexOf(dayName(a.dia))-WEEK_DAYS.indexOf(dayName(b.dia)) || String(a.hora).localeCompare(String(b.hora));});}
-  function agendaRows(){var times=[...new Set(weeklyClasses().map(function(c){return c.hora;}))].sort(); return times.length?times:['08:00','09:00','10:00','17:00','18:00','19:00','20:00'];}
-  function classByDayTime(d,t){return weeklyClasses().filter(function(c){return dayName(c.dia)===d && c.hora===t;});}
-  window.renderAgenda=function(){var q=norm(searchState.agenda||''); var date=agendaState.currentDate || new Date(); var dateValue=(date instanceof Date?date:new Date(date)).toISOString().slice(0,10); var grid='<div class="weekly-grid"><div class="agenda-cell agenda-head">Horario</div>'+WEEK_DAYS.map(function(d){return '<div class="agenda-cell agenda-head">'+d+'</div>';}).join(''); agendaRows().forEach(function(t){grid+='<div class="agenda-cell agenda-hour">'+t+'</div>'; WEEK_DAYS.forEach(function(d){var cls=classByDayTime(d,t).filter(function(cl){var txt=[d,t,userName(cl.personalId),(cl.clientesIds||[]).map(clientName).join(' ')].join(' '); return !q || norm(txt).includes(q);}); grid+='<div class="agenda-cell">'+(cls.length?cls.map(function(cl){return '<button class="class-chip w-full text-left" onclick="viewClass(\''+attr(cl.id)+'\',\''+dateValue+'\')"><b>'+esc(userName(cl.personalId)||'Sin profesora')+'</b><small>'+esc((cl.clientesIds||[]).map(clientName).join(', ')||'Sin alumnos')+'</small><span class="complete-tag">'+(cl.clientesIds||[]).length+'/'+MAX_CUPO+'</span></button>';}).join(''):'')+'</div>'; });}); grid+='</div>'; return '<div class="card p-5 mb-4"><div class="grid gap-3 md:grid-cols-3"><label class="label">Fecha real para asistencia<input type="date" class="input" value="'+dateValue+'" onchange="agendaState.currentDate=new Date(this.value+\'T12:00:00\'); render()"></label><div class="md:col-span-2">'+searchBox('agenda','Buscar por día, horario, cliente o profesora')+'</div></div></div>'+grid;};
-  window.viewClass=function(id,dateStr){var cl=arr('classes').find(function(x){return x.id===id;}); if(!cl) return; var date=dateStr || (agendaState.currentDate instanceof Date?agendaState.currentDate.toISOString().slice(0,10):todayISO()); var rows=(cl.clientesIds||[]).map(function(cid){var c=getClient(cid)||{}; var att=arr('attendance').find(function(a){return a.date===date && a.clientId===cid && a.time===cl.hora && norm(a.day)===norm(cl.dia);}); var st=att?att.status:'sin_marcar'; return '<div class="rounded-2xl border border-[#DED6C8] p-3"><div class="flex flex-wrap items-center justify-between gap-2"><div><b>'+esc(fullName(c))+'</b><div class="text-sm font-bold text-[#66706A]">Pago: '+esc(paymentState(c))+' · Asistencia: '+esc(st)+'</div></div><div class="actions"><button class="btn btn-edit" onclick="markAttendance(\''+attr(id)+'\',\''+attr(cid)+'\',\''+date+'\',\'presente\')">Presente</button><button class="btn btn-danger" onclick="markAttendance(\''+attr(id)+'\',\''+attr(cid)+'\',\''+date+'\',\'ausente\')">Ausente</button><button class="btn btn-low" onclick="reportPaymentFromClass(\''+attr(id)+'\',\''+attr(cid)+'\',\''+date+'\')">Registrar pago informado</button><button class="btn btn-view" onclick="viewClient(\''+attr(cid)+'\')">Ver cliente</button></div></div></div>';}).join(''); showModal('Detalle de clase',dayName(cl.dia)+' '+cl.hora+' · '+date,'<div class="grid gap-4"><div class="card p-4"><p><b>Día:</b> '+esc(dayName(cl.dia))+'</p><p><b>Fecha real:</b> '+esc(date)+'</p><p><b>Horario:</b> '+esc(cl.hora)+'</p><p><b>Profesora:</b> '+esc(userName(cl.personalId)||'-')+'</p></div><div class="grid gap-3">'+(rows||'Sin alumnos asignados')+'</div></div>');};
-  window.markAttendance=function(classId,clientId,date,status){var cl=arr('classes').find(function(x){return x.id===classId;}); var c=getClient(clientId)||{}; var u=getUser(cl?.personalId)||{}; var existing=arr('attendance').find(function(a){return a.date===date && a.clientId===clientId && a.time===cl.hora && norm(a.day)===norm(cl.dia);}); var data={date:date,day:dayName(cl.dia),time:cl.hora,clientId:clientId,clientName:fullName(c),status:status,teacherId:cl.personalId||'',teacherName:((u.nombre||'')+' '+(u.apellido||'')).trim(),updatedAt:now()}; if(existing) Object.assign(existing,data); else arr('attendance').push(Object.assign({id:uid(),createdAt:now()},data)); saveDB(); viewClass(classId,date); render(); toast('Asistencia guardada');};
-  window.reportPaymentFromClass=function(classId,clientId,date){var cl=arr('classes').find(function(x){return x.id===classId;}); var c=getClient(clientId)||{}; showModal('Pago informado por profesora',fullName(c),'<form onsubmit="savePaymentReport(event,\''+attr(classId)+'\',\''+attr(clientId)+'\',\''+date+'\')" class="grid gap-3"><label class="label">Monto<input required type="number" name="amount" class="input"></label><label class="label">Medio<select name="method" class="input">'+payMethods.map(function(m){return '<option>'+m+'</option>';}).join('')+'</select></label><label class="label">Observación<textarea name="note" class="input">Pagó en clase</textarea></label><button class="btn btn-primary">Guardar para verificación</button></form>');};
-  window.savePaymentReport=function(e,classId,clientId,date){e.preventDefault(); var cl=arr('classes').find(function(x){return x.id===classId;}); var c=getClient(clientId)||{}; var u=getUser(cl?.personalId)||currentUser||{}; var fd=new FormData(e.target); arr('paymentReports').push({id:uid(),clientId:clientId,clientName:fullName(c),amount:Number(fd.get('amount')||0),method:fd.get('method')||'Efectivo',date:date,day:dayName(cl.dia),time:cl.hora,teacherId:cl.personalId||currentUser?.id||'',teacherName:((u.nombre||'')+' '+(u.apellido||'')).trim(),status:'pendiente_verificacion',createdAt:now(),updatedAt:now(),note:fd.get('note')||''}); closeModal(); persistAndRefresh('Pago informado pendiente de verificación');};
+  const hiddenSections = new Set(['horarios']);
+  window.allowedSections = function(){
+    const base = Array.isArray(sections) ? sections : [];
+    return (typeof isGeneral === 'function' && isGeneral() ? base : base.filter(s=>!['personal','planes','reportes','config','importar'].includes(s[0]) && (s[0] !== 'pagos' || canViewPayments()))).filter(s=>!hiddenSections.has(s[0]));
+  };
+  window.renderNav = function(){
+    const nav = document.getElementById('nav');
+    if(!nav) return;
+    nav.innerHTML = allowedSections().map(function(s){
+      return '<button class="tab '+(currentSection===s[0]?'active':'')+'" onclick="go(\''+s[0]+'\')" title="'+attr(s[1])+'"><span class="nav-icon">'+(s[3] || '')+'</span><span class="nav-label">'+esc(s[1])+'</span></button>';
+    }).join('');
+  };
+  window.go = function(id){
+    if(id === 'horarios') id = 'agenda';
+    currentSection = id;
+    filters = {};
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('overlay');
+    if(sidebar) sidebar.classList.remove('open');
+    if(overlay) overlay.classList.remove('show');
+    render();
+  };
+  window.render = function(){
+    if(!currentUser) return;
+    ensureStudioData(db);
+    if(currentSection === 'horarios') currentSection = 'agenda';
+    const meta = (Array.isArray(sections) ? sections.find(s=>s[0]===currentSection) : null) || ['dashboard','Dashboard',''];
+    const title = document.getElementById('pageTitle');
+    const subtitle = document.getElementById('pageSubtitle');
+    if(title) title.textContent = currentSection === 'dashboard' ? 'Nihuen Pilates' : meta[1];
+    if(subtitle) subtitle.textContent = meta[2] || '';
+    const userEl = document.getElementById('userName');
+    const todayEl = document.getElementById('todayText');
+    if(userEl && currentUser) userEl.textContent = fullName(currentUser);
+    if(todayEl) todayEl.textContent = isGeneral() ? 'Administrador' : 'Profesora';
+    const roleText = document.getElementById('roleText');
+    if(roleText) roleText.textContent = isGeneral() ? 'Administrador general' : 'Profesora';
+    renderNav();
+    const map = {dashboard:renderDashboard,clientes:renderClientes,personal:renderPersonal,planes:renderPlanes,clases:renderClases,pagos:renderPagos,agenda:renderAgenda,importar:renderImportar,reportes:renderReportes,config:renderConfig,perfil:renderPerfil};
+    const content = document.getElementById('content');
+    if(content) content.innerHTML = (map[currentSection] || renderDashboard)();
+    setupGlobalSearch();
+  };
 
-  window.paymentForm=function(p){p=p||{}; return '<form onsubmit="savePayment(event,\''+attr(p.id||'')+'\')" class="grid gap-3 md:grid-cols-2"><label class="label">Cliente<select required name="clienteId" class="input"><option value="">Seleccionar</option>'+clientOptions(p.clienteId)+'</select></label><label class="label">Plan<select name="planId" class="input"><option value="">Sin plan</option>'+planOptions(p.planId)+'</select></label><label class="label">Monto<input required type="number" name="monto" class="input" value="'+attr(p.monto||0)+'"></label><label class="label">Mes<input type="month" name="mesAbonado" class="input" value="'+attr(p.mesAbonado||monthKey())+'"></label><label class="label">Fecha<input type="date" name="fechaPago" class="input" value="'+attr(p.fechaPago||todayISO())+'"></label><label class="label">Medio<select name="medioPago" class="input">'+payMethods.map(function(m){return '<option '+(p.medioPago===m?'selected':'')+'>'+m+'</option>';}).join('')+'</select></label><label class="label">Estado<select name="estado" class="input"><option>Pagado</option><option>Pendiente</option><option>Vencido</option><option>En verificación</option><option>Rechazado</option></select></label><label class="label">Origen<select name="origen" class="input"><option>Manual admin</option><option>Informado por profesora</option><option>Importado</option></select></label><label class="label md:col-span-2">Observaciones<textarea name="observaciones" class="input">'+esc(p.observaciones||'')+'</textarea></label><button class="btn btn-primary md:col-span-2">Guardar pago</button></form>';};
-  window.newPayment=function(){showModal('Nuevo pago','Registro formal de pagos',paymentForm({estado:'Pagado',origen:'Manual admin'}));};
-  window.newPaymentForClient=function(clientId){showModal('Nuevo pago','Cliente seleccionado',paymentForm({clienteId:clientId,estado:'Pagado',origen:'Manual admin'}));};
-  window.savePayment=function(e,id){e.preventDefault(); if(!isGeneral()) return toast('Solo administrador general'); var fd=Object.fromEntries(new FormData(e.target).entries()); fd.monto=Number(fd.monto||0); fd.registradoPor=currentUser?.usuario||'admin'; if(id){Object.assign(arr('payments').find(function(p){return p.id===id;}),fd,{updatedAt:now()});}else{arr('payments').push(Object.assign({id:uid(),createdAt:now()},fd,{updatedAt:now()}));} var c=getClient(fd.clienteId); if(c){c.paymentStatus=fd.estado==='Pagado'?'Pagado':(fd.estado==='Vencido'?'Debe':'Pendiente'); c.updatedAt=now();} closeModal(); persistAndRefresh('Pago guardado');};
-  function paymentReportBlock(){var list=arr('paymentReports').filter(function(r){return r.status==='pendiente_verificacion';}); if(!isGeneral() || !list.length) return ''; return '<section class="card p-5 mb-4"><h3 class="panel-title">Pagos informados pendientes de verificación</h3><div class="mt-3 grid gap-3">'+list.map(function(r){return '<div class="rounded-2xl border border-[#DED6C8] p-3"><div class="flex flex-wrap items-center justify-between gap-3"><div><b>'+esc(r.clientName)+'</b><div class="text-sm font-bold text-[#66706A]">'+money(r.amount)+' · '+esc(r.method)+' · '+esc(r.date)+' · '+esc(r.teacherName||'-')+'</div><div class="text-sm">'+esc(r.note||'')+'</div></div><div class="actions"><button class="btn btn-edit" onclick="approvePaymentReport(\''+attr(r.id)+'\')">Aprobar</button><button class="btn btn-danger" onclick="rejectPaymentReport(\''+attr(r.id)+'\')">Rechazar</button></div></div></div>';}).join('')+'</div></section>';}
-  window.approvePaymentReport=function(id){var r=arr('paymentReports').find(function(x){return x.id===id;}); if(!r || !isGeneral()) return; var c=getClient(r.clientId)||{}; arr('payments').push({id:uid(),clienteId:r.clientId,planId:c.planId||'',monto:Number(r.amount||0),fechaPago:r.date,mesAbonado:(r.date||todayISO()).slice(0,7),medioPago:r.method,estado:'Pagado',origen:'Informado por profesora',paymentReportId:r.id,observaciones:r.note||'',registradoPor:currentUser?.usuario||'admin',createdAt:now(),updatedAt:now()}); r.status='aprobado'; r.updatedAt=now(); if(c.id){c.paymentStatus='Pagado'; c.updatedAt=now();} persistAndRefresh('Pago aprobado');};
-  window.rejectPaymentReport=function(id){var r=arr('paymentReports').find(function(x){return x.id===id;}); if(!r || !isGeneral()) return; r.status='rechazado'; r.updatedAt=now(); persistAndRefresh('Pago rechazado');};
-  window.renderPagos=function(){if(!canViewPayments()) return denied(); var q=norm(searchState.payments||filters.q||''), estado=filters.estado||''; var list=arr('payments').filter(function(p){var c=getClient(p.clienteId)||{}; var txt=[fullName(c),p.mesAbonado,p.estado,p.medioPago,p.monto,p.origen].join(' '); return (!estado || p.estado===estado) && (!q || norm(txt).includes(q));}).sort(function(a,b){return String(b.fechaPago||b.createdAt||'').localeCompare(String(a.fechaPago||a.createdAt||''));}); var top='<div class="flex flex-wrap items-center justify-between gap-3 mb-4"><div class="min-w-[240px] flex-1">'+searchBox('payments','Buscar por cliente, mes, estado, medio o monto')+'</div><select class="input !w-auto" onchange="filters.estado=this.value;render()"><option value="">Estado</option><option>Pagado</option><option>Pendiente</option><option>Vencido</option><option>En verificación</option><option>Rechazado</option></select>'+(isGeneral()?'<button onclick="newPayment()" class="btn btn-primary !w-auto">Nuevo</button>':'')+'</div>'; return paymentReportBlock()+top+responsiveList(['Aviso','Cliente','Plan','Monto','Mes','Medio','Estado','Origen','Acciones'],list.map(function(p){return [p.estado==='Vencido'?'Vencido':'',esc(clientName(p.clienteId)),esc(getPlan(p.planId)?.nombre||'-'),money(p.monto),esc(p.mesAbonado||'-'),esc(p.medioPago||'-'),statusBadge(p.estado||'Pendiente'),esc(p.origen||'Manual admin'),paymentActions(p)];}),list.map(function(p){return '<div class="mobile-card p-4"><b>'+esc(clientName(p.clienteId))+'</b><div>'+money(p.monto)+' · '+esc(p.mesAbonado||'-')+'</div>'+statusBadge(p.estado||'Pendiente')+'<div class="mt-3">'+paymentActions(p)+'</div></div>';}));};
+  window.visibleClients = function(){
+    const list = isGeneral() ? getArr('clients') : getArr('clients').filter(function(c){
+      return cleanScheduleDaysForClient(c,db).some(s=>!s.teacherId || s.teacherId === currentUser.id);
+    });
+    return list.slice().sort(compareByName);
+  };
+  window.clientName = function(id){const c = getArr('clients').find(x=>x.id===id); return c ? fullName(c) : 'Cliente eliminado'};
+  window.clientSearchText = function(c){
+    return [fullName(c),c.dni,c.telefono,c.estado,c.paymentStatus,clientPlan(c)?.nombre,clientScheduleText(c),c.observaciones].join(' ');
+  };
+  window.paymentSearchText = function(p){
+    return [clientName(p.clienteId),clientPlan(getArr('clients').find(c=>c.id===p.clienteId))?.nombre,p.planId,p.monto,p.fechaPago,p.mesAbonado,p.medioPago,p.estado,p.origen,p.observaciones].join(' ');
+  };
+  window.classSearchText = function(cl){
+    return [cl.dia,cl.hora,teacherName(cl.personalId),cl.estado,(cl.clientesIds || []).map(clientName).join(' ')].join(' ');
+  };
+  function searchMatch(text,q){return !q || ntext(text).includes(ntext(q))}
+  function toolbar(key,extra,ph){
+    if(typeof moduleToolbar === 'function') return moduleToolbar(key,extra || '',ph);
+    const q = getModuleSearch ? getModuleSearch(key) : '';
+    return '<div class="module-toolbar"><input class="input" value="'+attr(q)+'" placeholder="'+attr(ph || 'Buscar')+'" oninput="setModuleSearch(\''+key+'\',this.value)">'+(extra || '')+'</div>';
+  }
 
-  window.renderImportar=function(){return '<section class="card p-5"><div class="flex flex-wrap items-center justify-between gap-3"><div><h3 class="text-xl font-black">Importar base</h3><p class="mt-1 text-sm font-bold text-[#66706A]">Importa y guarda en Firestore. La exportación toma la base actual.</p></div><button class="btn btn-primary" onclick="exportCurrentBaseXLSX()">Exportar Excel .xlsx</button></div><div class="mt-5 flex flex-wrap gap-3"><button class="btn btn-soft" onclick="previewExcelImport()">Vista previa base incluida</button><button class="btn btn-primary" onclick="confirmExcelImportAndMigrate()">Confirmar importación</button><button class="btn btn-delete" onclick="deleteImportedData()">Eliminar datos importados</button></div><div class="mt-5 rounded-2xl border border-[#DED6C8] p-4 text-sm font-bold text-[#66706A]">Los clientes importados quedan ordenados alfabéticamente y sus horarios se migran a scheduleDays.</div></section>';};
-  window.confirmExcelImportAndMigrate=function(){if(typeof confirmExcelImport==='function') confirmExcelImport(); setTimeout(function(){migrateWeeklyModel(); rebuildClassesFromClients(); saveDB(); render();},100);};
-  window.exportCurrentBaseXLSX=function(){migrateWeeklyModel(); var wb=XLSX.utils.book_new(); function add(name,rows){XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),name);} add('Clientes',sortedClients(arr('clients')).map(function(c){return {Nombre:fullName(c),DNI:c.dni||'',Telefono:c.telefono||'',Estado:c.estado||'',Plan:getPlan(c.planId)?.nombre||'',DiasAsignados:clientSchedule(c).map(function(s){return dayName(s.day);}).join(', '),HorariosAsignados:clientSchedule(c).map(function(s){return dayName(s.day)+' '+s.time;}).join(', '),EstadoPago:paymentState(c),Observaciones:c.observaciones||''};})); add('Pagos',arr('payments').map(function(p){return {Cliente:clientName(p.clienteId),Monto:p.monto||0,Mes:p.mesAbonado||'',Medio:p.medioPago||'',Estado:p.estado||'',Fecha:p.fechaPago||'',Origen:p.origen||'Manual admin',Observaciones:p.observaciones||''};})); add('Asistencias',arr('attendance').map(function(a){return {Fecha:a.date||'',Dia:a.day||'',Horario:a.time||'',Cliente:a.clientName||clientName(a.clientId),Estado:a.status||'',Profesora:a.teacherName||''};})); add('Pagos informados',arr('paymentReports').map(function(r){return {Cliente:r.clientName||clientName(r.clientId),Monto:r.amount||0,Medio:r.method||'',Fecha:r.date||'',Profesora:r.teacherName||'',EstadoVerificacion:r.status||'',Observacion:r.note||''};})); XLSX.writeFile(wb,'nihuen-pilates-base.xlsx');};
+  window.renderClientes = function(){
+    const q = typeof getModuleSearch === 'function' ? getModuleSearch('clientes') : '';
+    const estado = filters.estado || '', plan = filters.plan || '', pay = filters.pay || '';
+    const extra = '<select class="input" onchange="filters.estado=this.value;render()"><option value="">Estado</option><option '+selected(estado,'Activo')+'>Activo</option><option '+selected(estado,'Inactivo')+'>Inactivo</option></select>'+
+      '<select class="input" onchange="filters.plan=this.value;render()"><option value="">Plan</option>'+getArr('plans').map(p=>'<option value="'+attr(p.id)+'" '+selected(plan,p.id)+'>'+esc(p.nombre)+'</option>').join('')+'</select>'+
+      '<select class="input" onchange="filters.pay=this.value;render()"><option value="">Pago</option>'+PAYMENT_STATES.map(s=>'<option '+selected(pay,s)+'>'+s+'</option>').join('')+'</select>'+
+      (isGeneral()?'<button onclick="newClient()" class="btn btn-primary">Nuevo</button>':'');
+    const list = visibleClients().filter(c=>searchMatch(clientSearchText(c),q)).filter(c=>!estado || c.estado === estado).filter(c=>!plan || c.planId === plan).filter(c=>!pay || (c.paymentStatus || quickPaymentStatus(c,db)) === pay);
+    return toolbar('clientes',extra,'Buscar por nombre, DNI, telefono, plan, pago, dia u horario') +
+      responsiveList(['Cliente','DNI','Plan','Dias fijos','Estado','Pago','Acciones'],
+        list.map(c=>[esc(fullName(c)),esc(c.dni || '-'),esc(clientPlan(c)?.nombre || '-'),esc(clientScheduleText(c) || '-'),status(c.estado),quickPaymentControl(c),clientActions(c)]),
+        list.map(c=>'<div class="card p-4"><div class="flex justify-between gap-3"><div><b>'+esc(fullName(c))+'</b><div class="text-sm font-semibold text-[#7d7466]">DNI '+esc(c.dni || '-')+'</div></div>'+status(c.estado)+'</div><div class="mt-2 text-sm"><b>Plan:</b> '+esc(clientPlan(c)?.nombre || '-')+'</div><div class="mt-2 text-sm"><b>Dias:</b> '+esc(clientScheduleText(c) || '-')+'</div><div class="mt-3">'+quickPaymentControl(c)+'</div><div class="mt-3">'+clientActions(c)+'</div></div>'));
+  };
+  function quickPaymentControl(c){
+    return '<select class="nih-payment-select" onchange="updateClientPaymentStatus(\''+attr(c.id)+'\',this.value)">'+PAYMENT_STATES.map(s=>'<option '+selected(c.paymentStatus || quickPaymentStatus(c,db),s)+'>'+s+'</option>').join('')+'</select>';
+  }
+  window.updateClientPaymentStatus = async function(id,value){
+    const c = getArr('clients').find(x=>x.id===id);
+    if(!c) return;
+    c.paymentStatus = value;
+    c.updatedAt = stamp();
+    await persist('Estado de pago actualizado');
+    render();
+  };
 
-  var oldDashboard=renderDashboard;
-  window.renderDashboard=function(){var pendingReports=arr('paymentReports').filter(function(r){return r.status==='pendiente_verificacion';}).length; var today=new Date(); var todayDay=WEEK_DAYS[today.getDay()-1]||''; var todayClasses=weeklyClasses().filter(function(c){return dayName(c.dia)===todayDay;}).length; var alert=pendingReports && isGeneral()?'<section class="card p-5 mb-4"><div class="flex flex-wrap items-center justify-between gap-3"><b>'+pendingReports+' pagos informados pendientes de verificación</b><button class="btn btn-primary !w-auto" onclick="go(\'pagos\')">Ver en pagos</button></div></section>':''; return alert+'<div class="metric-grid dashboard-metrics">'+stat('Clientes activos',arr('clients').filter(function(c){return c.estado==='Activo';}).length,'Activos','ok')+stat('Clases del día',todayClasses,'Agenda semanal','ok')+stat('Asistencias de hoy',arr('attendance').filter(function(a){return a.date===todayISO();}).length,'Marcadas','gold')+(canViewPayments()?stat('Pagos pendientes reales',arr('payments').filter(function(p){return p.estado==='Pendiente';}).length,'Desde payments','warn'):'')+(isGeneral()?stat('Pagos por verificar',pendingReports,'Informados por profesoras','danger'):'')+'</div><section class="card quickbar mt-4"><h3 class="panel-title">Accesos rápidos</h3><div class="quick-grid quick-actions">'+(isGeneral()?'<button onclick="newClient()" class="btn quick-action-btn">Nuevo cliente</button><button onclick="newPayment()" class="btn quick-action-btn">Nuevo pago</button>':'')+'<button onclick="go(\'agenda\')" class="btn quick-action-btn">Agenda semanal</button><button onclick="go(\'pagos\')" class="btn quick-action-btn">Pagos</button></div></section><div class="dashboard-grid mt-4"><section class="card dash-panel"><h3 class="panel-title">Agenda semanal</h3>'+renderAgenda().replace(/<div class="card p-5 mb-4">[\s\S]*?<\/div><\/div>/,'')+'</section><section class="card dash-panel"><h3 class="panel-title">Pagos pendientes</h3>'+paymentsMini()+'</section></div>';}; renderDashboard=window.renderDashboard;
+  window.clientActions = function(c){
+    if(typeof renderActionsMenu === 'function') return renderActionsMenu('clients',c);
+    return '<button class="btn btn-soft" onclick="viewClient(\''+c.id+'\')">Ver</button>';
+  };
+  const previousRenderActionsMenu = typeof renderActionsMenu === 'function' ? renderActionsMenu : null;
+  window.renderActionsMenu = function(entityType,item){
+    if(entityType === 'clients' && item && item.id){
+      const id = String(item.id).replace(/'/g,"\\'");
+      return '<div class="action-cell"><button type="button" class="action-trigger" title="Acciones" onclick="openGlobalActionsMenu(event,this,\'clients\',\''+id+'\')">⋮</button></div>';
+    }
+    return previousRenderActionsMenu ? previousRenderActionsMenu(entityType,item) : '-';
+  };
+  const oldOpenGlobalActionsMenu = window.openGlobalActionsMenu;
+  window.openGlobalActionsMenu = function(event,button,entityType,itemId){
+    if(entityType !== 'clients') return oldOpenGlobalActionsMenu ? oldOpenGlobalActionsMenu(event,button,entityType,itemId) : null;
+    if(event) event.stopPropagation();
+    const actions = [
+      {label:'Ver perfil',handler:"viewClient('"+itemId+"')"},
+      {label:'Editar',handler:"editClient('"+itemId+"')"},
+      {label:'Registrar pago',handler:"newPaymentForClient('"+itemId+"')"},
+      {label:'Cambiar estado de pago',handler:"openQuickPaymentStatus('"+itemId+"')"},
+      {label:'Eliminar',handler:"deleteClient('"+itemId+"')",danger:true}
+    ];
+    if(typeof openFloatingActionMenu === 'function') return openFloatingActionMenu(button,actions);
+  };
+  window.openQuickPaymentStatus = function(clientId){
+    const c = getArr('clients').find(x=>x.id===clientId);
+    if(!c) return;
+    showModal('Cambiar estado de pago',fullName(c),'<form onsubmit="saveQuickPaymentStatus(event,\''+attr(clientId)+'\')"><label class="label">Estado</label><select name="paymentStatus" class="input">'+PAYMENT_STATES.map(s=>'<option '+selected(c.paymentStatus || quickPaymentStatus(c,db),s)+'>'+s+'</option>').join('')+'</select><button class="btn btn-primary mt-5">Guardar</button></form>');
+  };
+  window.saveQuickPaymentStatus = async function(e,clientId){
+    e.preventDefault();
+    const c = getArr('clients').find(x=>x.id===clientId);
+    if(!c) return;
+    c.paymentStatus = new FormData(e.target).get('paymentStatus');
+    c.updatedAt = stamp();
+    if(await persist('Estado de pago guardado')){closeModal();render();}
+  };
 
-  var global=document.getElementById('globalSearch'); if(global){global.removeAttribute('onkeydown'); global.addEventListener('input',function(){filters.q=this.value; searchState[currentSection]=this.value; render();}); global.addEventListener('keydown',function(e){if(e.key==='Enter') render();});}
-  var style=document.createElement('style'); style.textContent='.weekly-grid{display:grid;grid-template-columns:86px repeat(6,minmax(120px,1fr));gap:0;border:1px solid var(--line);border-radius:24px;overflow:auto}.weekly-grid .agenda-cell{min-height:74px}.schedule-row{align-items:end}@media(max-width:980px){.weekly-grid{grid-template-columns:70px repeat(6,180px);overflow-x:auto}.weekly-grid .agenda-cell{min-width:0}.actions{display:flex;flex-wrap:wrap}.actions .btn{width:auto!important}}'; document.head.appendChild(style);
-  persistAndRefresh();
+  function scheduleEditor(c){
+    const rows = cleanScheduleDaysForClient(c || {},db);
+    if(!rows.length) rows.push({day:'Lunes',time:'17:00',teacherId:''});
+    return '<div class="nih-schedule-editor" id="scheduleRows">'+rows.map(scheduleRow).join('')+'</div><button type="button" class="btn btn-secondary mt-3" onclick="addScheduleRow()">Agregar dia y horario</button>';
+  }
+  function scheduleRow(item){
+    return '<div class="nih-schedule-row">'+
+      '<div><label class="label">Dia</label><select name="scheduleDay" class="input">'+WEEK_DAYS.map(d=>'<option '+selected(dayLabel(item.day),d)+'>'+d+'</option>').join('')+'</select></div>'+
+      '<div><label class="label">Horario</label><input name="scheduleTime" class="input" value="'+attr(timeLabel(item.time) || '17:00')+'" placeholder="17:00"></div>'+
+      '<div><label class="label">Profesora</label><select name="scheduleTeacherId" class="input"><option value="">Sin asignar</option>'+getArr('users').filter(u=>u.estado !== 'Inactivo').map(u=>'<option value="'+attr(u.id)+'" '+selected(item.teacherId,u.id)+'>'+esc(fullName(u))+'</option>').join('')+'</select></div>'+
+      '<button type="button" class="btn btn-danger !w-auto" onclick="this.closest(\'.nih-schedule-row\').remove()">Quitar</button>'+
+    '</div>';
+  }
+  window.addScheduleRow = function(){
+    const box = document.getElementById('scheduleRows');
+    if(box) box.insertAdjacentHTML('beforeend',scheduleRow({day:'Lunes',time:'17:00',teacherId:''}));
+  };
+  window.clientForm = function(c){
+    c = c || {};
+    return '<form onsubmit="saveClient(event,\''+(c.id || '')+'\')">'+
+      formGrid([
+        {label:'Apellido',html:'<input required name="apellido" class="input" value="'+attr(c.apellido)+'">'},
+        {label:'Nombre',html:'<input required name="nombre" class="input" value="'+attr(c.nombre)+'">'},
+        {label:'DNI',html:'<input name="dni" class="input" value="'+attr(c.dni)+'">'},
+        {label:'Telefono',html:'<input name="telefono" class="input" value="'+attr(c.telefono)+'">'},
+        {label:'Estado',html:'<select name="estado" class="input"><option '+selected(c.estado,'Activo')+'>Activo</option><option '+selected(c.estado,'Inactivo')+'>Inactivo</option></select>'},
+        {label:'Plan',html:'<select name="planId" class="input"><option value="">Sin plan</option>'+getArr('plans').map(p=>'<option value="'+attr(p.id)+'" '+selected(c.planId,p.id)+'>'+esc(p.nombre)+'</option>').join('')+'</select>'},
+        {label:'Estado de pago rapido',html:'<select name="paymentStatus" class="input">'+PAYMENT_STATES.map(s=>'<option '+selected(c.paymentStatus || quickPaymentStatus(c,db),s)+'>'+s+'</option>').join('')+'</select>'},
+        {label:'Fecha alta',html:'<input type="date" name="fechaAlta" class="input" value="'+attr(c.fechaAlta || today())+'">'},
+        {label:'Dias y horarios fijos',full:true,html:scheduleEditor(c)},
+        {label:'Observaciones',full:true,html:'<textarea name="observaciones" class="input">'+esc(c.observaciones || '')+'</textarea>'}
+      ])+
+      '<button class="btn btn-primary mt-5">Guardar cliente</button></form>';
+  };
+  window.newClient = function(){showModal('Nuevo cliente','Alta completa y asignacion semanal fija',clientForm({estado:'Activo',paymentStatus:'Pendiente'}));};
+  window.editClient = function(id){showModal('Editar cliente','Modificar datos y asignacion semanal',clientForm(getArr('clients').find(c=>c.id===id) || {}));};
+  window.saveClient = async function(e,id){
+    e.preventDefault();
+    if(!isGeneral()) return toast('Permiso denegado');
+    const form = e.target;
+    const fd = Object.fromEntries(new FormData(form).entries());
+    const dup = getArr('clients').find(c=>fd.dni && c.dni === fd.dni && c.id !== id);
+    if(dup) return toast('Ya existe un cliente con ese DNI');
+    const dayInputs = Array.from(form.querySelectorAll('[name="scheduleDay"]'));
+    const timeInputs = Array.from(form.querySelectorAll('[name="scheduleTime"]'));
+    const teacherInputs = Array.from(form.querySelectorAll('[name="scheduleTeacherId"]'));
+    const scheduleDays = dayInputs.map(function(input,i){
+      const teacherId = teacherInputs[i] ? teacherInputs[i].value : '';
+      return {day:dayLabel(input.value),time:timeLabel(timeInputs[i] ? timeInputs[i].value : ''),teacherId:teacherId,teacherName:teacherName(teacherId)};
+    }).filter(s=>s.day && s.time);
+    delete fd.scheduleDay; delete fd.scheduleTime; delete fd.scheduleTeacherId;
+    let item = id ? getArr('clients').find(c=>c.id===id) : null;
+    if(item) Object.assign(item,fd,{scheduleDays:scheduleDays,updatedAt:stamp()});
+    else getArr('clients').push(Object.assign({id:newId(),createdAt:stamp()},fd,{scheduleDays:scheduleDays,updatedAt:stamp()}));
+    syncClassesAndSchedules(db);
+    if(await persist('Cliente guardado')){closeModal();render();}
+  };
+  window.deleteClient = function(id){
+    if(!isGeneral()) return toast('Permiso denegado');
+    confirmDelete('Vas a eliminar este cliente. Sus pagos formales quedaran como historial asociado a su id.',async function(){
+      db.clients = getArr('clients').filter(c=>c.id!==id);
+      db.classes.forEach(cl=>cl.clientesIds=(cl.clientesIds || []).filter(cid=>cid!==id));
+      db.schedules = getArr('schedules').filter(s=>s.clienteId!==id);
+      if(await persist('Cliente eliminado')) render();
+    });
+  };
+
+  window.viewClient = function(id){
+    const c = getArr('clients').find(x=>x.id===id);
+    if(!c) return;
+    const pays = getArr('payments').filter(p=>p.clienteId===id).sort((a,b)=>String(b.createdAt || b.fechaPago || '').localeCompare(String(a.createdAt || a.fechaPago || '')));
+    showModal('Ficha de cliente',fullName(c),'<div class="grid gap-4 md:grid-cols-2">'+
+      '<div class="card p-4"><b>Datos</b><p>DNI: '+esc(c.dni || '-')+'</p><p>Telefono: '+esc(c.telefono || '-')+'</p><p>Plan: '+esc(clientPlan(c)?.nombre || '-')+'</p><p>Estado: '+esc(c.estado || '-')+'</p></div>'+
+      '<div class="card p-4"><b>Pago</b><p>Estado rapido: '+status(c.paymentStatus || quickPaymentStatus(c,db))+'</p><button class="btn btn-primary mt-3" onclick="newPaymentForClient(\''+attr(id)+'\')">Registrar pago</button></div>'+
+      '<div class="card p-4 md:col-span-2"><b>Dias fijos</b><p>'+esc(clientScheduleText(c) || 'Sin dias asignados')+'</p></div>'+
+      '<div class="card p-4 md:col-span-2"><b>Historial de pagos</b><div class="mt-3 grid gap-2">'+(pays.length?pays.map(p=>'<div class="rounded-xl border border-[#DED6C8] p-3"><b>'+esc(p.mesAbonado || '-')+' - '+esc(cash(p.monto))+'</b> '+status(p.estado)+'</div>').join(''):'Sin pagos')+'</div></div></div>');
+  };
+
+  window.renderAgenda = function(){
+    const selectedDate = filters.agendaDate || today();
+    const q = typeof getModuleSearch === 'function' ? getModuleSearch('agenda') : '';
+    const teacher = filters.agendaTeacher || '';
+    const extra = '<input type="date" class="input" value="'+attr(selectedDate)+'" onchange="filters.agendaDate=this.value;render()">'+
+      '<select class="input" onchange="filters.agendaTeacher=this.value;render()"><option value="">Profesora</option>'+getArr('users').filter(u=>u.estado!=='Inactivo').map(u=>'<option value="'+attr(u.id)+'" '+selected(teacher,u.id)+'>'+esc(fullName(u))+'</option>').join('')+'</select>';
+    const grid = buildAgendaGrid(q,teacher);
+    return toolbar('agenda',extra,'Buscar por dia, horario, cliente o profesora') + '<div class="nih-muted mb-3">Agenda semanal fija. La asistencia se guarda para la fecha real seleccionada: '+esc(selectedDate)+'</div>' + grid;
+  };
+  function weeklySlots(){
+    const map = new Map();
+    visibleClients().forEach(function(c){
+      cleanScheduleDaysForClient(c,db).forEach(function(s){
+        if(!isGeneral() && s.teacherId && s.teacherId !== currentUser.id) return;
+        const key = dayKey(s.day)+'|'+s.time;
+        if(!map.has(key)) map.set(key,{day:dayLabel(s.day),time:s.time,teacherId:s.teacherId || '',teacherIds:[],teacherNames:[],clients:[],clientTeacher:{},clientTeacherName:{}});
+        const slot = map.get(key);
+        const tid = s.teacherId || '';
+        const tname = s.teacherName || teacherName(tid);
+        if(tid && !slot.teacherIds.includes(tid)) slot.teacherIds.push(tid);
+        if(tname && tname !== 'Sin personal' && !slot.teacherNames.includes(tname)) slot.teacherNames.push(tname);
+        if(!slot.clients.some(existing=>existing.id===c.id)) slot.clients.push(c);
+        slot.clientTeacher[c.id] = tid;
+        slot.clientTeacherName[c.id] = tname;
+      });
+    });
+    return Array.from(map.values()).map(function(slot){
+      slot.clients.sort(compareByName);
+      slot.teacherId = slot.teacherIds[0] || slot.teacherId || '';
+      slot.teacherName = slot.teacherNames.join(', ') || teacherName(slot.teacherId) || 'Sin profesora';
+      return slot;
+    }).sort((a,b)=>dayIndex(a.day)-dayIndex(b.day) || String(a.time).localeCompare(String(b.time)));
+  }
+  function buildAgendaGrid(q,teacher){
+    const times = allTimes();
+    const selectedDate = filters.agendaDate || today();
+    const slots = weeklySlots().filter(s=>!teacher || s.teacherIds.includes(teacher)).filter(function(s){
+      return searchMatch([s.day,s.time,s.teacherNames.join(' '),s.clients.map(fullName).join(' ')].join(' '),q);
+    });
+    const byCell = new Map();
+    slots.forEach(s=>byCell.set(dayKey(s.day)+'|'+s.time,s));
+    return '<div class="nih-week-grid"><table class="nih-week-table"><thead><tr><th>Horario</th>'+WEEK_DAYS.map(d=>'<th>'+esc(d)+'</th>').join('')+'</tr></thead><tbody>'+times.map(function(t){
+      return '<tr><td class="nih-week-time">'+esc(t)+'</td>'+WEEK_DAYS.map(function(d){
+        const slot = byCell.get(dayKey(d)+'|'+t);
+        if(!slot) return '<td></td>';
+        return '<td>'+renderWeeklySlotBlock(slot,selectedDate)+'</td>';
+      }).join('')+'</tr>';
+    }).join('')+'</tbody></table></div>';
+  }
+  function renderWeeklySlotBlock(slot,selectedDate){
+    const inProgress = isSlotInProgress(slot,selectedDate);
+    const maxVisible = 6;
+    const names = slot.clients.slice(0,maxVisible).map(fullName);
+    const remaining = Math.max(0,slot.clients.length - maxVisible);
+    const studentText = names.join(', ') + (remaining ? ' +' + remaining + ' alumnas' : '');
+    return '<button class="nih-class-cell '+(inProgress?'in-progress':'')+'" onclick="openWeeklyClassDetail(\''+attr(dayKey(slot.day))+'\',\''+attr(slot.time)+'\')">'+
+      '<div class="nih-class-top"><div><div class="nih-class-teacher">'+esc(slot.teacherName || 'Sin profesora')+'</div><b>'+esc(slot.time)+'</b></div><span class="nih-badge-mini">'+esc(slot.clients.length)+'/8</span></div>'+
+      '<div class="nih-class-students">'+esc(studentText || 'Sin alumnas')+'</div>'+
+      '<div class="nih-class-badges">'+(inProgress?'<span class="nih-badge-mini progress">En curso</span>':'')+'</div>'+
+    '</button>';
+  }
+  window.openWeeklyClassDetail = function(day,time){
+    const selectedDate = filters.agendaDate || today();
+    const slot = weeklySlots().find(s=>dayKey(s.day)===day && s.time===time);
+    if(!slot) return toast('Clase no encontrada');
+    const rows = slot.clients.map(function(c){
+      const att = getAttendance(selectedDate,slot.day,time,c.id);
+      const teacherId = slot.clientTeacher[c.id] || slot.teacherId || '';
+      const initials = fullName(c).split(' ').filter(Boolean).slice(0,2).map(part=>part[0]).join('').toUpperCase() || 'NP';
+      const attendanceText = att ? att.status : 'Sin marcar';
+      return '<div class="nih-student-row"><div class="nih-student-avatar">'+esc(initials)+'</div><div class="nih-student-main"><b>'+esc(fullName(c))+'</b><div class="nih-student-plan">'+esc(clientPlan(c)?.nombre || '-')+'</div><div class="nih-student-meta"><span>Pago: <strong>'+esc(c.paymentStatus || quickPaymentStatus(c,db))+'</strong></span><span>Asistencia: <strong>'+esc(attendanceText)+'</strong></span></div></div><div class="nih-student-status">'+status(attendanceText)+'</div><div class="nih-inline-actions"><button class="btn btn-primary !w-auto" onclick="markAttendance(\''+attr(selectedDate)+'\',\''+attr(slot.day)+'\',\''+attr(time)+'\',\''+attr(c.id)+'\',\'Presente\',\''+attr(teacherId || '')+'\')">Presente</button><button class="btn btn-secondary !w-auto" onclick="markAttendance(\''+attr(selectedDate)+'\',\''+attr(slot.day)+'\',\''+attr(time)+'\',\''+attr(c.id)+'\',\'Ausente\',\''+attr(teacherId || '')+'\')">Ausente</button><button class="btn btn-gold !w-auto" onclick="openPaymentReportForm(\''+attr(c.id)+'\',\''+attr(selectedDate)+'\',\''+attr(slot.day)+'\',\''+attr(time)+'\',\''+attr(teacherId || '')+'\')">Pago informado</button><button class="btn btn-soft !w-auto nih-details-btn" onclick="viewClient(\''+attr(c.id)+'\')">Ver detalles</button></div></div>';
+    }).join('');
+    showModal('Detalle de clase',slot.day+' '+selectedDate+' - '+time+' - '+(slot.teacherName || 'Sin profesora'),'<div class="grid gap-3">'+(rows || 'Sin alumnas asignadas')+'</div>');
+  };
+  function getAttendance(date,day,time,clientId){
+    return getArr('attendance').find(a=>a.date===date && dayKey(a.day)===dayKey(day) && a.time===time && a.clientId===clientId);
+  }
+  window.markAttendance = async function(date,day,time,clientId,statusValue,teacherId){
+    const c = getArr('clients').find(x=>x.id===clientId);
+    let item = getAttendance(date,day,time,clientId);
+    if(item) Object.assign(item,{status:statusValue,teacherId:teacherId || '',teacherName:teacherName(teacherId),updatedAt:stamp()});
+    else getArr('attendance').push({id:newId(),date:date,day:day,time:time,clientId:clientId,clientName:fullName(c),status:statusValue,teacherId:teacherId || '',teacherName:teacherName(teacherId),createdAt:stamp(),updatedAt:stamp()});
+    if(await persist('Asistencia guardada')) openWeeklyClassDetail(dayKey(day),time);
+  };
+
+  window.openPaymentReportForm = function(clientId,date,day,time,teacherId){
+    const c = getArr('clients').find(x=>x.id===clientId);
+    const plan = clientPlan(c);
+    showModal('Pago informado por profesora',fullName(c),'<form onsubmit="savePaymentReport(event,\''+attr(clientId)+'\',\''+attr(date)+'\',\''+attr(day)+'\',\''+attr(time)+'\',\''+attr(teacherId || '')+'\')">'+formGrid([
+      {label:'Monto',html:'<input required type="number" name="amount" class="input" value="'+attr(plan?.precio || '')+'">'},
+      {label:'Medio',html:'<select name="method" class="input">'+payMethods.map(m=>'<option>'+esc(m)+'</option>').join('')+'</select>'},
+      {label:'Fecha',html:'<input type="date" name="date" class="input" value="'+attr(date || today())+'">'},
+      {label:'Observacion',full:true,html:'<textarea name="note" class="input" placeholder="Pago recibido en clase"></textarea>'}
+    ])+'<button class="btn btn-primary mt-5">Informar pago</button></form>');
+  };
+  window.savePaymentReport = async function(e,clientId,date,day,time,teacherId){
+    e.preventDefault();
+    const fd = Object.fromEntries(new FormData(e.target).entries());
+    const c = getArr('clients').find(x=>x.id===clientId);
+    getArr('paymentReports').push({
+      id:newId(),clientId:clientId,clientName:fullName(c),amount:Number(fd.amount || 0),method:fd.method || '',date:fd.date || date || today(),
+      day:day,time:time,teacherId:teacherId || '',teacherName:teacherName(teacherId),status:'pendiente_verificacion',createdAt:stamp(),note:fd.note || ''
+    });
+    if(await persist('Pago informado pendiente de verificacion')){closeModal();render();}
+  };
+  window.approvePaymentReport = async function(id){
+    if(!isGeneral()) return toast('Solo administrador');
+    const r = getArr('paymentReports').find(x=>x.id===id);
+    if(!r) return;
+    const c = getArr('clients').find(x=>x.id===r.clientId);
+    getArr('payments').push({id:newId(),clienteId:r.clientId,planId:c?.planId || '',monto:Number(r.amount || 0),fechaPago:r.date || today(),mesAbonado:month(),medioPago:r.method || 'Efectivo',estado:'Pagado',origen:'Informado por profesora',observaciones:r.note || '',paymentReportId:id,registradoPor:currentUser?.usuario || 'admin',createdAt:stamp(),updatedAt:stamp()});
+    r.status = 'aprobado'; r.updatedAt = stamp();
+    if(c) c.paymentStatus = 'Pagado';
+    if(await persist('Pago aprobado')) render();
+  };
+  window.rejectPaymentReport = async function(id){
+    if(!isGeneral()) return toast('Solo administrador');
+    const r = getArr('paymentReports').find(x=>x.id===id);
+    if(!r) return;
+    r.status = 'rechazado'; r.updatedAt = stamp();
+    if(await persist('Pago informado rechazado')) render();
+  };
+
+  window.renderPagos = function(){
+    if(!canViewPayments()) return denied();
+    const q = typeof getModuleSearch === 'function' ? getModuleSearch('pagos') : '';
+    const estado = filters.estado || '';
+    const extra = '<select class="input" onchange="filters.estado=this.value;render()"><option value="">Estado</option>'+['Pagado','Pendiente','Vencido','En verificacion','Rechazado'].map(s=>'<option '+selected(estado,s)+'>'+s+'</option>').join('')+'</select>'+(isGeneral()?'<button onclick="newPayment()" class="btn btn-primary">Nuevo</button>':'');
+    const reports = getArr('paymentReports').filter(r=>r.status==='pendiente_verificacion');
+    const reportBlock = isGeneral() && reports.length ? '<section class="payment-verification-panel">'+
+      '<div class="payment-verification-head"><div class="payment-verification-title-wrap"><div class="payment-verification-icon">▣</div><div><h3>Pagos informados pendientes de verificacion</h3><p>Revisa y verifica los pagos informados por las profesoras.</p></div></div><span class="payment-verification-count">● '+reports.length+' pendiente'+(reports.length===1?'':'s')+'</span></div>'+
+      '<div class="payment-verification-list">'+reports.map(function(r){
+        const initials = String(r.clientName || 'NP').split(' ').filter(Boolean).slice(0,2).map(function(part){return part[0];}).join('').toUpperCase() || 'NP';
+        return '<article class="payment-report-card"><div class="payment-report-main"><div class="payment-report-avatar">'+esc(initials)+'</div><div class="payment-report-info"><h4>'+esc(r.clientName || 'Cliente')+'</h4><div class="payment-report-meta"><span>▣ '+esc(cash(r.amount))+'</span><span>▣ '+esc(r.method || '- ')+'</span><span>▣ '+esc(r.date || '- ')+'</span><span class="payment-report-status">◷ Pendiente</span></div><div class="payment-report-teacher">♙ '+esc(r.teacherName || '-')+'</div>'+(r.note?'<div class="payment-report-note">'+esc(r.note)+'</div>':'')+'</div></div><div class="payment-report-actions"><button class="payment-report-btn edit" onclick="editPaymentReport(\''+attr(r.id)+'\')"><span>✎</span><b>Editar</b></button><button class="payment-report-btn approve" onclick="approvePaymentReport(\''+attr(r.id)+'\')"><span>✓</span><b>Aprobar</b></button><button class="payment-report-btn reject" onclick="rejectPaymentReport(\''+attr(r.id)+'\')"><span>×</span><b>Rechazar</b></button></div></article>';
+      }).join('')+'<div class="payment-verification-tip">ⓘ Una vez verificado, el pago se registrara automaticamente en el historial.</div></div></section>' : '';
+    const list = getArr('payments').slice().filter(p=>!estado || p.estado===estado).filter(p=>searchMatch(paymentSearchText(p),q)).sort((a,b)=>String(b.createdAt || b.fechaPago || '').localeCompare(String(a.createdAt || a.fechaPago || '')));
+    return toolbar('pagos',extra,'Buscar por cliente, mes, estado, medio o monto') + reportBlock +
+      responsiveList(['Aviso','Cliente','Plan','Monto','Mes','Medio','Estado','Origen','Acciones'],
+        list.map(p=>[p.estado==='Pendiente'||p.estado==='Vencido'?'Avisar':'-',esc(clientName(p.clienteId)),esc(getPlan(p.planId)?.nombre || clientPlan(getArr('clients').find(c=>c.id===p.clienteId))?.nombre || '-'),esc(cash(p.monto)),esc(p.mesAbonado || '-'),esc(p.medioPago || '-'),status(p.estado),esc(p.origen || 'Manual admin'),paymentActions(p)]),
+        list.map(p=>'<div class="card p-4"><b>'+esc(clientName(p.clienteId))+'</b><div class="nih-muted">'+esc(cash(p.monto))+' - '+esc(p.mesAbonado || '-')+' - '+esc(p.origen || 'Manual admin')+'</div><div class="mt-2">'+status(p.estado)+'</div><div class="mt-3">'+paymentActions(p)+'</div></div>'));
+  };
+  window.paymentForm = function(p){
+    p = p || {};
+    const clients = visibleClients();
+    return '<form onsubmit="savePayment(event,\''+(p.id || '')+'\')">'+formGrid([
+      {label:'Cliente',html:'<select required name="clienteId" class="input" onchange="fillPlanAndAmount(this.value)"><option value="">Seleccionar</option>'+clients.map(c=>'<option value="'+attr(c.id)+'" '+selected(p.clienteId,c.id)+'>'+esc(fullName(c))+'</option>').join('')+'</select>'},
+      {label:'Plan',html:'<select id="payPlan" name="planId" class="input">'+getArr('plans').map(pl=>'<option value="'+attr(pl.id)+'" '+selected(p.planId,pl.id)+'>'+esc(pl.nombre)+'</option>').join('')+'</select>'},
+      {label:'Monto',html:'<input required id="payAmount" type="number" name="monto" class="input" value="'+attr(p.monto || 0)+'">'},
+      {label:'Fecha de pago',html:'<input type="date" name="fechaPago" class="input" value="'+attr(p.fechaPago || today())+'">'},
+      {label:'Mes abonado',html:'<input type="month" name="mesAbonado" class="input" value="'+attr(p.mesAbonado || month())+'">'},
+      {label:'Medio',html:'<select name="medioPago" class="input">'+payMethods.map(m=>'<option '+selected(p.medioPago,m)+'>'+esc(m)+'</option>').join('')+'</select>'},
+      {label:'Estado',html:'<select name="estado" class="input">'+['Pagado','Pendiente','Vencido','En verificacion','Rechazado'].map(s=>'<option '+selected(p.estado,s)+'>'+s+'</option>').join('')+'</select>'},
+      {label:'Origen',html:'<select name="origen" class="input"><option '+selected(p.origen,'Manual admin')+'>Manual admin</option><option '+selected(p.origen,'Informado por profesora')+'>Informado por profesora</option><option '+selected(p.origen,'Importado')+'>Importado</option></select>'},
+      {label:'Observaciones',full:true,html:'<textarea name="observaciones" class="input">'+esc(p.observaciones || '')+'</textarea>'}
+    ])+'<button class="btn btn-primary mt-5">Guardar pago</button></form>';
+  };
+  window.newPayment = function(){if(!isGeneral()) return toast('Solo administrador'); showModal('Nuevo pago','Registro formal de pagos',paymentForm({estado:'Pagado',origen:'Manual admin'}));};
+  window.editPayment = function(id){if(!isGeneral()) return toast('Solo administrador'); showModal('Editar pago','Registro formal de pagos',paymentForm(getArr('payments').find(p=>p.id===id) || {}));};
+  window.savePayment = async function(e,id){
+    e.preventDefault();
+    if(!isGeneral()) return toast('Solo administrador');
+    const fd = Object.fromEntries(new FormData(e.target).entries());
+    fd.monto = Number(fd.monto || 0);
+    fd.registradoPor = currentUser?.usuario || 'admin';
+    let p = id ? getArr('payments').find(x=>x.id===id) : null;
+    if(p) Object.assign(p,fd,{updatedAt:stamp()});
+    else getArr('payments').push(Object.assign({id:newId(),createdAt:stamp()},fd,{updatedAt:stamp()}));
+    const c = getArr('clients').find(x=>x.id===fd.clienteId);
+    if(c && fd.estado === 'Pagado') c.paymentStatus = 'Pagado';
+    if(await persist('Pago guardado')){closeModal();render();}
+  };
+  window.newPaymentForClient = function(clientId){
+    const c = getArr('clients').find(x=>x.id===clientId);
+    const plan = clientPlan(c);
+    showModal('Nuevo pago','Cliente preseleccionado: '+fullName(c),paymentForm({clienteId:clientId,planId:c?.planId || '',monto:plan?.precio || 0,estado:'Pagado',origen:'Manual admin'}));
+  };
+  window.editPaymentReport = function(id){
+    if(!isGeneral()) return toast('Solo administrador');
+    const r = getArr('paymentReports').find(x=>x.id===id);
+    if(!r) return;
+    showModal('Editar pago informado',r.clientName || '', '<form onsubmit="saveEditedPaymentReport(event,\''+attr(id)+'\')">'+formGrid([
+      {label:'Monto',html:'<input required type="number" name="amount" class="input" value="'+attr(r.amount || 0)+'">'},
+      {label:'Medio',html:'<select name="method" class="input">'+payMethods.map(m=>'<option '+selected(r.method,m)+'>'+esc(m)+'</option>').join('')+'</select>'},
+      {label:'Fecha',html:'<input type="date" name="date" class="input" value="'+attr(r.date || today())+'">'},
+      {label:'Observacion',full:true,html:'<textarea name="note" class="input">'+esc(r.note || '')+'</textarea>'}
+    ])+'<button class="btn btn-primary mt-5">Guardar cambios</button></form>');
+  };
+  window.saveEditedPaymentReport = async function(e,id){
+    e.preventDefault();
+    const r = getArr('paymentReports').find(x=>x.id===id);
+    if(!r) return;
+    const fd = Object.fromEntries(new FormData(e.target).entries());
+    r.amount = Number(fd.amount || 0);
+    r.method = fd.method || '';
+    r.date = fd.date || today();
+    r.note = fd.note || '';
+    r.updatedAt = stamp();
+    if(await persist('Pago informado actualizado')){closeModal();render();}
+  };
+
+  window.renderDashboard = function(){
+    const pendingReports = getArr('paymentReports').filter(r=>r.status==='pendiente_verificacion').length;
+    const activeClients = getArr('clients').filter(c=>c.estado==='Activo').length;
+    const selectedDay = dayLabel(new Date().toLocaleDateString('es-AR',{weekday:'long'}));
+    const daySlots = weeklySlots().filter(s=>dayKey(s.day)===dayKey(selectedDay));
+    const todayAttendance = getArr('attendance').filter(a=>a.date===today()).length;
+    const pendingPays = getArr('payments').filter(p=>p.estado==='Pendiente').length;
+    const alert = isGeneral() && pendingReports ? '<div class="nih-alert">'+pendingReports+' pagos informados pendientes de verificacion <button class="btn btn-primary !py-2" onclick="go(\'pagos\')">Ver en Pagos</button></div>' : '';
+    return toolbar('dashboard','') + alert + '<div class="metric-grid dashboard-metrics">'+
+      stat('Clientes activos',activeClients,'Base actual','ok')+
+      stat('Clases de hoy',daySlots.length,'Agenda semanal fija','ok')+
+      stat('Asistencias de hoy',todayAttendance,'Marcadas por fecha real','gold')+
+      stat('Pagos pendientes',pendingPays,'Registros reales','warn')+
+      (isGeneral()?stat('Pagos a verificar',pendingReports,'Informados por profesoras',pendingReports?'danger':'ok'):'')+
+      '</div><div class="dashboard-grid mt-4"><section class="card dash-panel"><h3 class="panel-title">Clases de hoy</h3><div class="grid gap-2">'+(daySlots.length?daySlots.map(s=>'<button class="nih-class-cell" onclick="filters.agendaDate=\''+today()+'\';go(\'agenda\')"><b>'+esc(s.day)+' '+esc(s.time)+' - '+esc(s.teacherName || '-')+'</b><small>'+s.clients.length+' alumnas</small></button>').join(''):'<p class="nih-muted">Sin clases fijas para hoy.</p>')+'</div></section><section class="card dash-panel"><h3 class="panel-title">Pagos informados</h3>'+(pendingReports?'<p class="nih-muted">Hay pagos esperando aprobacion administrativa.</p><button class="btn btn-primary mt-3" onclick="go(\'pagos\')">Revisar pagos</button>':'<p class="nih-muted">No hay pagos informados pendientes.</p>')+'</section></div>';
+  };
+
+  window.confirmExcelImport = async function(){
+    if(!isGeneral()) return toast('Solo administrador general');
+    if(!excelImportPreview) return toast('Primero genera la vista previa');
+    if(oldMergeImportedData) oldMergeImportedData(db,false);
+    else if(oldConfirmExcelImport) return oldConfirmExcelImport();
+    db.settings.pilatesImportLastAt = stamp();
+    getArr('clients').forEach(c=>{c.scheduleDays = cleanScheduleDaysForClient(c,db);});
+    syncClassesAndSchedules(db);
+    excelImportPreview = null;
+    if(await persist('Importacion confirmada y sincronizada')) render();
+  };
+  window.renderImportar = function(){
+    if(!isGeneral()) return denied();
+    const q = typeof getModuleSearch === 'function' ? getModuleSearch('importar') : '';
+    const data = PILATES_EXCEL_IMPORT_DATA || {};
+    const preview = excelImportPreview;
+    const summary = preview ? [['Clientes nuevos',preview.clientsCreated],['Clases nuevas',preview.classesCreated],['Asignaciones nuevas',preview.schedulesCreated],['Duplicados evitados',preview.duplicatesAvoided]] : [['Clientes actuales',getArr('clients').length],['Pagos actuales',getArr('payments').length],['Asistencias',getArr('attendance').length],['Pagos informados',getArr('paymentReports').length]];
+    return toolbar('importar','<button class="btn btn-primary" onclick="previewExcelImport()">Vista previa</button><button class="btn btn-gold" onclick="confirmExcelImport()">Confirmar importacion</button><button class="btn btn-secondary" onclick="exportCurrentDatabaseXlsx()">Exportar Excel .xlsx</button>','Buscar importacion')+
+      '<section class="card p-5"><h3 class="nih-section-title">Importar base y exportar</h3><p class="nih-muted">La importacion se guarda en Firestore y la exportacion toma la base sincronizada actual.</p><div class="mt-4 grid gap-3 md:grid-cols-4">'+summary.map(x=>'<div class="rounded-xl border border-[#DED6C8] p-3"><b>'+esc(x[0])+'</b><div class="text-2xl font-black">'+esc(x[1])+'</div></div>').join('')+'</div><div class="nih-export-actions"><button class="btn btn-primary" onclick="previewExcelImport()">Vista previa PILATES.xlsx</button><button class="btn btn-gold" onclick="confirmExcelImport()" '+(preview?'':'disabled style="opacity:.45"')+'>Guardar importacion</button><button class="btn btn-secondary" onclick="exportCurrentDatabaseXlsx()">Exportar base actual</button></div></section>';
+  };
+
+  async function latestDBForExport(){
+    if(firebaseOnline && firestore){
+      try{
+        const snap = await firestore.doc(FIRESTORE_DOC_PATH).get();
+        if(snap.exists && snap.data() && snap.data().payload) return ensureStudioData(normalizeDB(snap.data().payload));
+      }catch(err){console.error('Firestore export read error',err);toast('No se pudo leer Firestore. Se exporta la copia local sincronizada.');}
+    }
+    return ensureStudioData(JSON.parse(JSON.stringify(db)));
+  }
+  window.exportCurrentDatabaseXlsx = async function(){
+    if(!isGeneral()) return toast('Solo administrador');
+    const data = await latestDBForExport();
+    const sheets = {
+      Clientes:[['Nombre','DNI','Telefono','Estado','Plan','Dias asignados','Horarios asignados','Estado de pago','Observaciones']].concat(data.clients.slice().sort(compareByName).map(c=>[fullName(c),c.dni||'',c.telefono||'',c.estado||'',(data.plans.find(p=>p.id===c.planId)||{}).nombre||'',cleanScheduleDaysForClient(c,data).map(s=>s.day).join(', '),cleanScheduleDaysForClient(c,data).map(s=>s.time).join(', '),c.paymentStatus||quickPaymentStatus(c,data),c.observaciones||''])),
+      Pagos:[['Cliente','Monto','Mes','Medio','Estado','Fecha','Origen','Observaciones']].concat(data.payments.map(p=>[(data.clients.find(c=>c.id===p.clienteId)?fullName(data.clients.find(c=>c.id===p.clienteId)):'Cliente eliminado'),p.monto||0,p.mesAbonado||'',p.medioPago||'',p.estado||'',p.fechaPago||'',p.origen||'Manual admin',p.observaciones||''])),
+      Asistencias:[['Fecha','Dia','Horario','Cliente','Estado','Profesora']].concat(data.attendance.map(a=>[a.date||'',a.day||'',a.time||'',a.clientName||'',a.status||'',a.teacherName||''])),
+      'Pagos informados':[['Cliente','Monto','Medio','Fecha','Profesora','Estado de verificacion','Observacion']].concat(data.paymentReports.map(r=>[r.clientName||'',r.amount||0,r.method||'',r.date||'',r.teacherName||'',r.status||'',r.note||'']))
+    };
+    downloadXlsx('nihuen-pilates-base-'+today()+'.xlsx',sheets);
+  };
+  function xmlEscape(v){return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+  function colName(n){let s='';while(n>=0){s=String.fromCharCode(n%26+65)+s;n=Math.floor(n/26)-1;}return s}
+  function sheetXml(rows){
+    return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>'+rows.map(function(row,r){
+      return '<row r="'+(r+1)+'">'+row.map(function(cell,c){
+        const ref = colName(c)+(r+1), num = typeof cell === 'number' && Number.isFinite(cell);
+        return '<c r="'+ref+'" t="'+(num?'n':'inlineStr')+'">'+(num?'<v>'+cell+'</v>':'<is><t>'+xmlEscape(cell)+'</t></is>')+'</c>';
+      }).join('')+'</row>';
+    }).join('')+'</sheetData></worksheet>';
+  }
+  function crc32(str){
+    const table = crc32.table || (crc32.table = Array.from({length:256},(_,n)=>{let c=n;for(let k=0;k<8;k++)c=((c&1)?(0xedb88320^(c>>>1)):(c>>>1));return c>>>0;}));
+    let crc = -1;
+    for(let i=0;i<str.length;i++) crc = (crc>>>8) ^ table[(crc ^ str.charCodeAt(i)) & 255];
+    return (crc ^ -1) >>> 0;
+  }
+  function u16(n){return String.fromCharCode(n&255,(n>>>8)&255)}
+  function u32(n){return String.fromCharCode(n&255,(n>>>8)&255,(n>>>16)&255,(n>>>24)&255)}
+  function zip(files){
+    let local='', central='', offset=0;
+    files.forEach(function(f){
+      const name=f.name, data=utf8bin(f.data), crc=crc32(data), size=data.length;
+      const header='PK\003\004'+u16(20)+u16(0)+u16(0)+u16(0)+u16(0)+u32(crc)+u32(size)+u32(size)+u16(name.length)+u16(0)+name;
+      local += header + data;
+      central += 'PK\001\002'+u16(20)+u16(20)+u16(0)+u16(0)+u16(0)+u16(0)+u32(crc)+u32(size)+u32(size)+u16(name.length)+u16(0)+u16(0)+u16(0)+u16(0)+u32(0)+u32(offset)+name;
+      offset += header.length + data.length;
+    });
+    return local + central + 'PK\005\006'+u16(0)+u16(0)+u16(files.length)+u16(files.length)+u32(central.length)+u32(local.length)+u16(0);
+  }
+  function utf8bin(str){return Array.from(new TextEncoder().encode(String(str)),function(b){return String.fromCharCode(b)}).join('')}
+  function downloadXlsx(filename,sheets){
+    const names = Object.keys(sheets);
+    const files = [
+      {name:'[Content_Types].xml',data:'<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'+names.map((n,i)=>'<Override PartName="/xl/worksheets/sheet'+(i+1)+'.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>').join('')+'</Types>'},
+      {name:'_rels/.rels',data:'<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'},
+      {name:'xl/workbook.xml',data:'<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>'+names.map((n,i)=>'<sheet name="'+xmlEscape(n).slice(0,31)+'" sheetId="'+(i+1)+'" r:id="rId'+(i+1)+'"/>').join('')+'</sheets></workbook>'},
+      {name:'xl/_rels/workbook.xml.rels',data:'<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+names.map((n,i)=>'<Relationship Id="rId'+(i+1)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet'+(i+1)+'.xml"/>').join('')+'</Relationships>'}
+    ];
+    names.forEach((n,i)=>files.push({name:'xl/worksheets/sheet'+(i+1)+'.xml',data:sheetXml(sheets[n])}));
+    const blob = new Blob([Uint8Array.from(zip(files),c=>c.charCodeAt(0))],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+  }
+
+  function setupGlobalSearch(){
+    const input = document.getElementById('globalSearch');
+    if(!input || input.dataset.nihBound) return;
+    input.dataset.nihBound = '1';
+    input.removeAttribute('onkeydown');
+    input.placeholder = 'Buscar en la pestana actual...';
+    input.addEventListener('input',function(){
+      if(typeof setModuleSearch === 'function') setModuleSearch(currentSection,this.value);
+    });
+    input.addEventListener('keydown',function(e){
+      if(e.key === 'Enter' && typeof setModuleSearch === 'function') setModuleSearch(currentSection,this.value);
+    });
+  }
+  setupGlobalSearch();
+  window.addEventListener('load',function(){ensureStudioData(db); setupGlobalSearch(); if(currentUser) render();});
 })();
 </script>
-<!-- NIH_WEEKLY_ADMIN_LOGIC_PATCH_END -->
+<!-- NIH_REAL_STUDIO_ADMIN_WEEKLY_LOGIC_END -->
+<!-- NIH_LAYOUT_RESPONSIVE_POLISH_START -->
+<style>
+  /* Capa final de maquetacion: contencion, wrapping y responsive sin tocar la logica. */
+  *,*::before,*::after{box-sizing:border-box}
+  html,body{width:100%;max-width:100%;overflow-x:hidden!important}
+  body{min-width:320px}
+  img,svg,canvas,video{max-width:100%;height:auto}
+  #appView,.app-shell,.main,#content{max-width:100%;min-width:0}
+  #content{display:block;width:100%;overflow:visible}
+  .main{overflow-x:hidden!important}
+  .card,.dash-panel,.quickbar,.metric,.modal-box,.mobile-card,.pending-card,.nih-alert{
+    max-width:100%;
+    min-width:0;
+    overflow-wrap:anywhere;
+  }
+  .card,.dash-panel,.quickbar,.metric{contain:layout style}
+  .flex,.grid,.dashboard-grid,.dash-lower,.metric-grid,.quick-grid,.module-toolbar,.toolbar-actions,.nih-student-row,.nih-schedule-row{min-width:0}
+  .flex>*,
+  .grid>*,
+  .dashboard-grid>*,
+  .dash-lower>*,
+  .module-toolbar>*,
+  .toolbar-actions>*{min-width:0}
 
+  .btn{
+    max-width:100%;
+    min-width:0;
+    min-height:42px;
+    line-height:1.15;
+    white-space:normal!important;
+    text-align:center;
+  }
+  .input,select.input,textarea.input{
+    max-width:100%;
+    min-width:0;
+  }
+  .badge{
+    max-width:100%;
+    white-space:normal;
+    line-height:1.15;
+    text-align:center;
+  }
+
+  .topbar{
+    width:auto!important;
+    max-width:100%;
+    min-width:0;
+    grid-template-columns:minmax(180px,260px) minmax(260px,520px) minmax(0,1fr) auto!important;
+    align-items:center!important;
+    gap:14px!important;
+    overflow:visible!important;
+  }
+  .topbar>div{min-width:0}
+  .topbar-title{
+    max-width:100%;
+    min-width:0;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .topbar-search{
+    width:100%;
+    min-width:0;
+    max-width:100%;
+    position:relative;
+    overflow:hidden;
+    flex-shrink:1;
+  }
+  .topbar-search input{min-width:0;padding-right:4px}
+  .topbar .flex.items-center.gap-3{
+    min-width:0;
+    justify-content:flex-end;
+    flex-wrap:nowrap;
+  }
+  .bell{flex:0 0 auto;isolation:isolate}
+  .bell:after{right:0;top:0;z-index:2}
+  .user-pill{min-width:0;max-width:240px}
+  .user-pill>div:last-child{min-width:0}
+  .user-pill b,.user-pill small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  .module-toolbar{
+    width:100%;
+    max-width:100%;
+    display:grid!important;
+    grid-template-columns:minmax(220px,1fr) auto!important;
+    align-items:center!important;
+    gap:12px!important;
+    margin-bottom:16px!important;
+  }
+  .module-toolbar .search-box{
+    min-width:0;
+    width:100%;
+    max-width:100%;
+  }
+  .module-toolbar .search-box input{min-width:0}
+  .module-toolbar .toolbar-actions{
+    display:flex!important;
+    align-items:center!important;
+    justify-content:flex-end!important;
+    flex-wrap:wrap!important;
+    gap:10px!important;
+    max-width:100%;
+  }
+  .module-toolbar .toolbar-actions .input{width:auto;min-width:150px;flex:1 1 150px}
+  .module-toolbar .toolbar-actions .btn{width:auto!important;flex:0 1 auto}
+
+  .metric-grid,.dashboard-metrics{
+    display:grid!important;
+    grid-template-columns:repeat(auto-fit,minmax(180px,1fr))!important;
+    gap:12px!important;
+  }
+  .metric{
+    min-height:104px!important;
+    padding:16px!important;
+  }
+  .metric .labelm,.metric .valuem,.metric .subm{max-width:calc(100% - 46px)}
+  .dashboard-grid,.dash-lower{
+    display:grid!important;
+    grid-template-columns:repeat(auto-fit,minmax(min(360px,100%),1fr))!important;
+    gap:14px!important;
+    align-items:start!important;
+  }
+  .dash-panel>.flex.items-center.justify-between{
+    flex-wrap:wrap;
+    gap:10px;
+  }
+  .quick-grid,.quick-actions{
+    display:grid!important;
+    grid-template-columns:repeat(auto-fit,minmax(150px,1fr))!important;
+    gap:10px!important;
+  }
+  .quick-grid .btn,.quick-actions .btn{width:100%!important;min-width:0!important}
+
+  .desktop-table{
+    width:100%;
+    max-width:100%;
+    overflow-x:auto!important;
+    overflow-y:visible!important;
+    -webkit-overflow-scrolling:touch;
+    padding-bottom:4px;
+  }
+  .table{
+    width:100%;
+    min-width:720px;
+    table-layout:auto;
+  }
+  .table th,.table td{
+    max-width:320px;
+    overflow-wrap:anywhere;
+  }
+  .table td:last-child{min-width:112px!important}
+  .mobile-card{
+    width:100%;
+    max-width:100%;
+  }
+  .mobile-card .card{
+    width:100%;
+    padding:16px!important;
+  }
+  .mobile-card .card>.flex{
+    flex-wrap:wrap;
+    align-items:flex-start;
+  }
+
+  .action-cell{
+    width:auto!important;
+    min-width:40px;
+    max-width:100%;
+    justify-content:flex-end!important;
+  }
+  .action-trigger{
+    flex:0 0 auto;
+    width:42px!important;
+    height:42px!important;
+    min-height:42px!important;
+  }
+  #floatingActionMenu{
+    max-width:min(300px,calc(100vw - 24px))!important;
+    overflow-wrap:anywhere;
+  }
+  .payment-action-stack,.actions,.nih-inline-actions{
+    display:flex!important;
+    flex-wrap:wrap!important;
+    gap:8px!important;
+    align-items:center!important;
+  }
+  .payment-action-stack .btn,.actions .btn,.nih-inline-actions .btn{
+    width:auto!important;
+    flex:1 1 136px;
+  }
+
+  .nih-week-grid{
+    width:100%;
+    max-width:100%;
+    overflow-x:auto!important;
+    overflow-y:visible;
+    -webkit-overflow-scrolling:touch;
+    overscroll-behavior-x:contain;
+  }
+  .nih-week-table{
+    width:100%;
+    min-width:900px;
+    table-layout:fixed;
+  }
+  .nih-week-table th,.nih-week-table td{
+    min-width:0;
+    width:calc((100% - 88px)/6);
+    padding:10px!important;
+  }
+  .nih-week-time{width:88px!important}
+  .nih-class-cell{
+    width:100%;
+    min-width:0;
+    max-width:100%;
+    display:block;
+    overflow:hidden;
+  }
+  .nih-class-top{
+    min-width:0;
+    align-items:flex-start;
+  }
+  .nih-class-top>div{min-width:0}
+  .nih-class-teacher,.nih-class-cell b{
+    max-width:100%;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .nih-class-students{
+    max-height:76px;
+    overflow:auto;
+    overflow-wrap:anywhere;
+  }
+  .nih-class-badges{min-height:0}
+
+  .modal{
+    padding:clamp(10px,2vw,22px)!important;
+    align-items:center!important;
+  }
+  .modal-box{
+    width:min(960px,calc(100vw - 24px))!important;
+    max-height:calc(100dvh - 24px)!important;
+    overflow:auto!important;
+    border-radius:22px!important;
+    padding:clamp(16px,2.5vw,24px)!important;
+  }
+  .modal-box>.mb-4.flex{
+    display:flex!important;
+    flex-wrap:wrap!important;
+    align-items:flex-start!important;
+    gap:12px!important;
+  }
+  .modal-box>.mb-4.flex>div:first-child{
+    flex:1 1 260px;
+    min-width:0;
+  }
+  #modalTitle{
+    max-width:100%;
+    overflow-wrap:anywhere;
+    line-height:1.1;
+  }
+  #modalSubtitle{overflow-wrap:anywhere}
+  .modal-box>.mb-4.flex>button{
+    flex:0 0 auto;
+    width:auto!important;
+    max-width:100%;
+  }
+  #modalBody{min-width:0;max-width:100%}
+  #modalBody .grid{min-width:0}
+  #modalBody .card{overflow:hidden}
+
+  .nih-student-row{
+    grid-template-columns:minmax(180px,1fr) auto minmax(260px,max-content)!important;
+    align-items:center!important;
+    overflow:hidden;
+  }
+  .nih-student-row>div{min-width:0}
+  .nih-student-row b{
+    display:block;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .nih-muted{overflow-wrap:anywhere}
+  .nih-schedule-row{
+    grid-template-columns:minmax(130px,1fr) minmax(110px,.8fr) minmax(150px,1.2fr) auto!important;
+  }
+
+  .nih-alert{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+  }
+  .nih-alert button{margin-left:0!important}
+
+  @media(max-width:1200px){
+    .topbar{
+      grid-template-columns:minmax(160px,240px) minmax(220px,1fr) auto!important;
+    }
+    .topbar>div:nth-child(3){display:none}
+    .table{min-width:680px}
+  }
+
+  @media(max-width:980px){
+    .main{padding-inline:12px!important}
+    .topbar{
+      grid-template-columns:auto minmax(0,1fr) auto!important;
+      align-items:center!important;
+      gap:10px!important;
+      overflow:visible!important;
+    }
+    .topbar-search{
+      display:flex!important;
+      grid-column:1 / -1!important;
+      grid-row:2!important;
+      order:10;
+    }
+    .topbar .flex.items-center.gap-3{gap:8px!important}
+    .user-pill{display:none!important}
+    .module-toolbar{
+      grid-template-columns:1fr!important;
+      gap:10px!important;
+    }
+    .module-toolbar .toolbar-actions{
+      justify-content:stretch!important;
+      display:grid!important;
+      grid-template-columns:repeat(2,minmax(0,1fr))!important;
+      width:100%;
+    }
+    .module-toolbar .toolbar-actions .input,
+    .module-toolbar .toolbar-actions .btn{
+      width:100%!important;
+      min-width:0!important;
+      flex:auto!important;
+    }
+    .desktop-table{display:none!important}
+    .mobile-card{
+      display:grid!important;
+      gap:12px!important;
+    }
+    .metric-grid,.dashboard-metrics{
+      grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    }
+    .dashboard-grid,.dash-lower{
+      grid-template-columns:1fr!important;
+    }
+    .payment-action-stack,.actions,.nih-inline-actions{
+      display:grid!important;
+      grid-template-columns:repeat(2,minmax(0,1fr))!important;
+      width:100%;
+    }
+    .payment-action-stack .btn,.actions .btn,.nih-inline-actions .btn{
+      width:100%!important;
+      flex:auto!important;
+      min-height:44px;
+    }
+    .nih-week-table{
+      min-width:760px;
+    }
+    .nih-week-table th,.nih-week-table td{
+      padding:8px!important;
+    }
+    .nih-class-students{max-height:68px}
+    .nih-student-row{
+      grid-template-columns:1fr!important;
+      gap:12px!important;
+      align-items:stretch!important;
+    }
+    .nih-student-row b{white-space:normal}
+    .nih-schedule-row{
+      grid-template-columns:1fr!important;
+    }
+    .modal{
+      align-items:flex-start!important;
+      padding:10px!important;
+    }
+    .modal-box{
+      width:calc(100vw - 20px)!important;
+      max-height:calc(100dvh - 20px)!important;
+      border-radius:20px!important;
+    }
+    .modal-box>.mb-4.flex>button{
+      width:100%!important;
+    }
+  }
+
+  @media(max-width:640px){
+    .main{padding-inline:10px!important}
+    .topbar-title{font-size:clamp(20px,6vw,24px)!important}
+    .topbar-search{height:42px!important}
+    .module-toolbar .toolbar-actions{
+      grid-template-columns:1fr!important;
+    }
+    .metric-grid,.dashboard-metrics{
+      grid-template-columns:1fr!important;
+    }
+    .quick-grid,.quick-actions{
+      grid-template-columns:1fr!important;
+    }
+    .mobile-card .card{
+      padding:14px!important;
+    }
+    .payment-action-stack,.actions,.nih-inline-actions{
+      grid-template-columns:1fr!important;
+    }
+    .nih-week-table{
+      min-width:700px;
+    }
+    .nih-week-time{width:72px!important}
+    .nih-class-teacher,.nih-class-cell b{
+      white-space:normal;
+    }
+    .nih-badge-mini{padding:4px 7px;font-size:10px}
+    .modal-box{
+      padding:14px!important;
+      border-radius:18px!important;
+    }
+    #modalTitle{font-size:clamp(22px,7vw,30px)!important}
+  }
+
+  @media(max-width:380px){
+    .topbar{grid-template-columns:auto minmax(0,1fr)!important}
+    .topbar .flex.items-center.gap-3{grid-column:2;justify-self:end}
+    .bell{width:36px!important;height:36px!important}
+    #menuBtn{width:40px!important;height:40px!important}
+  }
+</style>
+<!-- NIH_LAYOUT_RESPONSIVE_POLISH_END -->
+<!-- NIH_REFERENCE_STYLE_SKIN_START -->
+<style>
+  :root{
+    --ref-bg:#f6f8fc;
+    --ref-bg-2:#eef3f9;
+    --ref-surface:#ffffff;
+    --ref-surface-soft:#fbfdff;
+    --ref-line:#dde5ef;
+    --ref-line-2:#edf2f7;
+    --ref-ink:#0f1d34;
+    --ref-muted:#5e6b7e;
+    --ref-soft:#8b97a8;
+    --ref-blue:#0d6eea;
+    --ref-blue-2:#075bd0;
+    --ref-green:#19b66b;
+    --ref-green-2:#0d934f;
+    --ref-red:#ef3131;
+    --ref-red-2:#cf1717;
+    --ref-orange:#ff990f;
+    --ref-orange-2:#ef7d00;
+    --ref-card-shadow:0 12px 34px rgba(31,45,71,.12),0 2px 8px rgba(31,45,71,.06);
+    --ref-soft-shadow:0 8px 22px rgba(31,45,71,.10);
+    --ref-inset:inset 0 1px 0 rgba(255,255,255,.96);
+    --bg:var(--ref-bg);
+    --surface:var(--ref-surface);
+    --surface2:var(--ref-surface-soft);
+    --line:var(--ref-line);
+    --ink:var(--ref-ink);
+    --muted:var(--ref-muted);
+    --soft:var(--ref-soft);
+    --olive:var(--ref-green);
+    --gold:var(--ref-orange);
+    --danger:var(--ref-red);
+    --warn:var(--ref-orange);
+    --ok:var(--ref-green);
+    --blue:var(--ref-blue);
+    --shadow:var(--ref-card-shadow);
+    --shadow2:var(--ref-soft-shadow);
+  }
+
+  html,body{
+    background:
+      radial-gradient(circle at 30% -10%,rgba(255,255,255,.98),rgba(246,248,252,.9) 38%,rgba(238,243,249,.96) 100%)!important;
+    color:var(--ref-ink)!important;
+    font-family:"Inter","Montserrat",ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important;
+    letter-spacing:0!important;
+  }
+  body::before{
+    content:"";
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    background:
+      linear-gradient(90deg,rgba(255,255,255,.52),rgba(255,255,255,0) 32%,rgba(255,255,255,.45)),
+      radial-gradient(circle at 90% 20%,rgba(13,110,234,.06),transparent 34%);
+    z-index:-1;
+  }
+
+  .app-shell{
+    background:rgba(255,255,255,.58)!important;
+    border:1px solid rgba(221,229,239,.9)!important;
+    border-radius:26px!important;
+    box-shadow:0 18px 55px rgba(31,45,71,.10)!important;
+  }
+  .main{
+    background:linear-gradient(180deg,#fbfcff 0%,#f4f7fb 100%)!important;
+  }
+  #content{color:var(--ref-ink)!important}
+
+  .sidebar{
+    background:rgba(255,255,255,.82)!important;
+    border-right:1px solid var(--ref-line)!important;
+    box-shadow:10px 0 34px rgba(31,45,71,.06)!important;
+  }
+  .brand-title,.brand-sub,.brand-mark,.brand-leaf{
+    color:var(--ref-ink)!important;
+  }
+  .tab{
+    color:#26374f!important;
+    border-radius:16px!important;
+    font-weight:800!important;
+  }
+  .tab.active,.tab:hover{
+    background:#eef4fb!important;
+    color:var(--ref-blue)!important;
+    box-shadow:inset 0 0 0 1px #dbe8f8!important;
+  }
+  .tab .nav-icon svg,
+  .tab svg{
+    stroke:currentColor!important;
+  }
+
+  .topbar{
+    background:rgba(255,255,255,.92)!important;
+    border:1px solid var(--ref-line)!important;
+    border-radius:24px!important;
+    box-shadow:var(--ref-card-shadow)!important;
+    backdrop-filter:blur(18px)!important;
+    margin:0 0 22px 0!important;
+  }
+  .topbar-title,#pageTitle{
+    color:var(--ref-ink)!important;
+    font-family:"Inter","Montserrat",ui-sans-serif,system-ui,sans-serif!important;
+    font-weight:900!important;
+    letter-spacing:-.03em!important;
+  }
+  .topbar-search,.module-toolbar .search-box{
+    background:var(--ref-surface)!important;
+    border:1px solid var(--ref-line)!important;
+    border-radius:22px!important;
+    box-shadow:var(--ref-soft-shadow),var(--ref-inset)!important;
+    min-height:54px!important;
+  }
+  .topbar-search input,
+  .module-toolbar .search-box input{
+    color:var(--ref-ink)!important;
+    font-weight:650!important;
+    font-size:15px!important;
+  }
+  .topbar-search input::placeholder,
+  .module-toolbar .search-box input::placeholder{
+    color:#7c8798!important;
+  }
+  .topbar-search:after{
+    border-color:#1e2a3c!important;
+    box-shadow:8px 8px 0 -6px #1e2a3c!important;
+    opacity:.9!important;
+  }
+  .bell{
+    background:#fff!important;
+    border:1px solid var(--ref-line)!important;
+    border-radius:16px!important;
+    box-shadow:var(--ref-soft-shadow)!important;
+  }
+  .bell:before{border-color:#1e2a3c!important}
+  .bell:after{
+    background:var(--ref-red)!important;
+    color:#fff!important;
+    box-shadow:0 3px 8px rgba(239,49,49,.3)!important;
+  }
+  .user-pill{
+    background:#fff!important;
+    border:1px solid var(--ref-line)!important;
+    box-shadow:var(--ref-soft-shadow)!important;
+  }
+  .avatar{
+    background:linear-gradient(135deg,var(--ref-blue),#5aa7ff)!important;
+  }
+
+  .card,.dash-panel,.quickbar,.metric,.modal-box,.mobile-card .card,.pending-card,.nih-alert{
+    background:rgba(255,255,255,.94)!important;
+    border:1px solid var(--ref-line)!important;
+    border-radius:24px!important;
+    box-shadow:var(--ref-card-shadow)!important;
+    color:var(--ref-ink)!important;
+  }
+  .card:hover,.metric:hover{
+    transform:none!important;
+  }
+  .panel-title,#modalTitle,h1,h2,h3,b,strong{
+    color:var(--ref-ink)!important;
+  }
+  .panel-title{
+    font-weight:900!important;
+    letter-spacing:-.02em!important;
+  }
+  .panel-title:before{
+    border-color:var(--ref-blue)!important;
+    background:#eef6ff!important;
+    box-shadow:0 3px 10px rgba(13,110,234,.14)!important;
+  }
+  #modalSubtitle,.nih-muted,.text-\[\#7d7466\],.text-\[\#66706A\],.text-\[\#7a7368\]{
+    color:var(--ref-muted)!important;
+  }
+
+  .metric{
+    background:linear-gradient(180deg,#fff,#fbfdff)!important;
+    border-color:var(--ref-line)!important;
+  }
+  .metric:before{
+    border-color:var(--ref-blue)!important;
+    background:#eef6ff!important;
+  }
+  .metric .labelm{
+    color:var(--ref-muted)!important;
+    font-weight:800!important;
+  }
+  .metric .valuem{
+    color:var(--ref-ink)!important;
+    font-weight:950!important;
+  }
+  .metric .subm{
+    color:var(--ref-soft)!important;
+  }
+
+  .input,select.input,textarea.input{
+    background:#fff!important;
+    border:1px solid var(--ref-line)!important;
+    border-radius:16px!important;
+    box-shadow:var(--ref-inset),0 5px 16px rgba(31,45,71,.06)!important;
+    color:var(--ref-ink)!important;
+    font-weight:650!important;
+  }
+  .input:focus,select.input:focus,textarea.input:focus{
+    border-color:#8bbcf7!important;
+    box-shadow:0 0 0 4px rgba(13,110,234,.12),0 8px 22px rgba(31,45,71,.08)!important;
+  }
+  .label{
+    color:var(--ref-ink)!important;
+    font-weight:850!important;
+  }
+
+  .btn{
+    border-radius:14px!important;
+    font-weight:850!important;
+    box-shadow:0 7px 18px rgba(31,45,71,.12),var(--ref-inset)!important;
+    border:1px solid transparent!important;
+    color:#fff!important;
+  }
+  .btn:hover{
+    transform:translateY(-1px)!important;
+    filter:saturate(1.03);
+  }
+  .btn-primary,.quick-grid .btn.quick-action-btn{
+    background:linear-gradient(180deg,#53a553,var(--ref-green-2))!important;
+    border-color:#428f49!important;
+  }
+  .btn-danger,.btn-delete{
+    background:linear-gradient(180deg,#ff4a4a,var(--ref-red-2))!important;
+    border-color:#e12a2a!important;
+    color:#fff!important;
+  }
+  .btn-gold{
+    background:linear-gradient(180deg,#ffb32b,var(--ref-orange-2))!important;
+    border-color:#ef8a04!important;
+    color:#fff!important;
+  }
+  .btn-soft,.btn-view,.btn-edit{
+    background:linear-gradient(180deg,#fff,#f5f7fb)!important;
+    border-color:var(--ref-line)!important;
+    color:#1c2635!important;
+    box-shadow:0 6px 16px rgba(31,45,71,.10),var(--ref-inset)!important;
+  }
+  .btn-low{
+    background:linear-gradient(180deg,#659c62,#497f47)!important;
+    border-color:#4d824b!important;
+    color:#fff!important;
+  }
+  button[onclick*="openPaymentReportForm"],
+  button[onclick*="Registrar pago"],
+  button[onclick*="newPaymentForClient"]{
+    background:linear-gradient(180deg,#ffad22,var(--ref-orange-2))!important;
+    border-color:#ef8a04!important;
+    color:#fff!important;
+  }
+  button[onclick*="markAttendance"][onclick*="Presente"]{
+    background:linear-gradient(180deg,#19c979,#07964f)!important;
+    border-color:#0a9e55!important;
+    color:#fff!important;
+  }
+  button[onclick*="markAttendance"][onclick*="Ausente"]{
+    background:linear-gradient(180deg,#ff4545,#d71919)!important;
+    border-color:#e12a2a!important;
+    color:#fff!important;
+  }
+  button[onclick*="viewClient"]{
+    background:linear-gradient(180deg,#1d87ff,var(--ref-blue-2))!important;
+    border-color:#0d6eea!important;
+    color:#fff!important;
+  }
+  .mobile-card button[onclick*="viewClient"],
+  .mobile-card .btn-view,
+  .desktop-table .btn-view{
+    background:linear-gradient(180deg,#fff,#f5f7fb)!important;
+    border-color:var(--ref-line)!important;
+    color:#1c2635!important;
+  }
+
+  .badge,.nih-badge-mini{
+    border-radius:999px!important;
+    font-weight:850!important;
+    border:1px solid transparent!important;
+    box-shadow:0 4px 12px rgba(31,45,71,.07)!important;
+  }
+  .badge-ok,.nih-badge-mini.progress{
+    background:#e8f8ee!important;
+    color:#087a42!important;
+    border-color:#bfe9ce!important;
+  }
+  .badge-warn,.badge-gold{
+    background:#fff4dc!important;
+    color:#a86b00!important;
+    border-color:#ffe1a1!important;
+  }
+  .badge-danger,.badge-full{
+    background:#ffe5e5!important;
+    color:#bd1818!important;
+    border-color:#ffc6c6!important;
+  }
+  .badge-muted{
+    background:#eef2f7!important;
+    color:#657287!important;
+    border-color:#dde5ef!important;
+  }
+  .badge-blue{
+    background:#e8f3ff!important;
+    color:#075bd0!important;
+    border-color:#c7e0ff!important;
+  }
+  .nih-payment-select{
+    background:#fff8e8!important;
+    color:#a86b00!important;
+    border-color:#ffe1a1!important;
+    box-shadow:0 5px 14px rgba(255,153,15,.10)!important;
+  }
+
+  .module-toolbar{
+    background:transparent!important;
+  }
+  .toolbar-actions .btn,
+  .module-toolbar .btn{
+    min-height:54px!important;
+    border-radius:18px!important;
+  }
+  .quickbar{
+    padding:20px!important;
+  }
+  .quick-grid .btn{
+    min-height:52px!important;
+  }
+
+  .desktop-table{
+    border-radius:22px!important;
+  }
+  .table{
+    border-spacing:0 12px!important;
+  }
+  .table th{
+    color:#6a7484!important;
+    font-weight:900!important;
+  }
+  .table td{
+    background:#fff!important;
+    border-top:1px solid var(--ref-line)!important;
+    border-bottom:1px solid var(--ref-line)!important;
+    box-shadow:0 7px 18px rgba(31,45,71,.07)!important;
+    color:var(--ref-ink)!important;
+  }
+  .table td:first-child{
+    border-left:1px solid var(--ref-line)!important;
+    border-radius:18px 0 0 18px!important;
+  }
+  .table td:last-child{
+    border-right:1px solid var(--ref-line)!important;
+    border-radius:0 18px 18px 0!important;
+  }
+
+  .mobile-card{
+    gap:14px!important;
+  }
+  .mobile-card .card{
+    border-radius:22px!important;
+    padding:20px!important;
+  }
+  .mobile-card .card b{
+    font-size:22px!important;
+    line-height:1.12!important;
+    font-weight:900!important;
+    letter-spacing:-.03em!important;
+  }
+  .mobile-card .card .text-sm,
+  .mobile-card .card .nih-muted{
+    color:var(--ref-muted)!important;
+    font-weight:650!important;
+  }
+
+  .action-trigger{
+    background:#fff!important;
+    color:#1c2635!important;
+    border:1px solid var(--ref-line)!important;
+    box-shadow:var(--ref-soft-shadow)!important;
+    border-radius:14px!important;
+    font-size:22px!important;
+  }
+  #floatingActionMenu{
+    background:#fff!important;
+    border:1px solid var(--ref-line)!important;
+    border-radius:18px!important;
+    box-shadow:0 18px 45px rgba(31,45,71,.18)!important;
+  }
+  #floatingActionMenu button{
+    color:var(--ref-ink)!important;
+    border-radius:13px!important;
+  }
+  #floatingActionMenu button:hover{
+    background:#f2f6fb!important;
+  }
+  #floatingActionMenu button.danger{
+    color:var(--ref-red-2)!important;
+  }
+
+  .nih-week-grid{
+    background:#fff!important;
+    border:1px solid var(--ref-line)!important;
+    border-radius:22px!important;
+    box-shadow:var(--ref-card-shadow)!important;
+  }
+  .nih-week-table th{
+    background:#f3f7fc!important;
+    color:#25344d!important;
+    font-weight:900!important;
+  }
+  .nih-week-time{
+    background:#f8fbff!important;
+    color:#657287!important;
+  }
+  .nih-week-table th,.nih-week-table td{
+    border-color:#e6edf5!important;
+  }
+  .nih-class-cell{
+    background:#fff!important;
+    border:1px solid #e0e8f1!important;
+    border-radius:18px!important;
+    box-shadow:0 8px 18px rgba(31,45,71,.08),var(--ref-inset)!important;
+    color:var(--ref-ink)!important;
+  }
+  .nih-class-cell.in-progress{
+    background:#effbf4!important;
+    border-color:#9be2b9!important;
+    box-shadow:0 10px 24px rgba(25,182,107,.16)!important;
+  }
+  .nih-class-teacher{
+    color:var(--ref-ink)!important;
+    font-weight:900!important;
+  }
+  .nih-class-students{
+    color:var(--ref-muted)!important;
+  }
+  .nih-badge-mini{
+    background:#f3f7fc!important;
+    border-color:#dfe8f2!important;
+    color:#26374f!important;
+  }
+
+  .modal{
+    background:rgba(15,29,52,.28)!important;
+    backdrop-filter:blur(8px)!important;
+  }
+  .modal-box{
+    background:linear-gradient(180deg,#fff,#f8fbff)!important;
+    border:1px solid var(--ref-line)!important;
+    border-radius:24px!important;
+    box-shadow:0 26px 70px rgba(31,45,71,.20)!important;
+  }
+  #modalTitle{
+    color:var(--ref-ink)!important;
+    font-family:"Inter","Montserrat",ui-sans-serif,system-ui,sans-serif!important;
+    font-weight:950!important;
+    letter-spacing:-.04em!important;
+  }
+  .modal-box>.mb-4.flex>button{
+    background:linear-gradient(180deg,#fff,#f5f7fb)!important;
+    color:#1c2635!important;
+    border:1px solid var(--ref-line)!important;
+    box-shadow:var(--ref-soft-shadow)!important;
+  }
+  .nih-student-row{
+    background:#fff!important;
+    border:1px solid var(--ref-line)!important;
+    border-radius:20px!important;
+    box-shadow:0 9px 24px rgba(31,45,71,.10)!important;
+    padding:18px!important;
+  }
+  .nih-student-row b{
+    color:var(--ref-ink)!important;
+    font-size:19px!important;
+    font-weight:900!important;
+  }
+  .nih-student-row::before{
+    content:"";
+    width:44px;
+    height:44px;
+    border-radius:999px;
+    background:
+      radial-gradient(circle at 50% 38%,#6d7d94 0 18%,transparent 19%),
+      radial-gradient(circle at 50% 74%,#6d7d94 0 27%,transparent 28%),
+      #f2f6fb;
+    border:1px solid #e4ebf3;
+    box-shadow:var(--ref-soft-shadow);
+    display:none;
+  }
+
+  .nih-alert{
+    background:#fff7e5!important;
+    color:#915d00!important;
+    border-color:#ffe0a1!important;
+  }
+  .pending-card{
+    border-radius:18px!important;
+  }
+
+  .login-premium,
+  #loginView{
+    background:linear-gradient(180deg,#f9fbff,#edf3fa)!important;
+  }
+  .login-form-card,.login-test-box{
+    background:#fff!important;
+    border-color:var(--ref-line)!important;
+    box-shadow:var(--ref-card-shadow)!important;
+  }
+  .login-form-card h2,.login-copy h1,.login-brand-word{
+    color:var(--ref-ink)!important;
+    font-family:"Inter","Montserrat",ui-sans-serif,system-ui,sans-serif!important;
+    font-weight:950!important;
+  }
+  .login-submit{
+    background:linear-gradient(180deg,#53a553,var(--ref-green-2))!important;
+    border-radius:16px!important;
+  }
+
+  @media(max-width:980px){
+    .app-shell{
+      background:#f6f8fc!important;
+      border-radius:0!important;
+      box-shadow:none!important;
+    }
+    .main{
+      background:#f6f8fc!important;
+    }
+    .topbar{
+      border-radius:0 0 24px 24px!important;
+      margin:-12px -12px 16px -12px!important;
+      padding:14px 16px!important;
+    }
+    .topbar-search{
+      min-height:50px!important;
+      border-radius:20px!important;
+    }
+    .module-toolbar .search-box{
+      min-height:52px!important;
+      border-radius:20px!important;
+    }
+    .toolbar-actions .btn,
+    .module-toolbar .btn{
+      min-height:50px!important;
+    }
+    .mobile-card .card{
+      border-radius:22px!important;
+    }
+    .nih-student-row{
+      padding:16px!important;
+    }
+    .nih-inline-actions .btn{
+      min-height:58px!important;
+      border-radius:14px!important;
+    }
+  }
+
+  @media(max-width:640px){
+    .topbar{
+      margin:-10px -10px 14px -10px!important;
+      padding:12px!important;
+    }
+    .topbar-title,#pageTitle{
+      font-size:30px!important;
+      line-height:1.05!important;
+    }
+    .bell{
+      border-radius:14px!important;
+    }
+    .card,.dash-panel,.quickbar,.metric,.modal-box,.mobile-card .card{
+      border-radius:20px!important;
+    }
+    .mobile-card .card b{
+      font-size:20px!important;
+    }
+    .btn{
+      min-height:48px!important;
+      border-radius:14px!important;
+    }
+    .nih-inline-actions .btn{
+      min-height:54px!important;
+    }
+  }
+</style>
+<!-- NIH_REFERENCE_STYLE_SKIN_END -->
+<!-- NIH_REFERENCE_DETAIL_LIST_STYLE_START -->
+<style>
+  :root{
+    --detail-bg:#f7f9fc;
+    --detail-card:#ffffff;
+    --detail-ink:#0f1d34;
+    --detail-muted:#50617a;
+    --detail-line:#dfe7f1;
+    --detail-blue:#0d6eea;
+    --detail-green:#0b9b53;
+    --detail-red:#e21d25;
+    --detail-orange:#f47c00;
+  }
+
+  .modal.show{
+    background:rgba(215,225,238,.62)!important;
+  }
+  .modal-box{
+    background:#fff!important;
+    border:1px solid #dbe4ef!important;
+    box-shadow:0 28px 70px rgba(28,45,74,.20)!important;
+  }
+  #modalTitle{
+    font-size:clamp(30px,3.2vw,42px)!important;
+    color:var(--detail-ink)!important;
+  }
+  #modalSubtitle{
+    color:#63728b!important;
+    font-size:16px!important;
+    font-weight:800!important;
+  }
+
+  .nih-student-row{
+    display:grid!important;
+    grid-template-columns:104px minmax(210px,1fr) 120px minmax(430px,.95fr)!important;
+    gap:22px!important;
+    align-items:center!important;
+    min-height:150px!important;
+    padding:22px 26px!important;
+    background:var(--detail-card)!important;
+    border:1px solid var(--detail-line)!important;
+    border-radius:16px!important;
+    box-shadow:0 10px 28px rgba(28,45,74,.08)!important;
+  }
+  .nih-student-row::before{display:none!important}
+  .nih-student-avatar{
+    width:78px;
+    height:78px;
+    border-radius:999px;
+    display:grid;
+    place-items:center;
+    background:linear-gradient(135deg,#eaf4ff,#f1f7fb);
+    color:#0b3c79;
+    font-size:28px;
+    font-weight:950;
+    letter-spacing:-.03em!important;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.9);
+  }
+  .nih-student-row:nth-child(4n+2) .nih-student-avatar{background:linear-gradient(135deg,#e7f6e9,#f1faf4);color:#096031}
+  .nih-student-row:nth-child(4n+3) .nih-student-avatar{background:linear-gradient(135deg,#eee8ff,#f8f4ff);color:#4323a8}
+  .nih-student-row:nth-child(4n+4) .nih-student-avatar{background:linear-gradient(135deg,#fff3d9,#fff9ee);color:#9a5a00}
+  .nih-student-main{min-width:0}
+  .nih-student-main b{
+    font-size:24px!important;
+    line-height:1.1!important;
+    color:var(--detail-ink)!important;
+    font-weight:950!important;
+    white-space:normal!important;
+  }
+  .nih-student-plan{
+    margin-top:8px;
+    color:#41516b;
+    font-weight:850;
+    font-size:15px;
+  }
+  .nih-student-meta{
+    display:grid;
+    gap:6px;
+    margin-top:10px;
+    color:#41516b;
+    font-weight:850;
+    font-size:14px;
+  }
+  .nih-student-meta strong{
+    color:var(--detail-orange)!important;
+    font-weight:950!important;
+  }
+  .nih-student-status{
+    display:flex;
+    justify-content:center;
+  }
+  .nih-student-status .badge{
+    min-width:108px;
+    justify-content:center;
+    border-radius:6px!important;
+    padding:11px 14px!important;
+    font-size:14px!important;
+    box-shadow:none!important;
+  }
+
+  .nih-inline-actions{
+    display:grid!important;
+    grid-template-columns:1fr 1fr 1.35fr!important;
+    gap:16px!important;
+    width:100%!important;
+    align-items:stretch!important;
+  }
+  .nih-inline-actions .btn{
+    min-height:58px!important;
+    width:100%!important;
+    border-radius:8px!important;
+    box-shadow:none!important;
+    font-size:16px!important;
+    font-weight:900!important;
+    padding:12px 16px!important;
+  }
+  .nih-inline-actions button[onclick*="Presente"]{
+    background:#fff!important;
+    color:var(--detail-green)!important;
+    border:1.5px solid var(--detail-green)!important;
+  }
+  .nih-inline-actions button[onclick*="Presente"]::before{content:"✓";font-size:28px;line-height:0;margin-right:8px}
+  .nih-inline-actions button[onclick*="Ausente"]{
+    background:#fff!important;
+    color:var(--detail-red)!important;
+    border:1.5px solid var(--detail-red)!important;
+  }
+  .nih-inline-actions button[onclick*="Ausente"]::before{content:"×";font-size:32px;line-height:0;margin-right:8px}
+  .nih-inline-actions button[onclick*="openPaymentReportForm"]{
+    background:#fff!important;
+    color:var(--detail-orange)!important;
+    border:1.5px solid var(--detail-orange)!important;
+  }
+  .nih-inline-actions button[onclick*="openPaymentReportForm"]::before{content:"▭";font-size:22px;line-height:0;margin-right:8px}
+  .nih-inline-actions .nih-details-btn{
+    grid-column:1 / -1!important;
+    background:linear-gradient(180deg,#1d82ff,#075bd8)!important;
+    border:1px solid #0b63dc!important;
+    color:#fff!important;
+    box-shadow:0 8px 18px rgba(13,110,234,.24)!important;
+  }
+  .nih-inline-actions .nih-details-btn::before{content:"◉";font-size:18px;margin-right:8px}
+
+  .nih-week-grid,.card,.mobile-card .card,.dash-panel,.quickbar,.metric{
+    border-radius:16px!important;
+  }
+  .mobile-card .card{
+    box-shadow:0 10px 28px rgba(28,45,74,.08)!important;
+  }
+
+  @media(max-width:1180px){
+    .nih-student-row{
+      grid-template-columns:86px minmax(180px,1fr)!important;
+      gap:16px!important;
+    }
+    .nih-student-status{
+      grid-column:1 / 2;
+      justify-content:center;
+    }
+    .nih-inline-actions{
+      grid-column:2 / 3;
+      grid-template-columns:1fr 1fr!important;
+    }
+    .nih-inline-actions button[onclick*="openPaymentReportForm"],
+    .nih-inline-actions .nih-details-btn{
+      grid-column:auto / span 2!important;
+    }
+  }
+
+  @media(max-width:700px){
+    .nih-student-row{
+      grid-template-columns:64px minmax(0,1fr)!important;
+      min-height:unset!important;
+      padding:18px!important;
+      border-radius:16px!important;
+    }
+    .nih-student-avatar{
+      width:56px;
+      height:56px;
+      font-size:20px;
+    }
+    .nih-student-main b{font-size:20px!important}
+    .nih-student-plan,.nih-student-meta{font-size:13px}
+    .nih-student-status{
+      grid-column:1 / -1;
+      justify-content:flex-start;
+    }
+    .nih-inline-actions{
+      grid-column:1 / -1;
+      grid-template-columns:1fr!important;
+      gap:10px!important;
+    }
+    .nih-inline-actions button[onclick*="openPaymentReportForm"],
+    .nih-inline-actions .nih-details-btn{
+      grid-column:auto!important;
+    }
+    .nih-inline-actions .btn{
+      min-height:52px!important;
+      font-size:15px!important;
+    }
+  }
+</style>
+<!-- NIH_REFERENCE_DETAIL_LIST_STYLE_END -->
+<!-- NIH_PARTIAL_ROLE_NAV_RESTRICTION_START -->
+<script>
+(function(){
+  function partialBlockedSection(id){
+    return id === 'clientes' || id === 'clases' || id === 'horarios';
+  }
+  window.allowedSections = function(){
+    const base = Array.isArray(sections) ? sections : [];
+    if(typeof isGeneral === 'function' && isGeneral()){
+      return base.filter(function(section){return section[0] !== 'horarios';});
+    }
+    return base.filter(function(section){
+      const id = section[0];
+      if(partialBlockedSection(id)) return false;
+      if(['personal','planes','reportes','config','importar'].includes(id)) return false;
+      if(id === 'pagos' && typeof canViewPayments === 'function' && !canViewPayments()) return false;
+      return true;
+    });
+  };
+  const previousGoForRole = typeof window.go === 'function' ? window.go : null;
+  window.go = function(id){
+    if(!(typeof isGeneral === 'function' && isGeneral()) && partialBlockedSection(id)){
+      id = 'agenda';
+    }
+    if(previousGoForRole) return previousGoForRole(id);
+    currentSection = id;
+    if(typeof render === 'function') render();
+  };
+  const previousRenderForRole = typeof window.render === 'function' ? window.render : null;
+  window.render = function(){
+    if(currentUser && !(typeof isGeneral === 'function' && isGeneral()) && partialBlockedSection(currentSection)){
+      currentSection = 'agenda';
+    }
+    if(previousRenderForRole) return previousRenderForRole();
+  };
+})();
+</script>
+<!-- NIH_PARTIAL_ROLE_NAV_RESTRICTION_END -->
+<!-- NIH_PAYMENT_VERIFICATION_BLOCK_STYLE_START -->
+<style>
+  .payment-verification-panel{
+    margin:0 0 22px;
+    padding:36px 42px 42px;
+    background:#fff;
+    border:1px solid #dce5f0;
+    border-radius:26px;
+    box-shadow:0 22px 58px rgba(28,45,74,.14);
+    color:#0f1d34;
+  }
+  .payment-verification-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:22px;
+    margin-bottom:34px;
+  }
+  .payment-verification-title-wrap{
+    display:flex;
+    align-items:center;
+    gap:22px;
+    min-width:0;
+  }
+  .payment-verification-icon{
+    width:74px;
+    height:74px;
+    flex:0 0 74px;
+    border-radius:999px;
+    display:grid;
+    place-items:center;
+    background:#fff2d9;
+    color:#d88700;
+    font-size:34px;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.9);
+  }
+  .payment-verification-head h3{
+    margin:0;
+    color:#0f1d34!important;
+    font-size:30px;
+    line-height:1.1;
+    font-weight:950;
+    letter-spacing:-.035em!important;
+  }
+  .payment-verification-head p{
+    margin:8px 0 0;
+    color:#63728b;
+    font-size:19px;
+    font-weight:800;
+    line-height:1.3;
+  }
+  .payment-verification-count{
+    flex:0 0 auto;
+    border-radius:999px;
+    padding:14px 22px;
+    background:#fff6e8;
+    border:1px solid #f0dfc5;
+    color:#a86700;
+    font-size:18px;
+    font-weight:950;
+    box-shadow:0 8px 22px rgba(28,45,74,.08);
+  }
+  .payment-verification-list{
+    border:1px solid #dce5f0;
+    border-radius:22px;
+    overflow:hidden;
+    background:#fff;
+  }
+  .payment-report-card{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(420px,.45fr);
+    align-items:center;
+    gap:28px;
+    padding:56px 48px;
+    background:#fff;
+    border-bottom:1px solid #dce5f0;
+  }
+  .payment-report-main{
+    display:grid;
+    grid-template-columns:98px minmax(0,1fr);
+    align-items:center;
+    gap:28px;
+    min-width:0;
+  }
+  .payment-report-avatar{
+    width:98px;
+    height:98px;
+    border-radius:999px;
+    display:grid;
+    place-items:center;
+    background:linear-gradient(135deg,#fff2df,#f6eadc);
+    color:#9a5a00;
+    font-size:32px;
+    font-weight:950;
+    letter-spacing:-.04em!important;
+  }
+  .payment-report-info{min-width:0}
+  .payment-report-info h4{
+    margin:0 0 24px;
+    color:#0f1d34;
+    font-size:30px;
+    line-height:1.05;
+    font-weight:950;
+    letter-spacing:-.035em!important;
+    max-width:100%;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .payment-report-meta{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:12px 22px;
+    color:#4b5a72;
+    font-size:19px;
+    font-weight:900;
+  }
+  .payment-report-meta span{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+  }
+  .payment-report-status{
+    padding:9px 16px;
+    border-radius:999px;
+    background:#fff7e7;
+    border:1px solid #ffd99a;
+    color:#be7200!important;
+  }
+  .payment-report-teacher{
+    margin-top:22px;
+    color:#26344d;
+    font-size:19px;
+    font-weight:900;
+  }
+  .payment-report-note{
+    margin-top:12px;
+    color:#63728b;
+    font-size:15px;
+    font-weight:750;
+    line-height:1.35;
+  }
+  .payment-report-actions{
+    display:grid;
+    grid-template-columns:repeat(3,minmax(120px,1fr));
+    gap:24px;
+    padding-left:32px;
+    border-left:1px solid #dce5f0;
+  }
+  .payment-report-btn{
+    min-height:138px;
+    border-radius:12px;
+    background:#fff;
+    display:grid;
+    place-items:center;
+    align-content:center;
+    gap:12px;
+    font-size:22px;
+    font-weight:950;
+    cursor:pointer;
+    transition:.16s ease;
+    box-shadow:none;
+  }
+  .payment-report-btn:hover{
+    transform:translateY(-1px);
+    box-shadow:0 10px 24px rgba(28,45,74,.10);
+  }
+  .payment-report-btn span{
+    width:48px;
+    height:48px;
+    border-radius:999px;
+    display:grid;
+    place-items:center;
+    font-size:36px;
+    line-height:1;
+  }
+  .payment-report-btn.edit{
+    border:1.5px solid #e4b66f;
+    color:#765022;
+    background:#fffaf3;
+  }
+  .payment-report-btn.approve{
+    border:1.5px solid #89d6a8;
+    color:#11924f;
+    background:#f3fff7;
+  }
+  .payment-report-btn.reject{
+    border:1.5px solid #ff9d9d;
+    color:#d71919;
+    background:#fff7f7;
+  }
+  .payment-report-btn.edit span{color:#a66d16}
+  .payment-report-btn.approve span{border:3px solid #22a35b;color:#22a35b}
+  .payment-report-btn.reject span{border:3px solid #ef3131;color:#ef3131}
+  .payment-verification-tip{
+    padding:28px 24px;
+    text-align:center;
+    color:#63728b;
+    background:#fbfdff;
+    font-size:18px;
+    font-weight:850;
+  }
+  @media(max-width:1180px){
+    .payment-verification-panel{padding:28px}
+    .payment-report-card{
+      grid-template-columns:1fr;
+      gap:24px;
+      padding:32px;
+    }
+    .payment-report-actions{
+      border-left:0;
+      border-top:1px solid #dce5f0;
+      padding-left:0;
+      padding-top:24px;
+    }
+  }
+  @media(max-width:760px){
+    .payment-verification-panel{
+      padding:20px;
+      border-radius:22px;
+    }
+    .payment-verification-head{
+      align-items:flex-start;
+      flex-direction:column;
+      gap:16px;
+      margin-bottom:22px;
+    }
+    .payment-verification-title-wrap{
+      gap:14px;
+    }
+    .payment-verification-icon{
+      width:58px;
+      height:58px;
+      flex-basis:58px;
+      font-size:26px;
+    }
+    .payment-verification-head h3{
+      font-size:23px;
+    }
+    .payment-verification-head p{
+      font-size:15px;
+    }
+    .payment-verification-count{
+      width:100%;
+      text-align:center;
+      font-size:16px;
+    }
+    .payment-report-card{
+      padding:22px;
+    }
+    .payment-report-main{
+      grid-template-columns:70px minmax(0,1fr);
+      gap:16px;
+    }
+    .payment-report-avatar{
+      width:70px;
+      height:70px;
+      font-size:24px;
+    }
+    .payment-report-info h4{
+      font-size:23px;
+      margin-bottom:12px;
+      white-space:normal;
+    }
+    .payment-report-meta{
+      font-size:15px;
+      gap:10px;
+    }
+    .payment-report-teacher{
+      font-size:15px;
+      margin-top:12px;
+    }
+    .payment-report-actions{
+      grid-template-columns:1fr;
+      gap:12px;
+    }
+    .payment-report-btn{
+      min-height:70px;
+      grid-template-columns:auto 1fr;
+      display:grid;
+      justify-items:center;
+      font-size:18px;
+      padding:12px;
+    }
+    .payment-report-btn span{
+      width:38px;
+      height:38px;
+      font-size:28px;
+    }
+    .payment-verification-tip{
+      font-size:14px;
+      padding:18px;
+    }
+  }
+</style>
+<!-- NIH_PAYMENT_VERIFICATION_BLOCK_STYLE_END -->
 </body>
 </html>
