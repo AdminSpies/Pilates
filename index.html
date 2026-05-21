@@ -5993,7 +5993,7 @@ window.openSelectedWhatsAppReminders = avisarSeleccionadosPorWhatsApp;
   .nih-section-title{font-size:18px;font-weight:950;margin:0 0 12px}
   .nih-muted{color:#66706a;font-weight:750;font-size:13px}
   .nih-export-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
-  @media(max-width:780px){
+  @media(max-width:1100px){
     .nih-schedule-row{grid-template-columns:1fr}
     .nih-student-row{grid-template-columns:1fr}
     .nih-inline-actions{justify-content:flex-start}
@@ -6484,13 +6484,53 @@ window.openSelectedWhatsAppReminders = avisarSeleccionadosPorWhatsApp;
     });
     const byCell = new Map();
     slots.forEach(s=>byCell.set(dayKey(s.day)+'|'+s.time,s));
-    return '<div class="nih-week-grid"><table class="nih-week-table"><thead><tr><th>Horario</th>'+WEEK_DAYS.map(d=>'<th>'+esc(d)+'</th>').join('')+'</tr></thead><tbody>'+times.map(function(t){
+    return renderMobileAgenda(slots,selectedDate) + '<div class="nih-week-grid agenda-desktop-grid"><table class="nih-week-table"><thead><tr><th>Horario</th>'+WEEK_DAYS.map(d=>'<th>'+esc(d)+'</th>').join('')+'</tr></thead><tbody>'+times.map(function(t){
       return '<tr><td class="nih-week-time">'+esc(t)+'</td>'+WEEK_DAYS.map(function(d){
         const slot = byCell.get(dayKey(d)+'|'+t);
         if(!slot) return '<td></td>';
         return '<td>'+renderWeeklySlotBlock(slot,selectedDate)+'</td>';
       }).join('')+'</tr>';
     }).join('')+'</tbody></table></div>';
+  }
+  function agendaDateText(dateValue){
+    const d = new Date((dateValue || today()) + 'T12:00:00');
+    if(isNaN(d.getTime())) return dateValue || today();
+    return new Intl.DateTimeFormat('es-AR',{day:'2-digit',month:'short',year:'numeric'}).format(d).replace('.', '');
+  }
+  function agendaSelectedDay(selectedDate,slots){
+    const forced = filters.agendaMobileDay || '';
+    if(WEEK_DAYS.some(d=>dayKey(d)===dayKey(forced))) return dayLabel(forced);
+    const realDay = dayLabel(new Date((selectedDate || today()) + 'T12:00:00').toLocaleDateString('es-AR',{weekday:'long'}));
+    if(WEEK_DAYS.some(d=>dayKey(d)===dayKey(realDay))) return realDay;
+    return WEEK_DAYS.find(d=>slots.some(s=>dayKey(s.day)===dayKey(d))) || WEEK_DAYS[0];
+  }
+  function renderMobileAgenda(slots,selectedDate){
+    const selectedDay = agendaSelectedDay(selectedDate,slots);
+    const daySlots = slots.filter(s=>dayKey(s.day)===dayKey(selectedDay)).sort((a,b)=>String(a.time).localeCompare(String(b.time)));
+    const tabs = WEEK_DAYS.map(function(d){
+      const count = slots.filter(s=>dayKey(s.day)===dayKey(d)).length;
+      const active = dayKey(d)===dayKey(selectedDay);
+      return '<button type="button" class="agenda-mobile-day '+(active?'active':'')+'" onclick="filters.agendaMobileDay=\''+attr(dayKey(d))+'\';render()"><span>'+esc(d)+'</span><b>'+count+'</b></button>';
+    }).join('');
+    return '<section class="agenda-mobile-shell">'+
+      '<div class="agenda-mobile-heading"><div><h2>Agenda Semanal</h2><p>Vista optimizada para celular</p></div><div class="agenda-mobile-date">'+esc(agendaDateText(selectedDate))+'</div></div>'+
+      '<div class="agenda-mobile-days" role="tablist">'+tabs+'</div>'+
+      '<div class="agenda-mobile-selected"><span>'+esc(selectedDay)+'</span><strong>'+daySlots.length+' clase'+(daySlots.length===1?'':'s')+'</strong></div>'+
+      '<div class="agenda-mobile-list">'+(daySlots.length?daySlots.map(s=>renderMobileSlotCard(s,selectedDate)).join(''):'<div class="agenda-mobile-empty">No hay clases visibles para este dia.</div>')+'</div>'+
+    '</section>';
+  }
+  function renderMobileSlotCard(slot,selectedDate){
+    const inProgress = isSlotInProgress(slot,selectedDate);
+    const visible = slot.clients.slice(0,5);
+    const hidden = slot.clients.slice(5);
+    const visibleNames = visible.length ? visible.map(c=>'<span class="agenda-mobile-student">'+esc(fullName(c))+'</span>').join('') : '<span class="agenda-mobile-student empty">Sin alumnas</span>';
+    const hiddenNames = hidden.map(c=>'<span class="agenda-mobile-student">'+esc(fullName(c))+'</span>').join('');
+    return '<article class="agenda-mobile-card '+(inProgress?'in-progress':'')+'">'+
+      '<div class="agenda-mobile-card-top"><div class="agenda-mobile-time">'+esc(slot.time)+'</div><div class="agenda-mobile-main"><div class="agenda-mobile-prof">'+esc(slot.teacherName || 'Sin profesora')+'</div><div class="agenda-mobile-sub">'+esc(slot.day)+' · Fecha real '+esc(agendaDateText(selectedDate))+'</div></div><span class="agenda-mobile-cupo">'+esc(slot.clients.length)+'/8</span></div>'+
+      '<div class="agenda-mobile-label">Alumnas</div><div class="agenda-mobile-students">'+visibleNames+'</div>'+
+      (hidden.length?'<details class="agenda-mobile-more"><summary>Ver '+hidden.length+' alumna'+(hidden.length===1?'':'s')+' mas</summary><div class="agenda-mobile-students">'+hiddenNames+'</div></details>':'')+
+      '<div class="agenda-mobile-actions"><button type="button" onclick="openWeeklyClassDetail(\''+attr(dayKey(slot.day))+'\',\''+attr(slot.time)+'\')">'+(inProgress?'Gestionar asistencia en curso':'Ver asistencia')+'</button>'+(inProgress?'<span>En curso</span>':'')+'</div>'+
+    '</article>';
   }
   function renderWeeklySlotBlock(slot,selectedDate){
     const inProgress = isSlotInProgress(slot,selectedDate);
@@ -9484,6 +9524,380 @@ window.openSelectedWhatsAppReminders = avisarSeleccionadosPorWhatsApp;
     }
   }
 </style>
+<!-- NIH_AGENDA_MOBILE_DAY_VIEW_AND_CLASS_DELETE_START -->
+<style>
+  .agenda-mobile-shell{display:none}
+  @media(max-width:780px){
+    .agenda-desktop-grid{display:none!important}
+    .agenda-mobile-shell{
+      display:block!important;
+      width:100%;
+      margin-top:12px;
+    }
+    .module-toolbar{
+      gap:12px!important;
+    }
+    .module-toolbar .toolbar-actions,
+    .module-toolbar{
+      align-items:stretch!important;
+    }
+    .module-toolbar input,
+    .module-toolbar .input,
+    .module-toolbar select{
+      width:100%!important;
+      min-width:0!important;
+      min-height:52px!important;
+      border-radius:16px!important;
+      font-size:15px!important;
+      font-weight:800!important;
+    }
+    .nih-muted.mb-3{
+      display:block;
+      margin:10px 0 12px!important;
+      padding:14px 16px!important;
+      border:1px solid #dfe8f2!important;
+      border-radius:18px!important;
+      background:#f8fbff!important;
+      color:#25344d!important;
+      font-size:14px!important;
+      line-height:1.35!important;
+      text-align:center!important;
+    }
+    .agenda-mobile-heading{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      padding:16px;
+      border:1px solid #dfe8f2;
+      border-radius:22px;
+      background:#fff;
+      box-shadow:0 8px 22px rgba(28,42,58,.06);
+    }
+    .agenda-mobile-heading h2{
+      margin:0;
+      color:#0f2341;
+      font-size:25px;
+      line-height:1.05;
+      font-weight:950;
+      letter-spacing:0!important;
+    }
+    .agenda-mobile-heading p{
+      margin:5px 0 0;
+      color:#6b7788;
+      font-size:13px;
+      font-weight:800;
+    }
+    .agenda-mobile-date{
+      flex:0 0 auto;
+      border:1px solid #d8e4f0;
+      background:#f3f7fc;
+      color:#142845;
+      border-radius:16px;
+      padding:10px 12px;
+      font-size:14px;
+      font-weight:950;
+      text-align:center;
+      white-space:nowrap;
+    }
+    .agenda-mobile-days{
+      display:grid;
+      grid-auto-flow:column;
+      grid-auto-columns:minmax(104px,1fr);
+      gap:8px;
+      overflow-x:auto;
+      padding:12px 2px;
+      -webkit-overflow-scrolling:touch;
+      scrollbar-width:none;
+    }
+    .agenda-mobile-days::-webkit-scrollbar{display:none}
+    .agenda-mobile-day{
+      min-height:52px;
+      border:1px solid #dfe8f2;
+      border-radius:16px;
+      background:#fff;
+      color:#25344d;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+      padding:10px 12px;
+      font:inherit;
+      font-weight:900;
+      box-shadow:0 6px 18px rgba(28,42,58,.05);
+    }
+    .agenda-mobile-day b{
+      min-width:26px;
+      height:26px;
+      border-radius:999px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      background:#eef4fb;
+      color:#52647a;
+      font-size:12px;
+    }
+    .agenda-mobile-day.active{
+      background:#0f2341;
+      color:#fff;
+      border-color:#0f2341;
+    }
+    .agenda-mobile-day.active b{
+      background:#fff;
+      color:#0f2341;
+    }
+    .agenda-mobile-selected{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      padding:12px 4px 10px;
+      color:#142845;
+    }
+    .agenda-mobile-selected span{
+      font-size:19px;
+      font-weight:950;
+    }
+    .agenda-mobile-selected strong{
+      color:#6b7788;
+      font-size:13px;
+      font-weight:900;
+    }
+    .agenda-mobile-list{
+      display:grid;
+      grid-template-columns:1fr;
+      gap:12px;
+    }
+    .agenda-mobile-card{
+      width:100%;
+      border:1px solid #dfe8f2;
+      border-radius:22px;
+      background:#fff;
+      padding:14px;
+      box-shadow:0 8px 24px rgba(28,42,58,.06);
+    }
+    .agenda-mobile-card.in-progress{
+      border-color:#93d8ae;
+      background:#f1fbf5;
+    }
+    .agenda-mobile-card-top{
+      display:grid;
+      grid-template-columns:auto minmax(0,1fr) auto;
+      align-items:start;
+      gap:12px;
+    }
+    .agenda-mobile-time{
+      min-width:62px;
+      border-radius:16px;
+      background:#0f2341;
+      color:#fff;
+      padding:11px 9px;
+      text-align:center;
+      font-size:18px;
+      font-weight:950;
+      line-height:1;
+    }
+    .agenda-mobile-main{min-width:0}
+    .agenda-mobile-prof{
+      color:#10201a;
+      font-size:16px;
+      line-height:1.25;
+      font-weight:950;
+      overflow-wrap:anywhere;
+    }
+    .agenda-mobile-sub{
+      margin-top:4px;
+      color:#687586;
+      font-size:12px;
+      font-weight:800;
+      line-height:1.35;
+    }
+    .agenda-mobile-cupo{
+      border:1px solid #f1bd62;
+      background:#fff5df;
+      color:#8a5704;
+      border-radius:999px;
+      padding:7px 10px;
+      font-size:13px;
+      font-weight:950;
+      white-space:nowrap;
+    }
+    .agenda-mobile-label{
+      margin-top:13px;
+      color:#687586;
+      font-size:11px;
+      font-weight:950;
+      text-transform:uppercase;
+      letter-spacing:.04em!important;
+    }
+    .agenda-mobile-students{
+      display:flex;
+      flex-wrap:wrap;
+      gap:7px;
+      margin-top:7px;
+    }
+    .agenda-mobile-student{
+      max-width:100%;
+      border:1px solid #e3ebf3;
+      background:#f8fbff;
+      color:#26384f;
+      border-radius:999px;
+      padding:7px 10px;
+      font-size:13px;
+      font-weight:850;
+      line-height:1.2;
+      overflow-wrap:anywhere;
+    }
+    .agenda-mobile-student.empty{
+      background:#f4f6f8;
+      color:#7c8795;
+    }
+    .agenda-mobile-more{
+      margin-top:8px;
+      color:#25344d;
+      font-size:13px;
+      font-weight:900;
+    }
+    .agenda-mobile-more summary{
+      cursor:pointer;
+      min-height:36px;
+      display:flex;
+      align-items:center;
+      color:#1261b4;
+    }
+    .agenda-mobile-actions{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      margin-top:14px;
+    }
+    .agenda-mobile-actions button{
+      flex:1;
+      min-height:48px;
+      border:0;
+      border-radius:16px;
+      background:#1473d2;
+      color:#fff;
+      font:inherit;
+      font-size:14px;
+      font-weight:950;
+      cursor:pointer;
+      box-shadow:0 8px 20px rgba(20,115,210,.18);
+    }
+    .agenda-mobile-actions span{
+      border-radius:999px;
+      background:#dff8e8;
+      color:#087a42;
+      padding:8px 10px;
+      font-size:12px;
+      font-weight:950;
+      white-space:nowrap;
+    }
+    .agenda-mobile-empty{
+      border:1px dashed #d8e4f0;
+      border-radius:20px;
+      background:#fff;
+      color:#6b7788;
+      padding:24px 16px;
+      text-align:center;
+      font-weight:900;
+    }
+  }
+  @media(min-width:781px) and (max-width:1100px){
+    .agenda-desktop-grid{display:none!important}
+    .agenda-mobile-shell{
+      display:block!important;
+      margin-bottom:14px;
+    }
+    .agenda-mobile-list{
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:12px;
+    }
+  }
+  @media(max-width:420px){
+    .agenda-mobile-heading{
+      align-items:stretch;
+      flex-direction:column;
+    }
+    .agenda-mobile-date{
+      width:100%;
+    }
+    .agenda-mobile-card-top{
+      grid-template-columns:1fr auto;
+    }
+    .agenda-mobile-time{
+      grid-column:1 / -1;
+      width:100%;
+    }
+  }
+</style>
+<script>
+(function(){
+  function normalizeTextLocal(value){
+    return String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim();
+  }
+  function normalizeDayLocal(value){
+    const key = normalizeTextLocal(value);
+    if(key.startsWith('lun')) return 'lunes';
+    if(key.startsWith('mar')) return 'martes';
+    if(key.startsWith('mie')) return 'miercoles';
+    if(key.startsWith('jue')) return 'jueves';
+    if(key.startsWith('vie')) return 'viernes';
+    if(key.startsWith('sab')) return 'sabado';
+    if(key.startsWith('dom')) return 'domingo';
+    return key;
+  }
+  function normalizeTimeLocal(value){
+    const raw = String(value || '').trim();
+    const m = raw.match(/(\d{1,2})(?::?(\d{2}))?/);
+    if(!m) return '';
+    return String(Number(m[1])).padStart(2,'0') + ':' + String(m[2] || '00').padStart(2,'0');
+  }
+  function currentStamp(){
+    if(typeof stamp === 'function') return stamp();
+    if(typeof now === 'function') return now();
+    return new Date().toISOString();
+  }
+  window.deleteClass = function(id){
+    const classes = Array.isArray(db && db.classes) ? db.classes : [];
+    const cl = classes.find(c=>c.id===id);
+    if(!cl) return typeof toast === 'function' && toast('Clase no encontrada');
+    if(typeof canDelete === 'function' && !canDelete('classes',cl)) return toast('Solo administrador general');
+    const targetDay = normalizeDayLocal(cl.dia);
+    const targetTime = normalizeTimeLocal(cl.hora);
+    const targetTeacher = cl.personalId || '';
+    const sameSlot = function(item){
+      const itemDay = normalizeDayLocal(item.dia || item.day);
+      const itemTime = normalizeTimeLocal(item.hora || item.horario || item.time);
+      const itemTeacher = item.personalId || item.teacherId || item.scheduleTeacherId || '';
+      return itemDay === targetDay && itemTime === targetTime && (!targetTeacher || !itemTeacher || itemTeacher === targetTeacher);
+    };
+    const classIds = classes.filter(sameSlot).map(c=>c.id);
+    const label = (cl.dia || 'ese dia') + ' ' + (cl.hora || '');
+    confirmDelete('Vas a eliminar el horario fijo de '+label+'. Esto lo quitara de todas las semanas y fechas de ese dia para las alumnas asignadas.',function(){
+      let removedAssignments = 0;
+      (Array.isArray(db.clients) ? db.clients : []).forEach(function(client){
+        const list = Array.isArray(client.scheduleDays) ? client.scheduleDays : [];
+        const before = list.length;
+        client.scheduleDays = list.filter(function(s){return !sameSlot(s);});
+        if(client.scheduleDays.length !== before){
+          removedAssignments += before - client.scheduleDays.length;
+          client.updatedAt = currentStamp();
+        }
+      });
+      if(Array.isArray(db.schedules)){
+        db.schedules = db.schedules.filter(function(s){return !(sameSlot(s) || classIds.includes(s.claseId));});
+      }
+      db.classes = classes.filter(function(c){return !sameSlot(c);});
+      if(typeof saveDB === 'function') saveDB();
+      if(typeof render === 'function') render();
+      if(typeof toast === 'function') toast('Horario eliminado para todas las fechas de ese dia'+(removedAssignments ? ' ('+removedAssignments+' asignaciones)' : ''));
+    });
+  };
+})();
+</script>
+<!-- NIH_AGENDA_MOBILE_DAY_VIEW_AND_CLASS_DELETE_END -->
 <!-- NIH_MOBILE_APP_REFERENCE_CARDS_END -->
 </body>
 </html>
