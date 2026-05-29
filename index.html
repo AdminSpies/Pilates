@@ -9899,5 +9899,385 @@ window.openSelectedWhatsAppReminders = avisarSeleccionadosPorWhatsApp;
 </script>
 <!-- NIH_AGENDA_MOBILE_DAY_VIEW_AND_CLASS_DELETE_END -->
 <!-- NIH_MOBILE_APP_REFERENCE_CARDS_END -->
+
+<script>
+/* ===== NIH PERSISTENCE HARDENING PATCH: single source of truth, weekly agenda, payments, class detail ===== */
+(function(){
+  const STORAGE_KEY = 'nihuenPilatesDB';
+  const PATCH_VERSION = '2026-05-29-sync-agenda-v4';
+  const WEEK = ['Lunes','Martes','Miercoles','Jueves','Viernes','Sabado'];
+
+  function ts(){ return new Date().toISOString(); }
+  function clone(obj){ return JSON.parse(JSON.stringify(obj || {})); }
+  function arr(name){ return Array.isArray(db && db[name]) ? db[name] : []; }
+  function localId(prefix){ return (prefix || 'id') + '_' + Math.random().toString(36).slice(2,10) + '_' + Date.now().toString(36); }
+  function normText(v){ return String(v || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim(); }
+  function dayKeyLocal(v){
+    const k = normText(v);
+    if(k.startsWith('lun')) return 'lunes';
+    if(k.startsWith('mar')) return 'martes';
+    if(k.startsWith('mie')) return 'miercoles';
+    if(k.startsWith('jue')) return 'jueves';
+    if(k.startsWith('vie')) return 'viernes';
+    if(k.startsWith('sab')) return 'sabado';
+    if(k.startsWith('dom')) return 'domingo';
+    return k;
+  }
+  function dayLabelLocal(v){
+    const k = dayKeyLocal(v);
+    const map = {lunes:'Lunes',martes:'Martes',miercoles:'Miercoles',jueves:'Jueves',viernes:'Viernes',sabado:'Sabado',domingo:'Domingo'};
+    return map[k] || String(v || '').trim();
+  }
+  function timeLabelLocal(v){
+    const raw = String(v || '').trim();
+    const m = raw.match(/(\d{1,2})(?::?(\d{2}))?/);
+    if(!m) return '';
+    return String(Number(m[1])).padStart(2,'0') + ':' + String(m[2] || '00').padStart(2,'0');
+  }
+  function fullNameLocal(x){
+    if(!x) return '';
+    if(typeof fullName === 'function') return fullName(x);
+    return String((x.nombre || '') + ' ' + (x.apellido || '')).trim();
+  }
+  function safe(v){ return typeof esc === 'function' ? esc(v) : String(v || '').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+  function attrSafe(v){ return typeof attr === 'function' ? attr(v) : safe(v); }
+  function selectedSafe(a,b){ return String(a || '') === String(b || '') ? 'selected' : ''; }
+  function teacherLabel(id){
+    const u = arr('users').find(x=>x.id===id);
+    return u ? fullNameLocal(u) : 'Sin profesora';
+  }
+  function emptyDB(){
+    return {
+      settings:{studioName:'Nihuen Pilates',allowPartialPaymentsView:false,sourceOfTruth:'firestore',schemaVersion:PATCH_VERSION},
+      users:[{id:'admin',apellido:'General',nombre:'Admin',dni:'',fechaNacimiento:'',direccion:'',telefono:'',titulos:'Administracion',usuario:'admin',passwordHash:'admin123',rol:'general',estado:'Activo',horariosAsignados:[],createdAt:ts(),updatedAt:ts()}],
+      clients:[],plans:[],classes:[],schedules:[],payments:[],attendance:[],paymentReports:[],deletedRecords:[],syncMeta:{version:PATCH_VERSION,updatedAt:ts()}
+    };
+  }
+  function baseNormalize(data){
+    const out = clone(data && typeof data === 'object' ? data : {});
+    const minimal = emptyDB();
+    out.settings = Object.assign({}, minimal.settings, out.settings || {});
+    ['users','clients','plans','classes','schedules','payments','attendance','paymentReports','deletedRecords'].forEach(function(k){ if(!Array.isArray(out[k])) out[k] = []; });
+    if(!out.users.length) out.users = minimal.users;
+    out.classes.forEach(function(cl){
+      cl.id = cl.id || localId('class');
+      cl.dia = dayLabelLocal(cl.dia || cl.day);
+      cl.hora = timeLabelLocal(cl.hora || cl.time || cl.horario);
+      cl.personalId = cl.personalId || cl.teacherId || '';
+      cl.clientesIds = Array.from(new Set(Array.isArray(cl.clientesIds) ? cl.clientesIds.filter(Boolean) : []));
+      cl.cupoMaximo = Number(cl.cupoMaximo || MAX_CUPO || 8);
+      cl.estado = cl.estado || 'Activa';
+      cl.createdAt = cl.createdAt || ts();
+      cl.updatedAt = cl.updatedAt || ts();
+    });
+    out.payments.forEach(function(p){ p.id = p.id || localId('pay'); p.createdAt = p.createdAt || ts(); p.updatedAt = p.updatedAt || ts(); });
+    out.clients.forEach(function(c){ c.id = c.id || localId('client'); c.createdAt = c.createdAt || ts(); c.updatedAt = c.updatedAt || ts(); });
+    sanitizeLegacyTati(out);
+    rebuildDerivedFromClasses(out);
+    out.settings.schemaVersion = PATCH_VERSION;
+    out.syncMeta = Object.assign({}, out.syncMeta || {}, {version:PATCH_VERSION,updatedAt:out.syncMeta?.updatedAt || ts()});
+    return out;
+  }
+  function findMemaId(data){
+    const users = Array.isArray(data.users) ? data.users : [];
+    const mema = users.find(u=>normText(fullNameLocal(u)).includes('mema') || normText(u.nombre)==='mema' || normText(u.usuario)==='mema' || u.id==='staff_mema');
+    return mema ? mema.id : '';
+  }
+  function sanitizeLegacyTati(data){
+    const memaId = findMemaId(data);
+    const isLegacyTati = function(u){
+      const n = normText([u.nombre,u.apellido,u.usuario,u.id].join(' '));
+      return u.id === 'staff_tati' || n === 'tati' || n.includes(' tati ') || n.endsWith(' tati');
+    };
+    const tatiIds = (data.users || []).filter(isLegacyTati).map(u=>u.id);
+    if(!tatiIds.length) return;
+    if(memaId){
+      (data.classes || []).forEach(cl=>{ if(tatiIds.includes(cl.personalId)) cl.personalId = memaId; });
+      (data.schedules || []).forEach(s=>{ if(tatiIds.includes(s.personalId)) s.personalId = memaId; if(tatiIds.includes(s.teacherId)) s.teacherId = memaId; });
+      (data.clients || []).forEach(c=>{ (c.scheduleDays || []).forEach(sd=>{ if(tatiIds.includes(sd.teacherId)) sd.teacherId = memaId; }); });
+    }
+    data.users = (data.users || []).filter(u=>!isLegacyTati(u));
+  }
+  function rebuildDerivedFromClasses(data){
+    const validClientIds = new Set((data.clients || []).map(c=>c.id));
+    const validUserIds = new Set((data.users || []).filter(u=>u.estado !== 'Inactivo').map(u=>u.id));
+    const classMap = new Map();
+    (data.classes || []).forEach(function(cl){
+      if(!cl.dia || !cl.hora) return;
+      if(cl.personalId && !validUserIds.has(cl.personalId)) cl.personalId = '';
+      cl.clientesIds = Array.from(new Set((cl.clientesIds || []).filter(cid=>validClientIds.has(cid))));
+      const key = dayKeyLocal(cl.dia) + '|' + timeLabelLocal(cl.hora) + '|' + (cl.personalId || '') + '|' + cl.id;
+      classMap.set(key,cl);
+    });
+    data.classes = Array.from(classMap.values()).sort(function(a,b){ return WEEK.map(dayKeyLocal).indexOf(dayKeyLocal(a.dia)) - WEEK.map(dayKeyLocal).indexOf(dayKeyLocal(b.dia)) || String(a.hora).localeCompare(String(b.hora)); });
+    data.schedules = [];
+    data.classes.forEach(function(cl){
+      (cl.clientesIds || []).forEach(function(cid){
+        data.schedules.push({id:'sch_' + cl.id + '_' + cid,clienteId:cid,personalId:cl.personalId || '',dia:cl.dia,horario:cl.hora,claseId:cl.id,estado:cl.estado === 'Activa' ? 'Activo' : 'Cancelado',createdAt:cl.createdAt || ts(),updatedAt:cl.updatedAt || ts()});
+      });
+    });
+    data.clients.forEach(function(c){
+      const rows = [];
+      data.classes.forEach(function(cl){
+        if((cl.clientesIds || []).includes(c.id)) rows.push({day:cl.dia,time:cl.hora,teacherId:cl.personalId || '',teacherName:teacherLabel(cl.personalId || '')});
+      });
+      c.scheduleDays = rows;
+      c.paymentStatus = c.paymentStatus || (typeof quickPaymentStatus === 'function' ? quickPaymentStatus(c,data) : 'Pendiente');
+    });
+    (data.users || []).forEach(function(u){
+      u.horariosAsignados = data.classes.filter(cl=>cl.personalId === u.id).map(cl=>({classId:cl.id,day:cl.dia,time:cl.hora}));
+    });
+  }
+
+  window.normalizeDB = normalizeDB = function(data){ return baseNormalize(data); };
+  window.syncClassesAndSchedules = syncClassesAndSchedules = function(data){ rebuildDerivedFromClasses(data || db); return data || db; };
+  window.syncSchedules = syncSchedules = function(){ rebuildDerivedFromClasses(db); };
+  window.saveLocal = saveLocal = function(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(baseNormalize(db))); };
+  window.loadDB = loadDB = function(){
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){ try{ return baseNormalize(JSON.parse(raw)); }catch(e){} }
+    const fresh = emptyDB();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(fresh));
+    return fresh;
+  };
+  window.saveDB = saveDB = async function(){
+    db = baseNormalize(db);
+    saveLocal();
+    if(firebaseOnline && firestore && !applyingRemote){
+      await firestore.doc(FIRESTORE_DOC_PATH).set({payload:clone(db),updatedAt:firebase.firestore.FieldValue.serverTimestamp(),clientUpdatedAt:db.syncMeta.updatedAt || ts(),schemaVersion:PATCH_VERSION},{merge:false});
+      const el = document.getElementById('syncStatus');
+      if(el) el.textContent = 'Firebase conectado: guardado sincronizado';
+    }
+    return true;
+  };
+  window.subscribeRealtime = subscribeRealtime = function(){
+    if(!firestore) return;
+    if(unsubscribeRealtime) unsubscribeRealtime();
+    unsubscribeRealtime = firestore.doc(FIRESTORE_DOC_PATH).onSnapshot(async function(snap){
+      if(!snap.exists){
+        const seed = baseNormalize(db && (arr('users').length || arr('clients').length || arr('classes').length || arr('payments').length) ? db : emptyDB());
+        await firestore.doc(FIRESTORE_DOC_PATH).set({payload:seed,createdAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp(),schemaVersion:PATCH_VERSION},{merge:false});
+        return;
+      }
+      const remotePayload = snap.data() && snap.data().payload;
+      if(!remotePayload) return;
+      applyingRemote = true;
+      db = baseNormalize(remotePayload);
+      saveLocal();
+      applyingRemote = false;
+      remoteLoaded = true;
+      if(currentUser){
+        const freshUser = arr('users').find(u=>u.id===currentUser.id || u.usuario===currentUser.usuario);
+        if(!freshUser || freshUser.estado !== 'Activo'){
+          currentUser = null;
+          const app = document.getElementById('appView');
+          const login = document.getElementById('loginView');
+          if(app) app.classList.add('hidden');
+          if(login) login.classList.remove('hidden');
+          if(typeof toast === 'function') toast('La sesion fue cerrada porque el usuario cambio o fue dado de baja.');
+        }else{
+          currentUser = freshUser;
+          if(typeof render === 'function') render();
+        }
+      }
+    },function(err){
+      console.error('Firestore realtime error',err);
+      firebaseOnline = false;
+      if(typeof toast === 'function') toast('No se pudo sincronizar con Firebase. Revisar reglas.');
+    });
+  };
+
+  function classOptions(selectedId){
+    return arr('users').filter(u=>u.estado !== 'Inactivo').map(u=>'<option value="'+attrSafe(u.id)+'" '+selectedSafe(selectedId,u.id)+'>'+safe(fullNameLocal(u))+'</option>').join('');
+  }
+  window.filterClassClientOptions = function(input, scopeId){
+    var q = String(input && input.value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+    var root = document.getElementById(scopeId);
+    if(!root) return;
+    root.querySelectorAll('[data-client-row]').forEach(function(row){
+      var text = String(row.getAttribute('data-search') || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+      row.style.display = !q || text.indexOf(q) !== -1 ? '' : 'none';
+    });
+  };
+  function clientCheckboxList(selectedIds, scopeId){
+    var selected = new Set(selectedIds || []);
+    var clients = arr('clients').filter(function(c){ return c.estado !== 'Inactivo' || selected.has(c.id); }).sort(function(a,b){ return fullNameLocal(a).localeCompare(fullNameLocal(b)); });
+    if(!clients.length) return '<p class="nih-muted">No hay alumnos activos cargados.</p>';
+    return '<div class="class-client-search-wrap">'+
+      '<input type="search" class="input" placeholder="Buscar alumno por nombre, apellido o plan" oninput="filterClassClientOptions(this,\''+attrSafe(scopeId)+'\')">'+
+      '<div id="'+attrSafe(scopeId)+'" class="mt-3 rounded-3xl border border-[#DED6C8] bg-[#FFFFFF] p-2" style="max-height:320px;overflow:auto">'+
+      clients.map(function(c){
+        var plan = (typeof getPlan === 'function' && getPlan(c.planId) ? getPlan(c.planId).nombre : '') || 'Sin plan';
+        var label = fullNameLocal(c) + ' · ' + plan;
+        return '<label data-client-row data-search="'+attrSafe(label)+'" class="flex items-center gap-3 rounded-2xl px-3 py-3" style="cursor:pointer;border-bottom:1px solid rgba(222,214,200,.55)">'+
+          '<input type="checkbox" name="clientesIds" value="'+attrSafe(c.id)+'" '+(selected.has(c.id)?'checked':'')+' style="width:22px;height:22px;flex:0 0 auto">'+
+          '<span><b>'+safe(fullNameLocal(c))+'</b><small class="block text-xs font-bold text-[#66706A]">'+safe(plan)+'</small></span>'+
+        '</label>';
+      }).join('')+
+      '</div></div>';
+  }
+  window.classForm = classForm = function(cl){
+    cl = cl || {};
+    var selectedClients = Array.from(new Set(cl.clientesIds || []));
+    var scopeId = 'classClientSearch_' + String(cl.id || 'new').replace(/[^a-zA-Z0-9_-]/g,'');
+    return '<form onsubmit="saveClass(event,\''+attrSafe(cl.id || '')+'\')"><div class="grid gap-4 md:grid-cols-2">'+
+      '<div><label class="label">Dia</label><select required name="dia" class="input"><option value="">Seleccionar</option>'+WEEK.map(d=>'<option '+selectedSafe(dayLabelLocal(cl.dia),d)+'>'+safe(d)+'</option>').join('')+'</select></div>'+
+      '<div><label class="label">Hora</label><input required type="time" name="hora" class="input" value="'+attrSafe(timeLabelLocal(cl.hora) || '')+'"></div>'+
+      '<div><label class="label">Profesora</label><select required name="personalId" class="input">'+classOptions(cl.personalId)+'</select></div>'+
+      '<div><label class="label">Cupo maximo</label><input type="number" min="1" name="cupoMaximo" class="input" value="'+attrSafe(cl.cupoMaximo || MAX_CUPO || 8)+'"></div>'+
+      '<div><label class="label">Estado</label><select name="estado" class="input"><option '+selectedSafe(cl.estado || 'Activa','Activa')+'>Activa</option><option '+selectedSafe(cl.estado,'Cancelada')+'>Cancelada</option><option '+selectedSafe(cl.estado,'Finalizada')+'>Finalizada</option></select></div>'+
+      '<div class="md:col-span-2"><label class="label">Alumnos</label>'+clientCheckboxList(selectedClients,scopeId)+'<p class="mt-2 text-xs font-bold text-[#66706A]">Buscá, seleccioná o deseleccioná alumnos. Se valida cupo y plan semanal.</p></div>'+
+      '<div class="md:col-span-2"><label class="label">Observaciones</label><textarea name="observaciones" class="input">'+safe(cl.observaciones || '')+'</textarea></div>'+
+      '</div><button class="btn btn-primary mt-5">Guardar</button></form>';
+  };
+  window.newClass = newClass = function(){ if(typeof showModal === 'function') showModal('Nueva clase','Crear horario real persistente',classForm({estado:'Activa',cupoMaximo:MAX_CUPO || 8,clientesIds:[]})); else openModal('Nueva clase','Crear horario real persistente',classForm({estado:'Activa'})); };
+  window.editClass = editClass = function(id){
+    const cl = arr('classes').find(c=>c.id===id);
+    if(!cl) return toast('Clase no encontrada');
+    if(!isGeneral() && cl.personalId !== currentUser.id) return toast('No podes modificar horarios ajenos');
+    if(typeof showModal === 'function') showModal('Editar clase','Modificar dia, horario, profesora y alumnos',classForm(cl)); else openModal('Editar clase','Modificar dia, horario, profesora y alumnos',classForm(cl));
+  };
+  window.saveClass = saveClass = async function(e,id){
+    e.preventDefault();
+    if(!isGeneral()) return toast('Solo administrador general');
+    const form = e.target;
+    const fd = Object.fromEntries(new FormData(form).entries());
+    const selectedClientIds = Array.from(new Set(new FormData(form).getAll('clientesIds').filter(Boolean)));
+    fd.dia = dayLabelLocal(fd.dia);
+    fd.hora = timeLabelLocal(fd.hora);
+    fd.cupoMaximo = Number(fd.cupoMaximo || MAX_CUPO || 8);
+    if(!fd.dia || !fd.hora || !fd.personalId) return toast('Dia, horario y profesora son obligatorios');
+    if(selectedClientIds.length > fd.cupoMaximo) return toast('La cantidad de alumnos supera el cupo maximo');
+    delete fd.clientesIds;
+    let cl = id ? arr('classes').find(c=>c.id===id) : null;
+    if(cl){ Object.assign(cl, fd, {clientesIds:selectedClientIds, updatedAt:ts()}); }
+    else { arr('classes').push(Object.assign({id:localId('class'),createdAt:ts()},fd,{clientesIds:selectedClientIds,updatedAt:ts()})); }
+    rebuildDerivedFromClasses(db);
+    await saveDB();
+    if(typeof closeModal === 'function') closeModal();
+    if(typeof render === 'function') render();
+    toast('Clase guardada');
+  };
+
+  window.addClientToClass = addClientToClass = async function(e,id){
+    e.preventDefault();
+    const cid = new FormData(e.target).get('clienteId');
+    const cl = arr('classes').find(c=>c.id===id);
+    if(!cl) return toast('Clase no encontrada');
+    if(!isGeneral() && cl.personalId !== currentUser.id) return toast('Permiso denegado');
+    cl.clientesIds = Array.from(new Set(cl.clientesIds || []));
+    if(cl.clientesIds.includes(cid)) return toast('El cliente ya esta asignado');
+    if(cl.clientesIds.length >= Number(cl.cupoMaximo || MAX_CUPO || 8)) return toast('El horario esta completo');
+    cl.clientesIds.push(cid);
+    cl.updatedAt = ts();
+    rebuildDerivedFromClasses(db);
+    await saveDB();
+    if(typeof closeModal === 'function') closeModal();
+    viewClass(id);
+    if(typeof render === 'function') render();
+    toast('Cliente asignado');
+  };
+  window.removeClientFromClass = removeClientFromClass = async function(clid,cid){
+    const cl = arr('classes').find(c=>c.id===clid);
+    if(!cl) return toast('Clase no encontrada');
+    if(!isGeneral() && cl.personalId !== currentUser.id) return toast('Permiso denegado');
+    cl.clientesIds = (cl.clientesIds || []).filter(id=>id!==cid);
+    cl.updatedAt = ts();
+    rebuildDerivedFromClasses(db);
+    await saveDB();
+    if(typeof closeModal === 'function') closeModal();
+    viewClass(clid);
+    if(typeof render === 'function') render();
+    toast('Cliente quitado');
+  };
+  window.assignClient = assignClient = function(id){
+    const cl = arr('classes').find(c=>c.id===id);
+    if(!cl) return toast('Clase no encontrada');
+    const assigned = new Set(cl.clientesIds || []);
+    const opts = arr('clients').filter(c=>c.estado !== 'Inactivo' && !assigned.has(c.id)).sort((a,b)=>fullNameLocal(a).localeCompare(fullNameLocal(b))).map(c=>'<option value="'+attrSafe(c.id)+'">'+safe(fullNameLocal(c))+'</option>').join('');
+    const html = '<form onsubmit="addClientToClass(event,\''+attrSafe(id)+'\')"><label class="label">Cliente existente</label><select required name="clienteId" class="input"><option value="">Seleccionar cliente</option>'+opts+'</select><button class="btn btn-primary mt-5">Asignar</button></form>';
+    if(typeof showModal === 'function') showModal('Agregar cliente','Asignar sin duplicar y sin borrar datos de la clase',html); else openModal('Agregar cliente','Asignar sin duplicar y sin borrar datos de la clase',html);
+  };
+  window.updateClassTeacher = async function(id,teacherId){
+    const cl = arr('classes').find(c=>c.id===id);
+    if(!cl) return toast('Clase no encontrada');
+    if(!isGeneral()) return toast('Solo administrador general');
+    cl.personalId = teacherId || '';
+    cl.updatedAt = ts();
+    rebuildDerivedFromClasses(db);
+    await saveDB();
+    if(typeof render === 'function') render();
+    viewClass(id);
+    toast('Profesora actualizada');
+  };
+  window.viewClass = viewClass = function(id){
+    const cl = arr('classes').find(c=>c.id===id);
+    if(!cl) return toast('Clase no encontrada');
+    const canManage = isGeneral() || (currentUser && cl.personalId === currentUser.id);
+    const used = (cl.clientesIds || []).length;
+    const rows = (cl.clientesIds || []).map(function(cid){
+      return '<div class="flex items-center justify-between gap-2 rounded-2xl border border-[#DED6C8] bg-[#F7F4EF] p-3"><span>'+safe(typeof clientName === 'function' ? clientName(cid) : cid)+'</span>'+(canManage?'<button class="btn btn-danger !w-auto !px-3 !py-2" onclick="removeClientFromClass(\''+attrSafe(cl.id)+'\',\''+attrSafe(cid)+'\')">Quitar</button>':'')+'</div>';
+    }).join('') || '<p class="nih-muted">Sin alumnas asignadas.</p>';
+    const teacherSelect = isGeneral() ? '<select class="input" onchange="updateClassTeacher(\''+attrSafe(cl.id)+'\',this.value)">'+classOptions(cl.personalId)+'</select>' : '<b>'+safe(teacherLabel(cl.personalId))+'</b>';
+    const html = '<div class="space-y-4"><div class="card p-4"><div class="grid gap-3 md:grid-cols-2"><div><label class="label">Profesora</label>'+teacherSelect+'</div><div><label class="label">Cupo</label><p><b>'+used+'/'+Number(cl.cupoMaximo || MAX_CUPO || 8)+'</b></p></div><div><label class="label">Dia y horario</label><p>'+safe(cl.dia)+' '+safe(cl.hora)+'</p></div><div><label class="label">Estado</label><p>'+safe(cl.estado || 'Activa')+'</p></div></div></div><div class="card p-4"><b>Clientes asignados</b><div class="mt-3 space-y-2">'+rows+'</div></div>'+(canManage?'<button onclick="assignClient(\''+attrSafe(cl.id)+'\')" class="btn btn-primary">Agregar cliente existente</button>':'')+'</div>';
+    if(typeof showModal === 'function') showModal('Detalle de clase','Clase persistente: '+cl.dia+' '+cl.hora,html); else openModal('Detalle de clase','Clase persistente: '+cl.dia+' '+cl.hora,html);
+  };
+
+  window.weeklySlots = weeklySlots = function(){
+    return arr('classes').filter(cl=>cl.estado !== 'Cancelada').filter(cl=>isGeneral() || !currentUser || cl.personalId === currentUser.id).map(function(cl){
+      const clients = (cl.clientesIds || []).map(cid=>arr('clients').find(c=>c.id===cid)).filter(Boolean).sort(function(a,b){return fullNameLocal(a).localeCompare(fullNameLocal(b));});
+      return {classId:cl.id,day:dayLabelLocal(cl.dia),time:timeLabelLocal(cl.hora),teacherId:cl.personalId || '',teacherIds:cl.personalId?[cl.personalId]:[],teacherName:teacherLabel(cl.personalId),teacherNames:[teacherLabel(cl.personalId)].filter(Boolean),clients:clients,clientTeacher:Object.fromEntries(clients.map(c=>[c.id,cl.personalId || ''])),clientTeacherName:Object.fromEntries(clients.map(c=>[c.id,teacherLabel(cl.personalId)])),cupoMaximo:Number(cl.cupoMaximo || MAX_CUPO || 8)};
+    }).sort(function(a,b){ return WEEK.map(dayKeyLocal).indexOf(dayKeyLocal(a.day)) - WEEK.map(dayKeyLocal).indexOf(dayKeyLocal(b.day)) || String(a.time).localeCompare(String(b.time)); });
+  };
+  window.allTimes = allTimes = function(){
+    const set = new Set(arr('classes').map(cl=>timeLabelLocal(cl.hora)).filter(Boolean));
+    ['08:00','09:00','10:00','11:00','17:00','18:00','19:00','20:00'].forEach(t=>set.add(t));
+    return Array.from(set).sort();
+  };
+  window.openWeeklyClassDetail = openWeeklyClassDetail = function(day,time){
+    const matches = arr('classes').filter(cl=>dayKeyLocal(cl.dia)===dayKeyLocal(day) && timeLabelLocal(cl.hora)===timeLabelLocal(time) && cl.estado !== 'Cancelada');
+    if(!matches.length) return toast('Clase no encontrada');
+    if(matches.length === 1) return viewClass(matches[0].id);
+    const html = matches.map(function(cl){
+      return '<div class="card p-4"><div class="flex flex-wrap items-center justify-between gap-2"><b>'+safe(cl.dia)+' '+safe(cl.hora)+' - '+safe(teacherLabel(cl.personalId))+'</b><span class="badge badge-gold">'+(cl.clientesIds || []).length+'/'+Number(cl.cupoMaximo || MAX_CUPO || 8)+'</span></div><p class="mt-2 nih-muted">'+safe((cl.clientesIds || []).map(cid=>typeof clientName==='function'?clientName(cid):cid).join(', ') || 'Sin alumnas')+'</p><button class="btn btn-primary mt-3" onclick="viewClass(\''+attrSafe(cl.id)+'\')">Abrir detalle</button></div>';
+    }).join('');
+    if(typeof showModal === 'function') showModal('Detalle de horario','Hay mas de una profesora en este horario',html); else openModal('Detalle de horario','Hay mas de una profesora en este horario',html);
+  };
+
+  window.saveClient = saveClient = async function(e,id){
+    e.preventDefault();
+    if(!isGeneral()) return toast('Permiso denegado');
+    const form = e.target;
+    const fd = Object.fromEntries(new FormData(form).entries());
+    const dayInputs = Array.from(form.querySelectorAll('[name="scheduleDay"]'));
+    const timeInputs = Array.from(form.querySelectorAll('[name="scheduleTime"]'));
+    const teacherInputs = Array.from(form.querySelectorAll('[name="scheduleTeacherId"]'));
+    const requested = dayInputs.map(function(input,i){ return {day:dayLabelLocal(input.value),time:timeLabelLocal(timeInputs[i] ? timeInputs[i].value : ''),teacherId:teacherInputs[i] ? teacherInputs[i].value : ''}; }).filter(x=>x.day && x.time);
+    delete fd.scheduleDay; delete fd.scheduleTime; delete fd.scheduleTeacherId;
+    let client = id ? arr('clients').find(c=>c.id===id) : null;
+    if(!client){ client = Object.assign({id:localId('client'),createdAt:ts()},fd); arr('clients').push(client); }
+    Object.assign(client,fd,{updatedAt:ts()});
+    arr('classes').forEach(cl=>{ cl.clientesIds = (cl.clientesIds || []).filter(cid=>cid !== client.id); });
+    requested.forEach(function(r){
+      let cl = arr('classes').find(x=>dayKeyLocal(x.dia)===dayKeyLocal(r.day) && timeLabelLocal(x.hora)===r.time && String(x.personalId || '')===String(r.teacherId || ''));
+      if(!cl){ cl = {id:localId('class'),dia:r.day,hora:r.time,personalId:r.teacherId || '',clientesIds:[],cupoMaximo:MAX_CUPO || 8,estado:'Activa',observaciones:'',createdAt:ts(),updatedAt:ts()}; arr('classes').push(cl); }
+      if(!(cl.clientesIds || []).includes(client.id)) cl.clientesIds.push(client.id);
+      cl.updatedAt = ts();
+    });
+    rebuildDerivedFromClasses(db);
+    await saveDB();
+    if(typeof closeModal === 'function') closeModal();
+    if(typeof render === 'function') render();
+    toast('Cliente guardado');
+  };
+
+  if(typeof unsubscribeRealtime === 'function') unsubscribeRealtime();
+  db = baseNormalize(db);
+  saveLocal();
+  if(firebaseOnline && firestore) subscribeRealtime();
+  if(typeof render === 'function' && currentUser) render();
+})();
+</script>
+
 </body>
 </html>
