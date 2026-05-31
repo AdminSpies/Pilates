@@ -5943,6 +5943,22 @@ window.openSelectedWhatsAppReminders = avisarSeleccionadosPorWhatsApp;
       }
     },0);
   };
+  function runSafeActionHandler(handler){
+    var textHandler = String(handler || '').trim();
+    var match = textHandler.match(/^([A-Za-z_$][\w$]*)\('((?:\\'|[^'])*)'\)$/);
+    if(!match){
+      console.error('Accion no permitida:', textHandler);
+      if(typeof toast === 'function') toast('No se pudo ejecutar la accion.');
+      return;
+    }
+    var fn = window[match[1]];
+    if(typeof fn !== 'function'){
+      console.error('Funcion de accion no encontrada:', match[1]);
+      if(typeof toast === 'function') toast('Accion no disponible.');
+      return;
+    }
+    fn(match[2].replace(/\\'/g,"'"));
+  }
   document.addEventListener('click',function(event){
     var menu = byId('floatingActionMenu');
     if(menu && menu.contains(event.target)){
@@ -5951,7 +5967,7 @@ window.openSelectedWhatsAppReminders = avisarSeleccionadosPorWhatsApp;
         var action = window.__floatingActionItems[Number(btn.getAttribute('data-floating-action'))];
         closeFloatingActionMenu();
         if(action && action.handler){
-          try{ (new Function(action.handler))(); }catch(err){ console.error(err); }
+          try{ runSafeActionHandler(action.handler); }catch(err){ console.error(err); }
         }
       }
       return;
@@ -6351,6 +6367,7 @@ window.openSelectedWhatsAppReminders = avisarSeleccionadosPorWhatsApp;
       {label:'Editar',handler:"editClient('"+itemId+"')"},
       {label:'Registrar pago',handler:"newPaymentForClient('"+itemId+"')"},
       {label:'Cambiar estado de pago',handler:"openQuickPaymentStatus('"+itemId+"')"},
+      {label:'Dar de baja',handler:"lowClient('"+itemId+"')"},
       {label:'Eliminar',handler:"deleteClient('"+itemId+"')",danger:true}
     ];
     if(typeof openFloatingActionMenu === 'function') return openFloatingActionMenu(button,actions);
@@ -10940,6 +10957,47 @@ window.openSelectedWhatsAppReminders = avisarSeleccionadosPorWhatsApp;
   };
 
   migratePlaintextPasswords().catch(function(err){ console.warn('Password migration error', err); });
+})();
+</script>
+<script>
+(function(){
+  if(window.__NIH_ACTION_CONFIRMATION_GUARD__) return;
+  window.__NIH_ACTION_CONFIRMATION_GUARD__ = true;
+
+  function safeHtml(value){
+    return String(value == null ? '' : value).replace(/[&<>"']/g,function(ch){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch];
+    });
+  }
+  function confirmChange(message, callback){
+    if(typeof showModal === 'function'){
+      window.__NIH_PENDING_CONFIRMED_ACTION__ = callback;
+      showModal('Confirmar accion','Este cambio modifica datos guardados',
+        '<div class="rounded-2xl border border-[#DED6C8] bg-[#F7F4EF] p-4 text-sm font-bold text-[#1F2A24]">'+safeHtml(message)+'</div>'+
+        '<div class="confirm-actions"><button type="button" class="btn btn-soft" onclick="window.__NIH_PENDING_CONFIRMED_ACTION__=null;closeModal()">Cancelar</button>'+
+        '<button type="button" class="btn btn-delete" onclick="const cb=window.__NIH_PENDING_CONFIRMED_ACTION__;window.__NIH_PENDING_CONFIRMED_ACTION__=null;closeModal();if(cb)cb();">Confirmar</button></div>');
+      return;
+    }
+    if(confirm(message)) callback();
+  }
+  function wrapConfirmed(name,messageBuilder){
+    var original = window[name];
+    if(typeof original !== 'function') return;
+    window[name] = function(){
+      var args = arguments;
+      confirmChange(messageBuilder.apply(this,args),function(){ original.apply(window,args); });
+    };
+  }
+
+  wrapConfirmed('lowClient',function(){ return 'Vas a dar de baja este cliente. No se elimina su historial, pero dejara de figurar como activo.'; });
+  wrapConfirmed('lowUser',function(){ return 'Vas a dar de baja este usuario de personal. No podra ingresar mientras este inactivo.'; });
+  wrapConfirmed('togglePlan',function(id){
+    var p = Array.isArray(db && db.plans) ? db.plans.find(function(x){return x.id===id;}) : null;
+    return (p && p.estado === 'Activo' ? 'Vas a desactivar este plan.' : 'Vas a activar este plan.') + ' El cambio impacta en la administracion de planes.';
+  });
+  wrapConfirmed('cancelClass',function(){ return 'Vas a cancelar esta clase. Sus horarios y asistencia asociada pueden dejar de mostrarse como activos.'; });
+  wrapConfirmed('markClassComplete',function(){ return 'Vas a marcar esta clase como completa manualmente.'; });
+  wrapConfirmed('removeSchedule',function(){ return 'Vas a quitar este cliente del horario. El cliente no se elimina.'; });
 })();
 </script>
 </body>
