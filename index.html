@@ -3715,7 +3715,7 @@
         <label class="topbar-search"><input id="globalSearch" placeholder="Buscar clientes, clases, pagos, personal..." onkeydown="if(event.key==='Enter'){filters.q=this.value;go('clientes')}"></label>
         <div></div>
         <div class="flex items-center gap-3">
-          <div class="bell"></div>
+          <button type="button" class="bell no-notifications" data-count="0" aria-label="Sin pagos en verificacion" title="Sin pagos en verificacion" onclick="openPaymentVerificationNotifications()"></button>
           <div class="user-pill"><div class="avatar" id="avatarInitials">NP</div><div><b id="userName"></b><small id="todayText"></small></div></div>
         </div>
       </header>
@@ -4482,7 +4482,7 @@ function renderHorarios(){const q=getModuleSearch('horarios');let sc=db.schedule
 function renderPagos(){if(!canViewPayments())return denied();const q=getModuleSearch('pagos'),estado=filters.estado||'';let list=db.payments.filter(p=>!estado||p.estado===estado).filter(p=>includesSearch(paymentSearchText(p),q));const extra=`<select class="input" onchange="filters.estado=this.value;render()"><option value="">Estado</option><option ${selected(estado,'Pagado')}>Pagado</option><option ${selected(estado,'Pendiente')}>Pendiente</option><option ${selected(estado,'Vencido')}>Vencido</option><option ${selected(estado,'Parcial')}>Parcial</option></select>${isGeneral()?'<button onclick="newPayment()" class="btn btn-primary">Nuevo</button>':''}`;return moduleToolbar('pagos',extra)+responsiveList(['Cliente','Plan','Monto','Mes','Medio','Estado','Acciones'],list.map(p=>[clientName(p.clienteId),getPlan(p.planId)?.nombre||'-',money(p.monto),p.mesAbonado,p.medioPago,statusBadge(p.estado),paymentActions(p)]),list.map(p=>`<div class="card p-4"><b>${clientName(p.clienteId)}</b><div class="text-sm font-semibold text-[#7d7466]">${getPlan(p.planId)?.nombre||'-'} · ${money(p.monto)} · ${p.mesAbonado}</div><div class="mt-2">${statusBadge(p.estado)}</div><div class="mt-3">${paymentActions(p)}</div></div>`))}
 function renderAgenda(){const q=getModuleSearch('agenda');const byDay=days.map(d=>[d,visibleClasses().filter(c=>c.dia===d).filter(c=>includesSearch(classSearchText(c),q)).sort((a,b)=>a.hora.localeCompare(b.hora))]);const hasAny=byDay.some(([,list])=>list.length);return moduleToolbar('agenda')+(hasAny?`<div class="grid gap-4 xl:grid-cols-2">${byDay.map(([d,list])=>`<div class="card p-5"><h3 class="mb-3 text-xl font-black">${d}</h3>${list.length?list.map(cl=>`<button onclick="viewClass('${cl.id}')" class="mb-3 w-full rounded-2xl border border-[#DED6C8] bg-[#FFFFFF] p-4 text-left"><div class="flex flex-wrap items-center justify-between gap-2"><b>${cl.hora} · ${userName(cl.personalId)}</b>${cupoBadge(cl)}</div><div class="mt-2 text-xs font-bold text-[#66706A]">${(cl.clientesIds||[]).map(clientName).join(', ')||'Sin alumnos'}</div></button>`).join(''):'<p class="text-sm font-semibold text-[#66706A]">Sin clases cargadas.</p>'}</div>`).join('')}</div>`:noResults())}
 function renderReportes(){if(!isGeneral())return denied();const q=getModuleSearch('reportes');const statsList=[['Clientes activos',db.clients.filter(c=>c.estado==='Activo').length],['Clientes inactivos',db.clients.filter(c=>c.estado==='Inactivo').length],['Pagos pendientes',db.payments.filter(p=>p.estado==='Pendiente').length],['Pagos vencidos',db.payments.filter(p=>p.estado==='Vencido').length],['Clases completas',db.classes.filter(c=>(c.clientesIds||[]).length>=MAX_CUPO).length],['Cupos disponibles',db.classes.reduce((a,c)=>a+(MAX_CUPO-(c.clientesIds||[]).length),0)]].filter(([label,value])=>includesSearch(label+' '+value,q));const incomeByPlan={};db.payments.filter(p=>p.estado==='Pagado').forEach(p=>{const name=getPlan(p.planId)?.nombre||'Sin plan';incomeByPlan[name]=(incomeByPlan[name]||0)+Number(p.monto)});const byMethod={};db.payments.filter(p=>p.estado==='Pagado').forEach(p=>byMethod[p.medioPago]=(byMethod[p.medioPago]||0)+Number(p.monto));return moduleToolbar('reportes')+(statsList.length?`<div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">${statsList.map(([l,v])=>stat(l,v)).join('')}</div><div class="mt-5 grid gap-4 lg:grid-cols-2"><div class="card p-5"><h3 class="text-xl font-black">Recaudación por plan</h3>${simpleBars(incomeByPlan)}</div><div class="card p-5"><h3 class="text-xl font-black">Recaudación por medio</h3>${simpleBars(byMethod)}</div></div>`:noResults())}
-function renderConfig(){if(!isGeneral())return denied();const q=getModuleSearch('config');const content=`<div class="card p-5"><h3 class="mb-4 text-xl font-black">Configuración general</h3><form onsubmit="saveSettings(event)" class="grid gap-4 md:grid-cols-2"><div><label class="label">Nombre del estudio</label><input name="studioName" class="input" value="${db.settings.studioName}"></div><div><label class="label">Personal parcial puede ver pagos</label><select name="allowPartialPaymentsView" class="input"><option value="false" ${!db.settings.allowPartialPaymentsView?'selected':''}>No</option><option value="true" ${db.settings.allowPartialPaymentsView?'selected':''}>Sí</option></select></div><button class="btn btn-primary md:col-span-2">Guardar configuración</button></form><div class="mt-5 rounded-2xl bg-[#F7F4EF] p-4 text-sm font-semibold text-[#66706A]">La estructura está preparada para conectar Firebase Authentication y Firestore. Este HTML funciona como versión mínima autónoma.</div></div>`;return moduleToolbar('config')+(includesSearch('configuración general nombre estudio pagos personal parcial firebase firestore',q)?content:noResults())}
+function renderConfig(){if(!isGeneral())return denied();const q=getModuleSearch('config');const content=`<div class="card p-5"><h3 class="mb-4 text-xl font-black">Configuración general</h3><form onsubmit="saveSettings(event)" class="grid gap-4 md:grid-cols-2"><div><label class="label">Nombre del estudio</label><input name="studioName" class="input" value="${db.settings.studioName}"></div><div><label class="label">Personal parcial puede ver pagos</label><select name="allowPartialPaymentsView" class="input"><option value="false" ${!db.settings.allowPartialPaymentsView?'selected':''}>No</option><option value="true" ${db.settings.allowPartialPaymentsView?'selected':''}>Sí</option></select></div><button class="btn btn-primary md:col-span-2">Guardar configuración</button></form><div class="mt-5 rounded-2xl bg-[#F7F4EF] p-4 text-sm font-semibold text-[#66706A]">La estructura está preparada para conectar Firebase Authentication y Firestore. Este HTML funciona como versión mínima autónoma.</div></div>`;return moduleToolbar('config')+(includesSearch('configuración general nombre del estudio pagos personal parcial firebase firestore',q)?content:noResults())}
 function viewClass(id){const cl=db.classes.find(c=>c.id===id);if(!cl)return toast('Clase no encontrada');const canManage=isGeneral()||cl.personalId===currentUser.id;showModal('Detalle de clase',`${cl.dia} ${cl.hora}`,`<div class="space-y-4"><div class="rounded-3xl border border-[#DED6C8] bg-[#F7F4EF] p-4"><div class="grid gap-3 md:grid-cols-3"><p><b>Profesora:</b><br>${userName(cl.personalId)}</p><p><b>Cupo:</b><br>${(cl.clientesIds||[]).length}/${MAX_CUPO}</p><p><b>Estado:</b><br>${statusBadge(cl.estado)}</p></div></div><div class="rounded-3xl border border-[#DED6C8] bg-[#FFFFFF] p-4"><div class="mb-3 flex flex-wrap items-center justify-between gap-2"><b>Alumnas</b>${cupoBadge(cl)}</div><div class="detail-list space-y-2">${(cl.clientesIds||[]).length?(cl.clientesIds||[]).map(cid=>`<div class="flex items-center justify-between gap-3 rounded-2xl border border-[#DED6C8] bg-[#F7F4EF] p-3"><span class="font-bold text-[#1F2A24]">${clientName(cid)}</span>${canManage?`<button class="btn btn-delete btn-small !w-auto" onclick="removeClientFromClass('${cl.id}','${cid}')">Quitar</button>`:''}</div>`).join(''):'<div class="empty-state">Sin alumnas asignadas.</div>'}</div></div>${canManage?`<button onclick="assignClient('${cl.id}')" class="btn btn-primary">Agregar cliente</button>`:''}</div>`)}
 
 function renderImportar(){
@@ -4543,7 +4543,7 @@ function paymentActions(p){return renderActionsMenu('payments',p)}
 
 function renderDashboard(){const activeClients=db.clients.filter(c=>c.estado==='Activo').length;const activeUsers=db.users.filter(u=>u.estado==='Activo').length;const todayName=new Date().toLocaleDateString('es-AR',{weekday:'long'}).replace(/^./,m=>m.toUpperCase());const visible=visibleClasses().filter(c=>c.estado==='Activa');const dayClasses=visible.filter(c=>normalizeAgendaDayName(c.dia)===normalizeAgendaDayName(todayName));const pending=db.payments.filter(p=>p.estado==='Pendiente').length;const overdue=db.payments.filter(p=>p.estado==='Vencido').length;const pendingAmount=db.payments.filter(p=>p.estado==='Pendiente').reduce((a,p)=>a+Number(p.monto),0);const overdueAmount=db.payments.filter(p=>p.estado==='Vencido').reduce((a,p)=>a+Number(p.monto),0);const monthIncome=db.payments.filter(p=>p.estado==='Pagado'&&p.mesAbonado===monthKey()).reduce((a,p)=>a+Number(p.monto),0);const totalSlots=visible.length*MAX_CUPO;const occupied=visible.reduce((a,c)=>a+(c.clientesIds||[]).length,0);const occupancyPct=totalSlots?Math.round((occupied/totalSlots)*100):0;const cuposAll=visible.reduce((a,c)=>a+(MAX_CUPO-(c.clientesIds||[]).length),0);return `${moduleToolbar('dashboard')}<div class="metric-grid dashboard-metrics">${stat('Clientes activos',activeClients,'Activos en el sistema','ok')}${stat('Personal activo',activeUsers,'Usuarios habilitados','ok')}${stat('Clases de hoy',dayClasses.length,'Agenda del día','ok')}${canViewPayments()?stat('Pagos pendientes',pending,money(pendingAmount),'warn'):''}${canViewPayments()?stat('Pagos vencidos',overdue,money(overdueAmount),'danger'):''}${canViewPayments()?stat('Ingresos del mes',money(monthIncome),'Pagos registrados','ok'):''}${stat('Horarios completos',occupancyPct+'%','de ocupación','gold')}${stat('Cupos disponibles',cuposAll,'sobre cupo máximo 8','ok')}</div><section class="card quickbar mt-4"><h3 class="panel-title">Accesos rápidos</h3><div class="quick-grid quick-actions">${isGeneral()?'<button onclick="newClient()" class="btn quick-action-btn">Nuevo cliente</button><button onclick="newPayment()" class="btn quick-action-btn">Nuevo pago</button><button onclick="newClass()" class="btn quick-action-btn">Nueva clase</button><button onclick="newUser()" class="btn quick-action-btn">Nuevo personal</button>':'<button onclick="go(\'clases\')" class="btn quick-action-btn">Mis clases</button>'}<button onclick="go('agenda')" class="btn quick-action-btn">Ver horarios</button>${canViewPayments()?'<button onclick="filters.estado=\'Pendiente\';go(\'pagos\')" class="btn quick-action-btn">Ver pagos pendientes</button>':''}</div></section><div class="dashboard-grid mt-4"><section class="card dash-panel"><div class="flex items-center justify-between gap-3"><h3 class="panel-title">Agenda semanal</h3><button onclick="go('agenda')" class="btn btn-soft !w-auto !py-2">Ver agenda completa</button></div>${agendaMini()}</section><section class="card dash-panel"><div class="flex items-center justify-between gap-3"><h3 class="panel-title">Pagos recientes</h3><button onclick="go('pagos')" class="btn btn-soft !w-auto !py-2">Ver todos</button></div>${paymentsMini()}</section></div><div class="dash-lower"><section class="card dash-panel"><h3 class="panel-title">Clases y ocupación</h3>${occupationMini()}</section><section class="card dash-panel"><h3 class="panel-title">Clientes destacados</h3>${clientsMini()}</section><section class="card dash-panel"><h3 class="panel-title">Permisos y roles</h3>${rolesMini()}</section></div>`}
 
-function renderConfig(){if(!isGeneral())return denied();const q=getModuleSearch('config');const content=`<div class="card p-5"><h3 class="mb-4 text-xl font-black">Configuración general</h3><form onsubmit="saveSettings(event)" class="grid gap-4 md:grid-cols-2"><div><label class="label">Nombre del estudio</label><input name="studioName" class="input" value="${escapeAttr(db.settings.studioName)}"></div><div><label class="label">Personal parcial puede ver pagos</label><select name="allowPartialPaymentsView" class="input"><option value="false" ${!db.settings.allowPartialPaymentsView?'selected':''}>No</option><option value="true" ${db.settings.allowPartialPaymentsView?'selected':''}>Sí</option></select></div><div><label class="label">Duración estándar de clase (minutos)</label><input type="number" min="15" step="5" name="classDurationMinutes" class="input" value="${escapeAttr(getClassDurationMinutes())}"></div><button class="btn btn-primary md:col-span-2">Guardar configuración</button></form><div class="mt-5 rounded-2xl bg-[#F7F4EF] p-4 text-sm font-semibold text-[#66706A]">La agenda usa esta duración para marcar clases En curso.</div></div>`;return moduleToolbar('config')+(includesSearch('configuración general nombre estudio pagos personal parcial firebase firestore duración clase',q)?content:noResults())}
+function renderConfig(){if(!isGeneral())return denied();const q=getModuleSearch('config');const content=`<div class="card p-5"><h3 class="mb-4 text-xl font-black">Configuración general</h3><form onsubmit="saveSettings(event)" class="grid gap-4 md:grid-cols-2"><div><label class="label">Nombre del estudio</label><input name="studioName" class="input" value="${escapeAttr(db.settings.studioName)}"></div><div><label class="label">Personal parcial puede ver pagos</label><select name="allowPartialPaymentsView" class="input"><option value="false" ${!db.settings.allowPartialPaymentsView?'selected':''}>No</option><option value="true" ${db.settings.allowPartialPaymentsView?'selected':''}>Sí</option></select></div><div><label class="label">Duración estándar de clase (minutos)</label><input type="number" min="15" step="5" name="classDurationMinutes" class="input" value="${escapeAttr(getClassDurationMinutes())}"></div><button class="btn btn-primary md:col-span-2">Guardar configuración</button></form><div class="mt-5 rounded-2xl bg-[#F7F4EF] p-4 text-sm font-semibold text-[#66706A]">La agenda usa esta duración para marcar clases En curso.</div></div>`;return moduleToolbar('config')+(includesSearch('configuración general nombre del estudio pagos personal parcial firebase firestore duración clase',q)?content:noResults())}
 function saveSettings(e){e.preventDefault();const fd=Object.fromEntries(new FormData(e.target).entries());db.settings.studioName=fd.studioName;db.settings.allowPartialPaymentsView=fd.allowPartialPaymentsView==='true';db.settings.classDurationMinutes=Number(fd.classDurationMinutes||60);saveDB();render();toast('Configuración guardada')}
 
 function resetDemo(){localStorage.removeItem('nihuenPilatesDB'); db=normalizeDB(structuredClone(initialData)); db.schedules=buildSchedules(db); saveDB(); render(); toast('Datos reiniciados')}
@@ -6789,7 +6789,7 @@ window.openSelectedWhatsAppReminders = avisarSeleccionadosPorWhatsApp;
     if(!input || input.dataset.nihBound) return;
     input.dataset.nihBound = '1';
     input.removeAttribute('onkeydown');
-    input.placeholder = 'Buscar en la pestana actual...';
+    input.placeholder = 'Buscar en la pestaña actual...';
     input.addEventListener('input',function(){
       if(typeof setModuleSearch === 'function') setModuleSearch(currentSection,this.value);
     });
@@ -10279,5 +10279,379 @@ window.openSelectedWhatsAppReminders = avisarSeleccionadosPorWhatsApp;
 })();
 </script>
 
+<script>
+(function(){
+  if(window.__NIH_PERSISTENCE_VISIBILITY_FIX__) return;
+  window.__NIH_PERSISTENCE_VISIBILITY_FIX__ = true;
+
+  function cloneSafe(value){
+    try{
+      return typeof structuredClone === 'function' ? structuredClone(value) : JSON.parse(JSON.stringify(value));
+    }catch(err){
+      return JSON.parse(JSON.stringify(value || {}));
+    }
+  }
+  function stampSafe(){
+    return typeof ts === 'function' ? ts() : (typeof now === 'function' ? now() : new Date().toISOString());
+  }
+  function versionOf(data){
+    var value = data && data.syncMeta && data.syncMeta.updatedAt;
+    var parsed = Date.parse(value || '');
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  function normalizeSafe(data){
+    return typeof normalizeDB === 'function' ? normalizeDB(data) : data;
+  }
+  function saveLocalSafe(){
+    if(typeof saveLocal === 'function') saveLocal();
+    else localStorage.setItem('nihuenPilatesDB', JSON.stringify(cloneSafe(db)));
+  }
+  function refreshSessionUser(){
+    if(!currentUser || !Array.isArray(db && db.users)) return true;
+    var freshUser = db.users.find(function(u){ return u.id === currentUser.id || u.usuario === currentUser.usuario; });
+    if(!freshUser || freshUser.estado !== 'Activo'){
+      currentUser = null;
+      var app = document.getElementById('appView');
+      var login = document.getElementById('loginView');
+      if(app) app.classList.add('hidden');
+      if(login) login.classList.remove('hidden');
+      if(typeof toast === 'function') toast('La sesion fue cerrada porque el usuario cambio o fue dado de baja.');
+      return false;
+    }
+    currentUser = freshUser;
+    return true;
+  }
+
+  window.saveDB = saveDB = async function(){
+    var savedAt = stampSafe();
+    db = normalizeSafe(db);
+    db.syncMeta = Object.assign({}, db.syncMeta || {}, {updatedAt:savedAt});
+    saveLocalSafe();
+    if(firebaseOnline && firestore && !applyingRemote){
+      await firestore.doc(FIRESTORE_DOC_PATH).set({
+        payload: cloneSafe(db),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        clientUpdatedAt: savedAt,
+        schemaVersion: db.syncMeta && db.syncMeta.version
+      }, {merge:false});
+      var el = document.getElementById('syncStatus');
+      if(el) el.textContent = 'Firebase conectado: guardado sincronizado';
+    }
+    return true;
+  };
+
+  window.subscribeRealtime = subscribeRealtime = function(){
+    if(!firestore) return;
+    if(unsubscribeRealtime) unsubscribeRealtime();
+    unsubscribeRealtime = firestore.doc(FIRESTORE_DOC_PATH).onSnapshot(async function(snap){
+      if(!snap.exists){
+        var seed = normalizeSafe(db);
+        seed.syncMeta = Object.assign({}, seed.syncMeta || {}, {updatedAt:stampSafe()});
+        await firestore.doc(FIRESTORE_DOC_PATH).set({
+          payload: cloneSafe(seed),
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          clientUpdatedAt: seed.syncMeta.updatedAt,
+          schemaVersion: seed.syncMeta && seed.syncMeta.version
+        }, {merge:false});
+        return;
+      }
+      var snapData = snap.data() || {};
+      var remotePayload = snapData.payload;
+      if(!remotePayload) return;
+      var remote = normalizeSafe(remotePayload);
+      var remoteVersion = versionOf(remote) || Date.parse(snapData.clientUpdatedAt || '') || 0;
+      var localVersion = versionOf(db);
+      if(remoteLoaded && localVersion && remoteVersion < localVersion) return;
+      applyingRemote = true;
+      db = remote;
+      saveLocalSafe();
+      applyingRemote = false;
+      remoteLoaded = true;
+      if(currentUser && refreshSessionUser() && typeof render === 'function') render();
+    }, function(err){
+      console.error('Firestore realtime error', err);
+      firebaseOnline = false;
+      if(typeof toast === 'function') toast('No se pudo sincronizar con Firebase. El cambio quedo solo como respaldo local.');
+    });
+  };
+
+  var previousSaveClass = typeof saveClass === 'function' ? saveClass : null;
+  if(previousSaveClass){
+    window.saveClass = saveClass = async function(e,id){
+      await previousSaveClass.apply(this, arguments);
+      if(!id && currentSection === 'clases'){
+        filters.dia = '';
+        filters.prof = '';
+        if(searchState){
+          searchState.classes = '';
+          searchState.clases = '';
+        }
+        if(typeof render === 'function') render();
+      }
+    };
+  }
+
+  if(typeof unsubscribeRealtime === 'function') unsubscribeRealtime();
+  if(firebaseOnline && firestore) subscribeRealtime();
+})();
+</script>
+
+
+<style>
+  .bell{cursor:pointer!important;font:inherit}
+  .bell:after{content:attr(data-count)!important}
+  .bell.no-notifications:after{display:none!important}
+  .bell.has-notifications{outline:2px solid rgba(184,92,74,.18)!important}
+  .notification-payment-list{display:grid;gap:12px}
+  .notification-payment-card{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;border:1px solid #DED6C8;background:#FFFFFF;border-radius:18px;padding:14px}
+  .notification-payment-main{min-width:0}
+  .notification-payment-main b{display:block;color:#1F2A24}
+  .notification-payment-meta{margin-top:4px;color:#66706A;font-size:13px;font-weight:800}
+  .notification-payment-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+  @media(max-width:720px){.notification-payment-card{display:grid}.notification-payment-actions{justify-content:stretch}.notification-payment-actions .btn{width:100%!important}}
+</style>
+<script>
+(function(){
+  if(window.__NIH_PAYMENT_VERIFICATION_NOTIFICATIONS__) return;
+  window.__NIH_PAYMENT_VERIFICATION_NOTIFICATIONS__ = true;
+
+  function list(name){
+    if(typeof getArr === 'function') return getArr(name);
+    return Array.isArray(window.db && window.db[name]) ? window.db[name] : [];
+  }
+  function clean(value){
+    return String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+  }
+  function h(value){
+    if(typeof esc === 'function') return esc(value);
+    return String(value == null ? '' : value).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});
+  }
+  function a(value){
+    if(typeof attr === 'function') return attr(value);
+    return h(value);
+  }
+  function moneyText(value){
+    if(typeof cash === 'function') return cash(value);
+    if(typeof money === 'function') return money(value);
+    return '$ ' + Number(value || 0).toLocaleString('es-AR');
+  }
+  function paymentClientName(payment){
+    if(typeof clientName === 'function') return clientName(payment.clienteId);
+    var c = list('clients').find(function(x){return x.id === payment.clienteId;});
+    return c ? String((c.nombre || '') + ' ' + (c.apellido || '')).trim() : 'Cliente';
+  }
+  function verificationItems(){
+    var reports = list('paymentReports').filter(function(r){ return r.status === 'pendiente_verificacion'; }).map(function(r){
+      return {type:'report',id:r.id,client:r.clientName || 'Cliente',amount:r.amount,method:r.method,date:r.date,teacher:r.teacherName,note:r.note};
+    });
+    var payments = list('payments').filter(function(p){
+      var state = clean(p.estado);
+      return state === 'en verificacion' || state === 'en verificaci�n' || state === 'verificacion' || state === 'verificaci�n';
+    }).map(function(p){
+      return {type:'payment',id:p.id,client:paymentClientName(p),amount:p.monto,method:p.medioPago,date:p.fechaPago || p.mesAbonado,teacher:p.registradoPor || p.origen,note:p.observaciones};
+    });
+    return reports.concat(payments).sort(function(x,y){ return String(y.date || '').localeCompare(String(x.date || '')); });
+  }
+  function updateBell(){
+    var bell = document.querySelector('.bell');
+    if(!bell) return;
+    var count = (typeof isGeneral === 'function' && !isGeneral()) ? 0 : verificationItems().length;
+    bell.dataset.count = String(count);
+    bell.classList.toggle('has-notifications', count > 0);
+    bell.classList.toggle('no-notifications', count === 0);
+    var label = count ? count + ' pagos en verificacion' : 'Sin pagos en verificacion';
+    bell.setAttribute('aria-label', label);
+    bell.setAttribute('title', label);
+  }
+  window.updatePaymentVerificationBell = updateBell;
+  window.openPaymentVerificationNotifications = function(){
+    if(typeof isGeneral === 'function' && !isGeneral()) return typeof toast === 'function' && toast('Solo administrador');
+    var items = verificationItems();
+    if(!items.length) return typeof toast === 'function' && toast('No hay pagos en verificacion');
+    var body = '<div class="notification-payment-list">'+items.map(function(item){
+      var actions = item.type === 'report'
+        ? '<button class="btn btn-soft !w-auto" onclick="editPaymentReport(\''+a(item.id)+'\')">Editar</button><button class="btn btn-primary !w-auto" onclick="approvePaymentReport(\''+a(item.id)+'\')">Aprobar</button><button class="btn btn-delete !w-auto" onclick="rejectPaymentReport(\''+a(item.id)+'\')">Rechazar</button>'
+        : '<button class="btn btn-primary !w-auto" onclick="editPayment(\''+a(item.id)+'\')">Revisar pago</button>';
+      return '<article class="notification-payment-card"><div class="notification-payment-main"><b>'+h(item.client)+'</b><div class="notification-payment-meta">'+h(moneyText(item.amount))+' - '+h(item.method || '-')+' - '+h(item.date || '-')+'</div>'+(item.teacher?'<div class="notification-payment-meta">Origen: '+h(item.teacher)+'</div>':'')+(item.note?'<div class="notification-payment-meta">'+h(item.note)+'</div>':'')+'</div><div class="notification-payment-actions">'+actions+'</div></article>';
+    }).join('')+'</div><button class="btn btn-soft mt-4" onclick="closeModal();filters.estado=\'En verificacion\';go(\'pagos\')">Ver todos en Pagos</button>';
+    if(typeof showModal === 'function') showModal('Pagos en verificacion', items.length + ' pendiente' + (items.length === 1 ? '' : 's'), body);
+    else if(typeof openModal === 'function') openModal('Pagos en verificacion', items.length + ' pendiente' + (items.length === 1 ? '' : 's'), body);
+  };
+  if(typeof render === 'function'){
+    var previousRender = render;
+    window.render = render = function(){
+      var result = previousRender.apply(this, arguments);
+      updateBell();
+      return result;
+    };
+  }
+  document.addEventListener('DOMContentLoaded', updateBell);
+  window.addEventListener('load', updateBell);
+  updateBell();
+})();
+</script>
+<script>
+(function(){
+  if(window.__NIH_SEARCH_NORMALIZATION_FIX__) return;
+  window.__NIH_SEARCH_NORMALIZATION_FIX__ = true;
+
+  function keyFor(section){
+    if(typeof moduleKey === 'function') return moduleKey(section);
+    var map = {dashboard:'dashboard',clientes:'clients',personal:'staff',planes:'plans',clases:'classes',horarios:'schedules',pagos:'payments',agenda:'agenda',reportes:'reports',config:'settings',importar:'import'};
+    return map[section] || section;
+  }
+  function currentSearchValue(){
+    if(typeof searchState === 'undefined') return '';
+    return searchState[keyFor(currentSection)] || searchState[currentSection] || '';
+  }
+  function syncTopSearch(){
+    var input = document.getElementById('globalSearch');
+    if(input) input.value = currentSearchValue();
+    var panel = document.getElementById('globalSearchResults');
+    if(panel) panel.classList.remove('show');
+  }
+  window.renderSearchResults = renderSearchResults = function(){
+    var panel = document.getElementById('globalSearchResults');
+    if(panel) panel.remove();
+  };
+  window.hideGlobalSearchResults = hideGlobalSearchResults = function(){
+    var panel = document.getElementById('globalSearchResults');
+    if(panel) panel.remove();
+  };
+  var searchRenderTimer = null;
+  var lastFocusedSearch = null;
+  function rememberFocusedSearch(){
+    var active = document.activeElement;
+    if(!active || active.tagName !== 'INPUT') return;
+    var start = typeof active.selectionStart === 'number' ? active.selectionStart : active.value.length;
+    var end = typeof active.selectionEnd === 'number' ? active.selectionEnd : active.value.length;
+    if(active.id === 'globalSearch'){
+      lastFocusedSearch = {kind:'global', section:currentSection, start:start, end:end};
+      return;
+    }
+    if(active.closest && active.closest('#content')){
+      lastFocusedSearch = {kind:'module', section:currentSection, start:start, end:end};
+    }
+  }
+  function restoreFocusedSearch(){
+    if(!lastFocusedSearch) return;
+    var selector = lastFocusedSearch.kind === 'global'
+      ? '#globalSearch'
+      : '#content input[oninput*="setModuleSearch"], #content .module-toolbar input, #content .clases-search input';
+    var target = document.querySelector(selector);
+    if(!target) return;
+    target.focus({preventScroll:true});
+    var length = target.value.length;
+    try{ target.setSelectionRange(Math.min(lastFocusedSearch.start, length), Math.min(lastFocusedSearch.end, length)); }catch(err){}
+  }
+  function renderSoon(){
+    clearTimeout(searchRenderTimer);
+    searchRenderTimer = setTimeout(function(){
+      if(typeof render === 'function') render();
+      restoreFocusedSearch();
+    }, 220);
+  }
+
+  window.getModuleSearch = getModuleSearch = function(section){
+    if(typeof searchState === 'undefined') return '';
+    return searchState[keyFor(section)] || '';
+  };
+  window.setModuleSearch = setModuleSearch = function(section,value){
+    if(typeof searchState === 'undefined') return;
+    rememberFocusedSearch();
+    searchState[keyFor(section)] = value || '';
+    syncTopSearch();
+    renderSoon();
+  };
+  window.clearModuleSearch = clearModuleSearch = function(section){
+    if(typeof searchState === 'undefined') return;
+    searchState[keyFor(section)] = '';
+    syncTopSearch();
+    clearTimeout(searchRenderTimer);
+    if(typeof render === 'function') render();
+    restoreFocusedSearch();
+  };
+
+  function normalizeText(value){
+    return String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim();
+  }
+  function prefixesFor(value){
+    var text = normalizeText(value);
+    if(!text) return [];
+    var out = [];
+    text.split(' ').filter(Boolean).forEach(function(part){
+      for(var i = 1; i <= part.length; i++) out.push(part.slice(0,i));
+    });
+    for(var j = 1; j <= text.length; j++) out.push(text.slice(0,j));
+    return out;
+  }
+  window.clientSearchText = clientSearchText = function(c){
+    var name = typeof fullName === 'function' ? fullName(c) : String(((c && c.nombre) || '') + ' ' + ((c && c.apellido) || '')).trim();
+    var planName = typeof clientPlan === 'function' ? (clientPlan(c)?.nombre || '') : '';
+    return prefixesFor(name).concat([
+      c && c.dni,
+      c && c.telefono,
+      c && c.estado,
+      c && c.paymentStatus,
+      planName
+    ]).filter(Boolean).join(' ');
+  };
+
+  var previousGo = typeof go === 'function' ? go : null;
+  if(previousGo){
+    window.go = go = function(section){
+      var result = previousGo.apply(this, arguments);
+      syncTopSearch();
+      return result;
+    };
+  }
+
+  var previousRender = typeof render === 'function' ? render : null;
+  if(previousRender){
+    window.render = render = function(){
+      var result = previousRender.apply(this, arguments);
+      bindTopSearch();
+      syncTopSearch();
+      return result;
+    };
+  }
+
+  function bindTopSearch(){
+    var input = document.getElementById('globalSearch');
+    if(!input) return;
+    var parent = input.closest('.topbar-search');
+    var panel = document.getElementById('globalSearchResults');
+    if(panel) panel.remove();
+    if(parent) parent.classList.remove('global-search-shell');
+    if(input.dataset.nihSearchNormalized === '1') return;
+    var cleanInput = input.cloneNode(true);
+    input.parentNode.replaceChild(cleanInput, input);
+    input = cleanInput;
+    parent = input.closest('.topbar-search');
+    panel = document.getElementById('globalSearchResults');
+    if(panel) panel.remove();
+    if(parent) parent.classList.remove('global-search-shell');
+    input.removeAttribute('data-enterprise-search');
+    input.removeAttribute('data-enterprisesearch');
+    input.removeAttribute('data-nih-bound');
+    input.removeAttribute('data-nih-search-normalized');
+    input.dataset.nihSearchNormalized = '1';
+    input.removeAttribute('onkeydown');
+    input.placeholder = 'Buscar en la pestaña actual...';
+    input.addEventListener('input',function(){ setModuleSearch(currentSection,this.value); });
+    input.addEventListener('keydown',function(event){
+      if(event.key === 'Enter') setModuleSearch(currentSection,this.value);
+    });
+    syncTopSearch();
+  }
+  document.addEventListener('DOMContentLoaded', bindTopSearch);
+  window.addEventListener('load', bindTopSearch);
+  bindTopSearch();
+})();
+</script>
 </body>
 </html>
+
+
+
