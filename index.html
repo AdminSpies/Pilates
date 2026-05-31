@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https://adminspies.github.io; connect-src 'self' https://firestore.googleapis.com https://firebase.googleapis.com https://firebaseinstallations.googleapis.com https://www.googleapis.com https://securetoken.googleapis.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
+  <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=(), payment=(), usb=(), clipboard-read=(), clipboard-write=(self)" />
   <title>Nihuen Pilates | Administración</title>
   <meta name="description" content="Nihuen Pilates | Administración de clientes, horarios, pagos y clases." />
   <meta property="og:type" content="website" />
@@ -3756,8 +3759,8 @@ const payMethods = ['Efectivo','Transferencia','Mercado Pago','Tarjeta','Otro'];
 const initialData = {
   settings:{studioName:'Nihuen Pilates', allowPartialPaymentsView:false},
   users:[
-    {id:uid(),apellido:'General',nombre:'Admin',dni:'10000000',fechaNacimiento:'1990-01-01',direccion:'-',telefono:'-',titulos:'Administración',usuario:'admin',passwordHash:'admin123',rol:'general',estado:'Activo',horariosAsignados:[],createdAt:now(),updatedAt:now()},
-    {id:'u_profe',apellido:'Suárez',nombre:'Camila',dni:'30111222',fechaNacimiento:'1989-05-10',direccion:'Cipolletti',telefono:'2990000000',titulos:'Instructora Pilates Reformer',usuario:'profe',passwordHash:'profe123',rol:'parcial',estado:'Activo',horariosAsignados:[],createdAt:now(),updatedAt:now()}
+    {id:uid(),apellido:'General',nombre:'Admin',dni:'10000000',fechaNacimiento:'1990-01-01',direccion:'-',telefono:'-',titulos:'Administración',usuario:'admin',passwordHash:'sha256:240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9',rol:'general',estado:'Activo',horariosAsignados:[],createdAt:now(),updatedAt:now()},
+    {id:'u_profe',apellido:'Suárez',nombre:'Camila',dni:'30111222',fechaNacimiento:'1989-05-10',direccion:'Cipolletti',telefono:'2990000000',titulos:'Instructora Pilates Reformer',usuario:'profe',passwordHash:'sha256:25da2ece06d8767eccaff139d4ba7490dd1b9aeeb51f413de23bce797cc47e68',rol:'parcial',estado:'Activo',horariosAsignados:[],createdAt:now(),updatedAt:now()}
   ],
   clients:[
     {id:'c1',apellido:'Pérez',nombre:'Laura',dni:'35111222',fechaNacimiento:'1994-03-10',telefono:'299111222',direccion:'Cipolletti',estado:'Activo',planId:'p2',fechaAlta:todayISO(),observaciones:'Sin lesiones reportadas',createdAt:now(),updatedAt:now()},
@@ -3903,7 +3906,7 @@ function getPlan(id){return db.plans.find(x=>x.id===id)}
 function visibleClasses(){return db.classes.filter(canSeeClass)}
 function visibleClients(){if(isGeneral())return db.clients; const ids=new Set(visibleClasses().flatMap(c=>c.clientesIds)); return db.clients.filter(c=>ids.has(c.id))}
 function statusBadge(s){const map={Activo:'badge-ok',Activa:'badge-ok',Pagado:'badge-ok',Pendiente:'badge-warn',Vencido:'badge-danger',Parcial:'badge-warn',Inactivo:'badge-muted',Cancelada:'badge-danger',Cancelado:'badge-danger',Finalizada:'badge-muted',Reprogramado:'badge-warn'};return `<span class="badge ${map[s]||'badge-muted'}">${s}</span>`}
-function cupoBadge(cl){const used=cl.clientesIds.length; return `<span class="badge ${used>=MAX_CUPO?'badge-full':'badge-gold'}">${used}/${MAX_CUPO}${used>=MAX_CUPO?' Completo':''}</span>`}
+function cupoBadge(cl){const used=(cl.clientesIds||[]).length; const max=Math.max(Number(cl.cupoMaximo||0),MAX_CUPO,used); return `<span class="badge ${used>=max?'badge-full':'badge-gold'}">${used}/${max}${used>=max?' Completo':''}</span>`}
 function normalize(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
 function matchesText(obj,q,fields){if(!q)return true;const n=normalize(q);return fields.some(f=>normalize(obj[f]).includes(n))}
 function closeModal(){document.getElementById('modal').classList.remove('show')}
@@ -4206,7 +4209,7 @@ function mergeImportedData(targetDb,dryRun=false){
     const userKey=normalizeText(item.usuario);
     let existing=targetDb.users.find(u=>normalizeText(u.usuario)===userKey||normalizeNameKey(`${u.apellido||''} ${u.nombre||''}`)===key);
     if(existing){stats.duplicatesAvoided++;staffIdByImport[item.importId]=existing.id;return}
-    const id=uid();staffIdByImport[item.importId]=id;if(!dryRun){targetDb.users.push({id,apellido:item.apellido||splitFullName(item.fullName).apellido,nombre:item.nombre||splitFullName(item.fullName).nombre,dni:'',fechaNacimiento:'',direccion:'',telefono:'',titulos:'',usuario:item.usuario||generateUsername(item.fullName),passwordHash:item.passwordHash||'1234',rol:'parcial',estado:'Activo',horariosAsignados:item.horariosAsignados||[],observaciones:'Importado desde Excel PILATES.xlsx',createdAt:now(),updatedAt:now(),importSource:'PILATES.xlsx',importKey:key})}stats.staffCreated++;
+    const id=uid();staffIdByImport[item.importId]=id;if(!dryRun){targetDb.users.push({id,apellido:item.apellido||splitFullName(item.fullName).apellido,nombre:item.nombre||splitFullName(item.fullName).nombre,dni:'',fechaNacimiento:'',direccion:'',telefono:'',titulos:'',usuario:item.usuario||generateUsername(item.fullName),passwordHash:item.passwordHash||'disabled:imported_staff_requires_password_reset',rol:'parcial',estado:'Activo',horariosAsignados:item.horariosAsignados||[],observaciones:'Importado desde Excel PILATES.xlsx',createdAt:now(),updatedAt:now(),importSource:'PILATES.xlsx',importKey:key})}stats.staffCreated++;
   });
   const classIdByImport={};
   buildClassesFromExcel().forEach(item=>{
@@ -4695,7 +4698,7 @@ function resetDemo(){localStorage.removeItem('nihuenPilatesDB'); db=normalizeDB(
   };
 })();
 
-document.getElementById('loginForm').addEventListener('submit',e=>{e.preventDefault();const rawUser=document.getElementById('loginUser').value.trim();const rawPass=document.getElementById('loginPass').value;const user=rawUser||'AdminSpies';const pass=rawPass||'Basquet123';let found=db.users.find(u=>u.usuario===user&&u.passwordHash===pass&&u.estado==='Activo');if(!found&&user==='AdminSpies'&&pass==='Basquet123'){found=db.users.find(u=>u.rol==='general'&&u.estado==='Activo')||db.users.find(u=>u.usuario==='admin'&&u.estado==='Activo')} if(!found){document.getElementById('loginError').classList.remove('hidden');return} currentUser=found;document.getElementById('loginView').classList.add('hidden');document.getElementById('appView').classList.remove('hidden');currentSection='dashboard';render()});
+document.getElementById('loginForm').addEventListener('submit',e=>{e.preventDefault();});
 document.getElementById('logoutBtn').onclick=()=>{currentUser=null;document.getElementById('appView').classList.add('hidden');document.getElementById('loginView').classList.remove('hidden')};
 document.getElementById('menuBtn').onclick=()=>{document.getElementById('sidebar').classList.add('open');document.getElementById('overlay').classList.add('show')};
 document.getElementById('overlay').onclick=()=>{document.getElementById('sidebar').classList.remove('open');document.getElementById('overlay').classList.remove('show')};
@@ -4741,8 +4744,9 @@ La seguridad final debe reforzarse con Firebase Authentication, reglas por rol y
   function todayLabel(){return new Intl.DateTimeFormat('es-AR',{day:'numeric',month:'long'}).format(new Date())}
   function cupoClassBadge(cl){
     const used=(cl.clientesIds||[]).length;
-    const full=used>=MAX_CUPO;
-    return `<div class="clase-cupo-wrap"><span class="badge-cupo ${full?'completo':''}">${used}/${MAX_CUPO}</span>${full?'<span class="texto-completa">Completa</span>':''}</div>`;
+    const max=Math.max(Number(cl.cupoMaximo||0),MAX_CUPO,used);
+    const full=used>=max;
+    return `<div class="clase-cupo-wrap"><span class="badge-cupo ${full?'completo':''}">${used}/${max}</span>${full?'<span class="texto-completa">Completa</span>':''}</div>`;
   }
   function classRow(cl){
     const teacher=userName(cl.personalId);
@@ -9949,7 +9953,7 @@ window.openSelectedWhatsAppReminders = avisarSeleccionadosPorWhatsApp;
   function emptyDB(){
     return {
       settings:{studioName:'Nihuen Pilates',allowPartialPaymentsView:false,sourceOfTruth:'firestore',schemaVersion:PATCH_VERSION},
-      users:[{id:'admin',apellido:'General',nombre:'Admin',dni:'',fechaNacimiento:'',direccion:'',telefono:'',titulos:'Administracion',usuario:'admin',passwordHash:'admin123',rol:'general',estado:'Activo',horariosAsignados:[],createdAt:ts(),updatedAt:ts()}],
+      users:[{id:'admin',apellido:'General',nombre:'Admin',dni:'',fechaNacimiento:'',direccion:'',telefono:'',titulos:'Administracion',usuario:'admin',passwordHash:'sha256:240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9',rol:'general',estado:'Activo',horariosAsignados:[],createdAt:ts(),updatedAt:ts()}],
       clients:[],plans:[],classes:[],schedules:[],payments:[],attendance:[],paymentReports:[],deletedRecords:[],syncMeta:{version:PATCH_VERSION,updatedAt:ts()}
     };
   }
@@ -10001,13 +10005,46 @@ window.openSelectedWhatsAppReminders = avisarSeleccionadosPorWhatsApp;
   function rebuildDerivedFromClasses(data){
     const validClientIds = new Set((data.clients || []).map(c=>c.id));
     const validUserIds = new Set((data.users || []).filter(u=>u.estado !== 'Inactivo').map(u=>u.id));
+    const statusRank = {Activa:3,Reprogramada:2,Cancelada:1,Finalizada:1};
+    const teacherNameForNote = function(id){
+      const u = (data.users || []).find(x=>x.id === id);
+      return u ? fullNameLocal(u) : '';
+    };
+    const mergeClassRows = function(target, source){
+      const targetClients = Array.isArray(target.clientesIds) ? target.clientesIds : [];
+      const sourceClients = Array.isArray(source.clientesIds) ? source.clientesIds : [];
+      target.clientesIds = Array.from(new Set(targetClients.concat(sourceClients)));
+      target.cupoMaximo = Math.max(Number(target.cupoMaximo || MAX_CUPO || 8), Number(source.cupoMaximo || MAX_CUPO || 8), target.clientesIds.length);
+      const targetRank = statusRank[target.estado] || 0;
+      const sourceRank = statusRank[source.estado] || 0;
+      if(sourceRank > targetRank) target.estado = source.estado;
+      if(!target.personalId && source.personalId) target.personalId = source.personalId;
+      if(target.personalId && source.personalId && target.personalId !== source.personalId){
+        const mergedTeachers = Array.from(new Set([target.personalId, source.personalId].map(teacherNameForNote).filter(Boolean)));
+        const note = 'Horario unificado desde clases duplicadas. Profesores originales: ' + mergedTeachers.join(', ') + '.';
+        target.observaciones = Array.from(new Set([target.observaciones, source.observaciones, note].filter(Boolean))).join('\n');
+      }else if(source.observaciones){
+        target.observaciones = Array.from(new Set([target.observaciones, source.observaciones].filter(Boolean))).join('\n');
+      }
+      if(source.createdAt && (!target.createdAt || String(source.createdAt) < String(target.createdAt))) target.createdAt = source.createdAt;
+      target.updatedAt = ts();
+      return target;
+    };
     const classMap = new Map();
     (data.classes || []).forEach(function(cl){
       if(!cl.dia || !cl.hora) return;
       if(cl.personalId && !validUserIds.has(cl.personalId)) cl.personalId = '';
       cl.clientesIds = Array.from(new Set((cl.clientesIds || []).filter(cid=>validClientIds.has(cid))));
-      const key = dayKeyLocal(cl.dia) + '|' + timeLabelLocal(cl.hora) + '|' + (cl.personalId || '') + '|' + cl.id;
-      classMap.set(key,cl);
+      const key = dayKeyLocal(cl.dia) + '|' + timeLabelLocal(cl.hora);
+      const existing = classMap.get(key);
+      if(existing){
+        const preferSource = !existing.personalId && cl.personalId;
+        const target = preferSource ? cl : existing;
+        const source = preferSource ? existing : cl;
+        classMap.set(key,mergeClassRows(target,source));
+      }else{
+        classMap.set(key,cl);
+      }
     });
     data.classes = Array.from(classMap.values()).sort(function(a,b){ return WEEK.map(dayKeyLocal).indexOf(dayKeyLocal(a.dia)) - WEEK.map(dayKeyLocal).indexOf(dayKeyLocal(b.dia)) || String(a.hora).localeCompare(String(b.hora)); });
     data.schedules = [];
@@ -10035,7 +10072,7 @@ window.openSelectedWhatsAppReminders = avisarSeleccionadosPorWhatsApp;
   window.saveLocal = saveLocal = function(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(baseNormalize(db))); };
   window.loadDB = loadDB = function(){
     const raw = localStorage.getItem(STORAGE_KEY);
-    if(raw){ try{ return baseNormalize(JSON.parse(raw)); }catch(e){} }
+    if(raw){ try{ const normalized = baseNormalize(JSON.parse(raw)); localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized)); return normalized; }catch(e){} }
     const fresh = emptyDB();
     localStorage.setItem(STORAGE_KEY, JSON.stringify(fresh));
     return fresh;
@@ -10648,6 +10685,261 @@ window.openSelectedWhatsAppReminders = avisarSeleccionadosPorWhatsApp;
   document.addEventListener('DOMContentLoaded', bindTopSearch);
   window.addEventListener('load', bindTopSearch);
   bindTopSearch();
+})();
+</script>
+<script>
+(function(){
+  if(window.__NIH_SECURITY_HARDENING__) return;
+  window.__NIH_SECURITY_HARDENING__ = true;
+
+  var SENSITIVE_KEYS = /password|passwordHash|pass|token|secret|apiKey|credential/i;
+  function nowSafe(){ return typeof now === 'function' ? now() : new Date().toISOString(); }
+  function text(value){ return String(value == null ? '' : value); }
+  function html(value){
+    return text(value).replace(/[&<>"']/g,function(ch){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch];
+    });
+  }
+  function attrSafe(value){ return html(value); }
+  function bytesToHex(buffer){
+    return Array.from(new Uint8Array(buffer),function(b){return b.toString(16).padStart(2,'0');}).join('');
+  }
+  async function sha256(value){
+    if(!window.crypto || !crypto.subtle) throw new Error('El navegador no permite cifrado local seguro.');
+    var data = new TextEncoder().encode(text(value));
+    return 'sha256:' + bytesToHex(await crypto.subtle.digest('SHA-256', data));
+  }
+  function isHashed(value){ return /^sha256:[a-f0-9]{64}$/i.test(text(value)); }
+  function randomDisabledPassword(){
+    var bytes = new Uint8Array(16);
+    if(window.crypto && crypto.getRandomValues) crypto.getRandomValues(bytes);
+    return 'disabled:' + bytesToHex(bytes.buffer);
+  }
+  function arrSafe(name){
+    if(typeof getArr === 'function') return getArr(name);
+    return Array.isArray(db && db[name]) ? db[name] : [];
+  }
+  async function migratePlaintextPasswords(){
+    if(!db || !Array.isArray(db.users)) return false;
+    var changed = false;
+    for(var i=0;i<db.users.length;i++){
+      var u = db.users[i];
+      if(u && u.passwordHash && !isHashed(u.passwordHash) && !String(u.passwordHash).startsWith('disabled:')){
+        u.passwordHash = await sha256(u.passwordHash);
+        u.passwordUpdatedAt = u.passwordUpdatedAt || nowSafe();
+        changed = true;
+      }
+    }
+    if(changed && typeof saveDB === 'function') await saveDB();
+    return changed;
+  }
+  function cloneWithoutSecrets(value){
+    if(Array.isArray(value)) return value.map(cloneWithoutSecrets);
+    if(value && typeof value === 'object'){
+      var out = {};
+      Object.keys(value).forEach(function(key){
+        if(SENSITIVE_KEYS.test(key)){
+          out[key + 'Redacted'] = true;
+        }else{
+          out[key] = cloneWithoutSecrets(value[key]);
+        }
+      });
+      return out;
+    }
+    return value;
+  }
+  function sanitizeUserForImport(user){
+    var out = Object.assign({}, user || {});
+    if(!out.passwordHash){
+      var existing = arrSafe('users').find(function(u){return (out.id && u.id === out.id) || (out.usuario && u.usuario === out.usuario);});
+      out.passwordHash = existing && existing.passwordHash ? existing.passwordHash : randomDisabledPassword();
+    }
+    return out;
+  }
+  function cleanDangerousDom(root){
+    if(!root || !root.querySelectorAll) return;
+    root.querySelectorAll('script,iframe,object,embed,base,meta[http-equiv],link[rel="import"]').forEach(function(node){ node.remove(); });
+    root.querySelectorAll('[href],[src],[action],[formaction],[srcdoc]').forEach(function(node){
+      ['href','src','action','formaction'].forEach(function(name){
+        var value = node.getAttribute(name);
+        if(value && /^\s*javascript:/i.test(value)) node.removeAttribute(name);
+      });
+      if(node.hasAttribute('srcdoc')) node.removeAttribute('srcdoc');
+    });
+  }
+  function secureDownloadText(filename,textValue,type){
+    if(typeof downloadText === 'function') return downloadText(filename,textValue,type);
+    var blob = new Blob([textValue],{type:type || 'text/plain;charset=utf-8'});
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement('a');
+    link.href = url; link.download = filename; document.body.appendChild(link); link.click(); link.remove();
+    setTimeout(function(){URL.revokeObjectURL(url);},800);
+  }
+
+  var baseShowModal = typeof showModal === 'function' ? showModal : null;
+  if(baseShowModal){
+    window.showModal = showModal = function(title,subtitle,body){
+      var result = baseShowModal.apply(this, arguments);
+      cleanDangerousDom(document.getElementById('modalBody'));
+      return result;
+    };
+  }
+  var baseOpenModal = typeof openModal === 'function' ? openModal : null;
+  if(baseOpenModal){
+    window.openModal = openModal = function(){
+      var result = baseOpenModal.apply(this, arguments);
+      cleanDangerousDom(document.getElementById('modalBody'));
+      return result;
+    };
+  }
+  var baseRenderSecure = typeof render === 'function' ? render : null;
+  if(baseRenderSecure){
+    window.render = render = function(){
+      var result = baseRenderSecure.apply(this, arguments);
+      cleanDangerousDom(document.getElementById('content'));
+      return result;
+    };
+  }
+
+  window.exportToCSV = function(type){
+    var rows = cloneWithoutSecrets(arrSafe(type));
+    if(!rows.length){ if(typeof toast === 'function') toast('No hay datos para exportar.'); return; }
+    var headers = Array.from(rows.reduce(function(set,row){ Object.keys(row).forEach(function(k){set.add(k);}); return set; }, new Set()));
+    var csvEscape = function(value){ return '"' + text(value).replace(/"/g,'""') + '"'; };
+    var csv = '\uFEFF' + headers.map(csvEscape).join(',') + '\n' + rows.map(function(row){
+      return headers.map(function(k){ return csvEscape(Array.isArray(row[k]) ? row[k].join(' | ') : row[k]); }).join(',');
+    }).join('\n');
+    secureDownloadText('nihuen-'+type+'.csv', csv, 'text/csv;charset=utf-8');
+    if(typeof logAudit === 'function') logAudit('Exportar CSV', type, 'Se exporto '+type+' a CSV sin campos sensibles.');
+  };
+  window.exportFullBackup = function(){
+    var backup = cloneWithoutSecrets({
+      generatedAt: nowSafe(),
+      clientes: arrSafe('clients'),
+      pagos: arrSafe('payments'),
+      clases: arrSafe('classes'),
+      horarios: arrSafe('schedules'),
+      planes: arrSafe('plans'),
+      personal: arrSafe('users'),
+      configuracion: db && db.settings || {}
+    });
+    backup.securityNote = 'Este backup excluye contrasenas, tokens y otros secretos. Al importarlo, los usuarios nuevos deben recibir una nueva clave.';
+    secureDownloadText('nihuen-backup-'+(typeof dateKey === 'function' ? dateKey(new Date()) : new Date().toISOString().slice(0,10))+'.json', JSON.stringify(backup,null,2), 'application/json;charset=utf-8');
+    if(typeof logAudit === 'function') logAudit('Exportar backup','backup','Se genero backup JSON sin campos sensibles.');
+  };
+
+  window.userForm = function(u){
+    u = u || {};
+    return '<form onsubmit="saveUser(event,\''+attrSafe(u.id || '')+'\')">'+
+      (typeof formGrid === 'function' ? formGrid([
+        {label:'Apellido',html:'<input required name="apellido" class="input" value="'+attrSafe(u.apellido || '')+'">'},
+        {label:'Nombre',html:'<input required name="nombre" class="input" value="'+attrSafe(u.nombre || '')+'">'},
+        {label:'DNI',html:'<input required name="dni" class="input" value="'+attrSafe(u.dni || '')+'">'},
+        {label:'Fecha nacimiento',html:'<input type="date" name="fechaNacimiento" class="input" value="'+attrSafe(u.fechaNacimiento || '')+'">'},
+        {label:'Dirección',html:'<input name="direccion" class="input" value="'+attrSafe(u.direccion || '')+'">'},
+        {label:'Teléfono',html:'<input name="telefono" class="input" value="'+attrSafe(u.telefono || '')+'">'},
+        {label:'Títulos',html:'<input name="titulos" class="input" value="'+attrSafe(u.titulos || '')+'">'},
+        {label:'Usuario',html:'<input required name="usuario" autocomplete="off" class="input" value="'+attrSafe(u.usuario || '')+'">'},
+        {label:u.id?'Nueva clave':'Clave',html:'<input '+(u.id?'':'required')+' name="password" type="password" minlength="8" autocomplete="new-password" class="input" placeholder="'+(u.id?'Dejar en blanco para mantener':'Minimo 8 caracteres')+'">'},
+        {label:'Rol',html:'<select name="rol" class="input"><option value="general" '+((u.rol==='general')?'selected':'')+'>Administrador general</option><option value="parcial" '+((u.rol==='parcial')?'selected':'')+'>Administrador parcial</option></select>'},
+        {label:'Estado',html:'<select name="estado" class="input"><option '+((u.estado==='Activo')?'selected':'')+'>Activo</option><option '+((u.estado==='Inactivo')?'selected':'')+'>Inactivo</option></select>'}
+      ]) : '')+
+      '<button class="btn btn-primary mt-5">Guardar</button></form>';
+  };
+  window.saveUser = async function(e,id){
+    e.preventDefault();
+    if(typeof isGeneral === 'function' && !isGeneral()) return typeof toast === 'function' && toast('Solo administrador general');
+    var fd = Object.fromEntries(new FormData(e.target).entries());
+    var password = fd.password || '';
+    delete fd.password;
+    var users = arrSafe('users');
+    if(users.find(function(u){return fd.dni && u.dni === fd.dni && u.id !== id;})) return toast('DNI duplicado en personal');
+    if(users.find(function(u){return fd.usuario && u.usuario === fd.usuario && u.id !== id;})) return toast('Usuario duplicado');
+    var item = id ? users.find(function(u){return u.id === id;}) : null;
+    if(!item && password.length < 8) return toast('La clave debe tener al menos 8 caracteres.');
+    if(item){
+      Object.assign(item, fd, {updatedAt:nowSafe()});
+      if(password) item.passwordHash = await sha256(password);
+    }else{
+      item = Object.assign({id:(typeof uid === 'function' ? uid() : 'user_'+Date.now()),horariosAsignados:[],createdAt:nowSafe()}, fd, {passwordHash:await sha256(password),updatedAt:nowSafe()});
+      users.push(item);
+    }
+    item.passwordUpdatedAt = nowSafe();
+    if(typeof saveDB === 'function') await saveDB();
+    if(typeof closeModal === 'function') closeModal();
+    if(typeof render === 'function') render();
+    if(typeof toast === 'function') toast('Personal guardado de forma segura');
+  };
+
+  var loginForm = document.getElementById('loginForm');
+  if(loginForm){
+    var passInput = document.getElementById('loginPass');
+    var userInput = document.getElementById('loginUser');
+    if(passInput){ passInput.setAttribute('autocomplete','current-password'); passInput.setAttribute('minlength','8'); }
+    if(userInput){ userInput.setAttribute('autocomplete','username'); }
+    loginForm.addEventListener('submit', async function(event){
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      await migratePlaintextPasswords();
+      var rawUser = document.getElementById('loginUser').value.trim();
+      var rawPass = document.getElementById('loginPass').value;
+      var err = document.getElementById('loginError');
+      if(err) err.classList.add('hidden');
+      if(!rawUser || !rawPass){
+        if(err){ err.textContent = 'Ingresá usuario y contraseña.'; err.classList.remove('hidden'); }
+        return;
+      }
+      var hash = await sha256(rawPass);
+      var found = arrSafe('users').find(function(u){ return u.usuario === rawUser && u.passwordHash === hash && u.estado === 'Activo'; });
+      if(!found){
+        if(err){ err.textContent = 'Usuario o clave incorrectos.'; err.classList.remove('hidden'); }
+        return;
+      }
+      currentUser = found;
+      document.getElementById('loginView').classList.add('hidden');
+      document.getElementById('appView').classList.remove('hidden');
+      currentSection = 'dashboard';
+      if(typeof logAudit === 'function') logAudit('Inicio de sesion','auth','Ingreso correcto de '+rawUser);
+      if(typeof render === 'function') render();
+      var defaultHash = await sha256('admin123');
+      if(found.usuario === 'admin' && found.passwordHash === defaultHash && typeof showModal === 'function'){
+        showModal('Cambiar clave recomendada','La clave inicial sigue siendo predecible','<p class="nih-muted">Por seguridad, creá una clave nueva desde Personal > Admin General.</p>');
+      }
+    }, true);
+  }
+
+  var baseImportFullBackup = typeof importFullBackup === 'function' ? importFullBackup : null;
+  window.importFullBackup = function(file){
+    if(!file) return;
+    var reader = new FileReader();
+    reader.onload = async function(){
+      try{
+        var data = JSON.parse(reader.result);
+        if(typeof validateBackup === 'function'){
+          var validation = validateBackup(data);
+          if(validation !== true){ if(typeof toast === 'function') toast(validation); return; }
+        }
+        if(!confirm('Este backup puede sobrescribir datos actuales. Los usuarios sin clave importada quedaran deshabilitados hasta reasignarles una clave. ¿Continuar?')) return;
+        db.clients = data.clientes || [];
+        db.payments = data.pagos || [];
+        db.classes = data.clases || [];
+        db.schedules = data.horarios || [];
+        db.plans = data.planes || [];
+        db.users = (data.personal || []).map(sanitizeUserForImport);
+        db.settings = Object.assign({}, db.settings || {}, data.configuracion || {});
+        await migratePlaintextPasswords();
+        if(typeof logAudit === 'function') logAudit('Importar backup','backup','Se importo backup JSON con sanitizacion de usuarios.');
+        if(typeof saveDB === 'function') await saveDB();
+        if(typeof render === 'function') render();
+        if(typeof toast === 'function') toast('Backup importado correctamente.');
+      }catch(err){
+        if(typeof toast === 'function') toast('El archivo no es un JSON valido.');
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  migratePlaintextPasswords().catch(function(err){ console.warn('Password migration error', err); });
 })();
 </script>
 </body>
