@@ -10401,5 +10401,523 @@ window.openSelectedWhatsAppReminders = avisarSeleccionadosPorWhatsApp;
 })();
 </script>
 
+
+<script>
+/* ===== Base CLIENTES desde clientes.xlsx ===== */
+(function(){
+  const CLIENTES_EXCEL_SEED_VERSION = 'clientes-xlsx-2026-06-09-clientes-exacto-v5-planes-horarios-pilates31';
+  const CLIENTES_EXCEL_NAMES = ["Alochis Adriana","Álvarez Alva","Álamo Amelia","Ariente Silvi","Arnodo Rita","Bertoloti Gladys","Bianco Daiana","Bosch Nanci","Burgi Rocio","Burgi Lucianita","Burgi Gonzalo","Carrel Paula","Cerutti Mariela","Copes Liliana","Cuki M D Carmen Rodr","Dobler Angelica","Donnet Alicia","Domingo Abel","Engler Flor","Ferlini Belen","Ferreira Graciela","Fontana Lili","Fernandez Daniela","Forti Claudia","Funes Graciela","Gastaldi Alejo","García M Magdqlena","Gianfelici Leo","Gilli Cristina","Godoy Veronica","González Mónica","Gomez Silvina","Gorosito Brisa","Heinrich Daniela","Hilgert Veré A","Holliat Maria","Joliat Claudia","Inmortal Mabel","Kunz Brenda","Kraus Victoria","Kruse Eva","Kuchen Marta","Lacoste Agus","Lamagni Ivana","Lebrand Raquel","Lechman Angie","Leschman Pateicia","Loteberger Silvi","Maicher Carina","Marcuzzi Serena","Martin Corina","Mayoraz Sol","Mathise Meli","Merimg Aldana","Micoli Noemi","Monti Celeste","Muller Karim","Núñez Beatriz","Paravano Alicia","Piovesano Lucre","Paulazo Feliz","Passerino Marta","Passerino Silvia","Peresutti Isa","Petroselli Jesi","Ranzani Roxana","Ramello Meli S","Regis Natacha","Retamar Ester","Rios Sonia","Romero Luciana","Rodríguez Cenzano Olga","Rodríguez Patricia","Ropolo Ara","Quaranta Graciela","Sanchez Isaura","Sandoval Gabriela","Santillán Edita","Sánchez Camila","Spies Camila","Spies Juliana","Stirneman Mariel","Trod Rossana","Stessen Elsa","Vanzini Rita Ronchino","Wallemberg Viví","Venturini Daniela","Vernaza Cande","Vernaza Carina","Vogt Silvia","Yenerich Norita","Westhein Lorena","Zoratti Nora"];
+  const CLIENTES_EXCEL_SOURCE = {file:'clientes.xlsx', sheet:'ENE26', title:'CLIENTES', rows:'CLIENTES', total:CLIENTES_EXCEL_NAMES.length};
+  const PILATES_31_CLIENTS = [{"fullName":"Abel Doning","dni":".","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"06:00"},{"day":"Jueves","time":"06:00"}]},{"fullName":"Adriana Alochis","dni":"13648597","telefono":"3496419503","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Lunes","time":"15:00"},{"day":"Miercoles","time":"15:00"}]},{"fullName":"Agustina Lacoste","dni":".","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"19:00"},{"day":"Jueves","time":"19:00"}]},{"fullName":"Aldana Mering","dni":".","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Miercoles","time":"19:00"}]},{"fullName":"Alejo Gastaldi","dni":".","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"06:00"},{"day":"Jueves","time":"06:00"}]},{"fullName":"Alicia Donnet","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"17:00"},{"day":"Jueves","time":"17:00"}]},{"fullName":"Alicia Paravano","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"13:00"},{"day":"Jueves","time":"13:00"}]},{"fullName":"Alva Álvarez","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"15:00"},{"day":"Jueves","time":"15:00"}]},{"fullName":"Amelia Álamo","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Jueves","time":"09:00"}]},{"fullName":"Angelica Dobler","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"","scheduleDays":[{"day":"Martes","time":"13:00"}]},{"fullName":"Angie Lechman","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Jueves","time":"09:00"}]},{"fullName":"Beatriz Núñez","dni":".","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"07:00"},{"day":"Jueves","time":"07:00"}]},{"fullName":"Belen Ferlini","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"15:00"},{"day":"Jueves","time":"15:00"}]},{"fullName":"Brenda Kunz","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"06:00"},{"day":"Jueves","time":"06:00"}]},{"fullName":"Brisa Gorosito","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"18:00"},{"day":"Jueves","time":"20:00"}]},{"fullName":"Camila Spies","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Lunes","time":"08:00"},{"day":"Miercoles","time":"08:00"}]},{"fullName":"Candela Micoli","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Miercoles","time":"19:00"},{"day":"Viernes","time":"08:00"}]},{"fullName":"Carina Maicher","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"18:00"},{"day":"Jueves","time":"18:00"}]},{"fullName":"Carina Vernaza","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"07:00"},{"day":"Jueves","time":"07:00"}]},{"fullName":"Celeste Monti","dni":".","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Jueves","time":"19:00"}]},{"fullName":"Claudia Forti","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"07:00"},{"day":"Jueves","time":"07:00"}]},{"fullName":"Claudia Holiat","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"08:00"},{"day":"Jueves","time":"08:00"}]},{"fullName":"Corina Martin","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Jueves","time":"19:00"}]},{"fullName":"Cristina Gilli","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"08:00"},{"day":"Jueves","time":"08:00"}]},{"fullName":"Daniela Fernandez","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Daniela Heinrich","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Lunes","time":"14:00"}]},{"fullName":"Daniela Venturini","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Edita Santillán","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"09:00"}]},{"fullName":"Elsa Stessens","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"09:00"}]},{"fullName":"Ester Retamar","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"17:00"},{"day":"Jueves","time":"17:00"}]},{"fullName":"Eva Kruse","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"08:00"},{"day":"Jueves","time":"08:00"}]},{"fullName":"Florencia Engler","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Lunes","time":"08:00"}]},{"fullName":"Gabriela Sandoval","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Gladys Bertoloti","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"07:00"}]},{"fullName":"Gonzalo Burgi","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"06:00"},{"day":"Jueves","time":"06:00"}]},{"fullName":"Graciela Ferreira","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pagado","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"08:00"}]},{"fullName":"Graciela Funes","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Miercoles","time":"15:00"}]},{"fullName":"Graciela Quaranta","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Ines","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Isa Peresutti","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Isaura Sanchez","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Ivana Lamagni","dni":"","telefono":"","estado":"Activo","planName":"3 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Miercoles","time":"08:00"}]},{"fullName":"Ivon Ivon","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"","scheduleDays":[{"day":"Martes","time":"13:00"},{"day":"Jueves","time":"13:00"}]},{"fullName":"Jaki Beltramini","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Jaki Beltramino","dni":"","telefono":"","estado":"Inactivo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Jueves","time":"06:00"}]},{"fullName":"Jaki Biondini","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Jesi Petroselli","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Joana Dusso","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Miercoles","time":"19:00"}]},{"fullName":"Jorgelina Lacour","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Jueves","time":"08:00"}]},{"fullName":"Jose Vergara M","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Jueves","time":"13:00"}]},{"fullName":"Josefina Fregona","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Juliana Spies","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Karim Muller","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Kine Brenda","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Koch Ainelen","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Kref Paola","dni":"","telefono":"","estado":"Activo","planName":"3 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Jueves","time":"13:00"}]},{"fullName":"Kunzita Brenda","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Laura","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Ledesma Antonela","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Lehritier Ines","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Jueves","time":"07:00"}]},{"fullName":"Leiva Liliana","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Leonel Gianfelici","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"06:00"},{"day":"Jueves","time":"06:00"}]},{"fullName":"Lesmann Angie","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pagado","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Jueves","time":"06:00"}]},{"fullName":"Lili Fontana","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"13:00"}]},{"fullName":"Liliana Copes","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Lorena Micheloud","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Lorena Perez","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Lorena Westhein","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Lotesberger Silvia","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"15:00"},{"day":"Jueves","time":"15:00"}]},{"fullName":"Lucia","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Lucia Volken","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Luciana Malpassi","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"06:00"},{"day":"Jueves","time":"06:00"}]},{"fullName":"Luciana Romero","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Lucre","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"17:00"}]},{"fullName":"Lucre Piovesano","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Lunes","time":"08:00"}]},{"fullName":"Ludueña Cintia","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"M Magdqlena García","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Mabel Imoberdorf","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Lunes","time":"17:00"}]},{"fullName":"Mabel Imoberdorf","dni":"13036659","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"08:00"},{"day":"Jueves","time":"08:00"}]},{"fullName":"Mansilla Carla","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Jueves","time":"06:00"}]},{"fullName":"Marchetti Nieves","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Jueves","time":"06:00"}]},{"fullName":"Maria","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"María Del Carmen Rodríguez","dni":"6367070","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Lunes","time":"14:00"},{"day":"Miercoles","time":"14:00"}]},{"fullName":"Maria Holliat","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"08:00"},{"day":"Jueves","time":"08:00"}]},{"fullName":"Mariana Huber","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Marianela Suarez","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Mariel Stirneman","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"15:00"},{"day":"Jueves","time":"15:00"}]},{"fullName":"Mariel Stirneman","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"13:00"}]},{"fullName":"Mariela","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Lunes","time":"15:00"},{"day":"Miercoles","time":"15:00"}]},{"fullName":"Mariela Cerutti","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Jueves","time":"08:00"}]},{"fullName":"Marta Kuchen","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"09:00"}]},{"fullName":"Marta Passerino","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Lunes","time":"08:00"}]},{"fullName":"Mehring Aldana","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Meli Amiga","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Jueves","time":"19:00"}]},{"fullName":"Meli Lorena","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"18:00"}]},{"fullName":"Meli Mathise","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Meli Rafo","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Meli S Ramello","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Melina Ramelo","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Lunes","time":"17:00"}]},{"fullName":"Menéndez Araceli","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Mercedes Saux","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"19:00"},{"day":"Jueves","time":"19:00"}]},{"fullName":"Mering Aldana","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Micoli Cande","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"18:00"},{"day":"Jueves","time":"18:00"}]},{"fullName":"Mirti","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Mónica González","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Muller Carim","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"18:00"},{"day":"Jueves","time":"18:00"}]},{"fullName":"Nanci Bosch","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"08:00"}]},{"fullName":"Natacha Regis","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Nélida Pianeti","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Nessier Eugenia","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Lunes","time":"14:00"}]},{"fullName":"Noelia Fontana","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Lunes","time":"14:00"},{"day":"Miercoles","time":"14:00"}]},{"fullName":"Noemi Micole","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Noemi Micoli","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Nora Zoratti","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Norita Yenerich","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Nuñez Bety","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Jueves","time":"07:00"}]},{"fullName":"O Gabriela Guison","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Miercoles","time":"14:00"}]},{"fullName":"Ocampo Gabi","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Jueves","time":"15:00"}]},{"fullName":"Ocampo Noemi","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"09:00"},{"day":"Miercoles","time":"08:00"}]},{"fullName":"Ocampo Pauli","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Olga Rodríguez","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Lunes","time":"14:00"}]},{"fullName":"Oradini Sol","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Oriana Lapuchevsky","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"15:00"},{"day":"Jueves","time":"15:00"}]},{"fullName":"Pachi Sarmiento","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Palmeoli Analia","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Miercoles","time":"08:00"}]},{"fullName":"Patricia Espindola","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Lunes","time":"15:00"},{"day":"Martes","time":"13:00"},{"day":"Jueves","time":"15:00"}]},{"fullName":"Patricia Rodríguez","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Paula Carrel","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Miercoles","time":"19:00"}]},{"fullName":"Paula Serra","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Paulazo Felicitas","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Lunes","time":"14:00"},{"day":"Miercoles","time":"14:00"}]},{"fullName":"Paveti Sofia","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Miercoles","time":"08:00"}]},{"fullName":"Peressutti Isabel","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Peresutti Isabel","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Perren Analia","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Perrsutti Nieves","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Pia","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Poseto Manuela","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Posseto Manuela","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Jueves","time":"09:00"}]},{"fullName":"Quiroz Camila","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Ramello Melina","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Jueves","time":"19:00"}]},{"fullName":"Ramond Lili","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Jueves","time":"17:00"}]},{"fullName":"Ramonda Lili","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"17:00"}]},{"fullName":"Ranzani Rossana","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Raquel Lebrand","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"08:00"},{"day":"Miercoles","time":"08:00"}]},{"fullName":"Remis Cata","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Jueves","time":"20:00"}]},{"fullName":"Remis Catalina","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"20:00"}]},{"fullName":"Ripstein Maria","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Rita Alemos","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Rita Arnodo","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Rita Arnoldo M","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Rita Vanzini","dni":"","telefono":"","estado":"Activo","planName":"3 Veces Por Semana","paymentStatus":"Pagado","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Lunes","time":"08:00"},{"day":"Miercoles","time":"08:00"},{"day":"Viernes","time":"08:00"}]},{"fullName":"Robles Aldana","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Rocio Burgi","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Lunes","time":"15:00"}]},{"fullName":"Rodriguez Paula","dni":"","telefono":"","estado":"Activo","planName":"4 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Lunes","time":"15:00"},{"day":"Martes","time":"20:00"},{"day":"Miercoles","time":"14:00"},{"day":"Jueves","time":"20:00"}]},{"fullName":"Rosler Carina","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Rossana Trod","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Rossi Fernanda","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Miercoles","time":"19:00"}]},{"fullName":"Roxana Ranzani","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Rubaja Agus","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Jueves","time":"09:00"}]},{"fullName":"Rubaja Agustina","dni":"","telefono":"","estado":"Activo","planName":"3 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"18:00"},{"day":"Jueves","time":"18:00"}]},{"fullName":"Sandoval Gabi","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"17:00"}]},{"fullName":"Schmit Priscila","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Jueves","time":"17:00"}]},{"fullName":"Schnel Karem","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Schurrer Gabi","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Senn Ivana","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"19:00"},{"day":"Jueves","time":"19:00"}]},{"fullName":"Serena Marcuzzi","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Shenel Karem","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Silvi Loteberger","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Silvia Passerino","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Lunes","time":"08:00"}]},{"fullName":"Silvia Vogt","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"07:00"},{"day":"Jueves","time":"07:00"}]},{"fullName":"Silvina Gasser","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Silvina Gomez","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"09:00"}]},{"fullName":"Sol Mayoraz","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Soledad","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"15:00"}]},{"fullName":"Sonia Rios","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"07:00"},{"day":"Jueves","time":"07:00"}]},{"fullName":"Soratti Emma","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Jueves","time":"13:00"}]},{"fullName":"Thimental Alicia","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Toranzo Melina","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"18:00"},{"day":"Jueves","time":"18:00"}]},{"fullName":"Trossero Gladys","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Tuninerti Mariel","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Tunineti Mariel","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Ulmer Laura","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Urfer Cintia","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Martes","time":"15:00"},{"day":"Jueves","time":"15:00"}]},{"fullName":"Vanzini Gerardo","dni":"","telefono":"","estado":"Inactivo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Veré A Hilgert","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Veronica Godoy","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Victoria Kraus","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Vivi Gandini","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Viví Wallemberg","dni":"","telefono":"","estado":"Activo","planName":"Clase Individual","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Viviana Chesa","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Viviana Cheza","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Viviana Wallemberg","dni":"16830300","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"","scheduleDays":[]},{"fullName":"Werli Candela","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Wernli Candela","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Yenerich Nora","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Jueves","time":"07:00"}]},{"fullName":"Yoana Dusso","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]},{"fullName":"Zorati Nora","dni":"","telefono":"","estado":"Activo","planName":"2 Veces Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[{"day":"Jueves","time":"08:00"}]},{"fullName":"Zorati Soledad","dni":"","telefono":"","estado":"Activo","planName":"1 Vez Por Semana","paymentStatus":"Pendiente","observaciones":"Importado desde Excel PILATES.xlsx","scheduleDays":[]}];
+  const PILATES_31_PAYMENTS = [{"clientName":"Lesmann Angie","amount":48000,"month":"2026-05","method":"Efectivo","status":"Pagado","date":"2026-05-28","source":"Informado por profesora","note":""},{"clientName":"Graciela Ferreira","amount":48000,"month":"2026-05","method":"Efectivo","status":"Pagado","date":"2026-05-29","source":"Informado por profesora","note":""},{"clientName":"Rita Vanzini","amount":65000,"month":"2026-05","method":"Efectivo","status":"Pagado","date":"2026-05-29","source":"Informado por profesora","note":""}];
+  const PILATES_31_ATTENDANCE = [{"date":"2026-05-28","day":"Jueves","time":"06:00","clientName":"Durigon Dulo","status":"Ausente","teacherName":"Nihuen"},{"date":"2026-05-28","day":"Jueves","time":"06:00","clientName":"Gonzalo Burgi","status":"Ausente","teacherName":"Nihuen"},{"date":"2026-05-28","day":"Jueves","time":"06:00","clientName":"Jaki Beltramino","status":"Presente","teacherName":"Nihuen"},{"date":"2026-05-28","day":"Jueves","time":"06:00","clientName":"Lesmann Angie","status":"Presente","teacherName":"Nihuen"},{"date":"2026-05-28","day":"Jueves","time":"06:00","clientName":"Marchetti Nieves","status":"Presente","teacherName":"Nihuen"},{"date":"2026-05-28","day":"Jueves","time":"06:00","clientName":"Mansilla Carla","status":"Presente","teacherName":"Nihuen"},{"date":"2026-05-28","day":"Jueves","time":"06:00","clientName":"Lucianita Burgi","status":"Presente","teacherName":"Nihuen"},{"date":"2026-05-29","day":"Viernes","time":"08:00","clientName":"Graciela Ferreira","status":"Presente","teacherName":"Sin personal"},{"date":"2026-05-29","day":"Viernes","time":"08:00","clientName":"Grosero Gladis","status":"Presente","teacherName":"Sin personal"},{"date":"2026-05-29","day":"Viernes","time":"08:00","clientName":"Ivana Lamagni","status":"Presente","teacherName":"Sin personal"},{"date":"2026-05-29","day":"Viernes","time":"08:00","clientName":"Koch Ainelen","status":"Presente","teacherName":"Sin personal"},{"date":"2026-05-29","day":"Viernes","time":"08:00","clientName":"Nanci Bosch","status":"Presente","teacherName":"Sin personal"},{"date":"2026-05-29","day":"Viernes","time":"08:00","clientName":"Perrsutti Nieves","status":"Ausente","teacherName":"Sin personal"},{"date":"2026-05-29","day":"Viernes","time":"08:00","clientName":"Vanzini Rita","status":"Presente","teacherName":"Sin personal"}];
+  const PILATES_31_PAYMENT_REPORTS = [{"clientName":"Lesmann Angie","amount":48000,"method":"Efectivo","date":"2026-05-28","teacherName":"Nihuen","status":"aprobado","note":""},{"clientName":"Jaki Beltramino","amount":28000,"method":"Efectivo","date":"2026-05-28","teacherName":"Nihuen","status":"rechazado","note":""},{"clientName":"Graciela Ferreira","amount":48000,"method":"Efectivo","date":"2026-05-29","teacherName":"Sin personal","status":"aprobado","note":""},{"clientName":"Grosero Gladis","amount":28000,"method":"Efectivo","date":"2026-05-29","teacherName":"Sin personal","status":"aprobado","note":""},{"clientName":"Vanzini Rita","amount":65000,"method":"Efectivo","date":"2026-05-29","teacherName":"Sin personal","status":"aprobado","note":""}];
+  const PILATES_31_NAME_ALIASES = {
+    'cuki m d carmen rodr':'MarÃ­a Del Carmen RodrÃ­guez',
+    'domingo abel':'Abel Doning',
+    'engler flor':'Florencia Engler',
+    'gianfelici leo':'Leonel Gianfelici',
+    'lacoste agus':'Agustina Lacoste',
+    'lechman angie':'Lesmann Angie',
+    'merimg aldana':'Aldana Mering',
+    'paulazo feliz':'Paulazo Felicitas',
+    'stessen elsa':'Elsa Stessens',
+    'vanzini rita ronchino':'Rita Vanzini'
+  };
+
+  function text(value){ return String(value == null ? '' : value).replace(/\s+/g,' ').trim(); }
+  function nkey(value){
+    return text(value).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9 ]/g,'').replace(/\s+/g,' ').trim();
+  }
+  function keyVariants(value){
+    const clean = titleName(value);
+    const parts = clean.split(' ').filter(Boolean);
+    const keys = new Set([nkey(clean)]);
+    if(parts.length >= 2){
+      keys.add(nkey(parts.slice(1).join(' ') + ' ' + parts[0]));
+      keys.add(nkey(parts[parts.length - 1] + ' ' + parts.slice(0,-1).join(' ')));
+    }
+    return Array.from(keys).filter(Boolean);
+  }
+  function titleWord(word){
+    word = text(word).toLocaleLowerCase('es-AR');
+    return word.length <= 1 ? word.toLocaleUpperCase('es-AR') : word.charAt(0).toLocaleUpperCase('es-AR') + word.slice(1);
+  }
+  function titleName(value){
+    return text(value).replace(/[!()]+/g,' ').replace(/([a-zÃ¡Ã©Ã­Ã³ÃºÃ±Ã¼])([A-ZÃÃ‰ÃÃ“ÃšÃ‘Ãœ])/g,'$1 $2').split(' ').filter(Boolean).map(titleWord).join(' ');
+  }
+  function escLocal(value){
+    return text(value).replace(/[&<>"']/g,function(ch){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]; });
+  }
+  function attrLocal(value){ return escLocal(value); }
+  function selectedLocal(value,expected){ return String(value || '') === String(expected || '') ? 'selected' : ''; }
+  function clientFullName(c){ return titleName(((c && c.apellido) || '') + ' ' + ((c && c.nombre) || '')) || 'Sin nombre'; }
+  function planLabel(c){
+    const plans = arrLocal('plans');
+    const plan = plans.find(function(p){ return p.id === (c && c.planId); });
+    return plan ? plan.nombre : '-';
+  }
+  function ensurePlanByName(data, planName){
+    planName = titleName(planName || '');
+    if(!planName || planName === '-') return '';
+    data.plans = Array.isArray(data.plans) ? data.plans : [];
+    let plan = data.plans.find(function(p){ return nkey(p.nombre) === nkey(planName); });
+    if(!plan){
+      const weekly = Number((planName.match(/\d+/) || ['1'])[0]) || 1;
+      plan = {id:'plan_' + nkey(planName).replace(/\s+/g,'_'),nombre:planName,clasesSemanales:weekly,precio:0,estado:'Activo',descripcion:'Importado desde PILATES 31-05.xlsx',createdAt:stampLocal(),updatedAt:stampLocal()};
+      data.plans.push(plan);
+    }
+    return plan.id;
+  }
+  function assignmentMap(){
+    const map = new Map();
+    (PILATES_31_CLIENTS || []).forEach(function(row){
+      keyVariants(row.fullName).forEach(function(k){ if(k && !map.has(k)) map.set(k,row); });
+    });
+    return map;
+  }
+  function assignmentForClient(c){
+    const assigns = assignmentMap();
+    const variants = keyVariants((c.apellido || '') + ' ' + (c.nombre || ''));
+    const alias = PILATES_31_NAME_ALIASES[nkey((c.apellido || '') + ' ' + (c.nombre || ''))];
+    if(alias) keyVariants(alias).forEach(function(k){ variants.push(k); });
+    return variants.map(function(k){ return assigns.get(k); }).find(Boolean);
+  }
+  function clientByImportedNameMap(clients){
+    const map = new Map();
+    (clients || []).forEach(function(c){
+      keyVariants((c.apellido || '') + ' ' + (c.nombre || '')).forEach(function(k){ if(k && !map.has(k)) map.set(k,c); });
+      const alias = PILATES_31_NAME_ALIASES[nkey((c.apellido || '') + ' ' + (c.nombre || ''))];
+      if(alias) keyVariants(alias).forEach(function(k){ if(k && !map.has(k)) map.set(k,c); });
+    });
+    return map;
+  }
+  function uniqueSchedule(rows){
+    const seen = new Set();
+    return (rows || []).map(function(r){
+      return {day:titleName(r.day || r.dia || ''),time:text(r.time || r.horario || r.hora || ''),teacherId:r.teacherId || r.personalId || '',teacherName:r.teacherName || ''};
+    }).filter(function(r){
+      const key = nkey(r.day + '|' + r.time + '|' + r.teacherId);
+      if(!r.day || !r.time || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+  function applyPilates31Assignments(data, clients){
+    (clients || []).forEach(function(c){
+      const row = assignmentForClient(c);
+      if(!row) return;
+      c.dni = c.dni || row.dni || '';
+      if(c.dni === '.') c.dni = '';
+      c.telefono = c.telefono || row.telefono || '';
+      c.estado = row.estado || c.estado || 'Activo';
+      c.planId = ensurePlanByName(data,row.planName) || c.planId || '';
+      c.paymentStatus = row.paymentStatus || c.paymentStatus || 'Pendiente';
+      c.observaciones = row.observaciones || c.observaciones || 'Importado desde PILATES 31-05.xlsx';
+      c.scheduleDays = uniqueSchedule(row.scheduleDays || []);
+      c.updatedAt = stampLocal();
+    });
+  }
+  function rebuildClassesFromClientSchedules(data, clients){
+    const groups = new Map();
+    (clients || []).forEach(function(c){
+      uniqueSchedule(c.scheduleDays || []).forEach(function(s){
+        const key = nkey(s.day) + '|' + s.time + '|' + (s.teacherId || '');
+        if(!groups.has(key)) groups.set(key,{day:s.day,time:s.time,teacherId:s.teacherId || '',clients:[]});
+        if(!groups.get(key).clients.includes(c.id)) groups.get(key).clients.push(c.id);
+      });
+    });
+    const existing = new Map((data.classes || []).map(function(cl){ return [nkey(cl.dia) + '|' + text(cl.hora) + '|' + (cl.personalId || ''), cl]; }));
+    data.classes = Array.from(groups.values()).map(function(g){
+      const old = existing.get(nkey(g.day) + '|' + g.time + '|' + g.teacherId) || {};
+      return {id:old.id || ('class_' + nkey(g.day + '_' + g.time + '_' + g.teacherId).replace(/\s+/g,'_')),dia:g.day,hora:g.time,personalId:g.teacherId,clientesIds:g.clients.slice(),cupoMaximo:old.cupoMaximo || 8,estado:old.estado || 'Activa',observaciones:old.observaciones || 'Importado desde PILATES 31-05.xlsx',createdAt:old.createdAt || stampLocal(),updatedAt:stampLocal()};
+    }).sort(function(a,b){ return String(a.dia).localeCompare(String(b.dia),'es') || String(a.hora).localeCompare(String(b.hora)); });
+    data.schedules = [];
+    data.classes.forEach(function(cl){
+      (cl.clientesIds || []).forEach(function(cid){
+        data.schedules.push({id:'sch_' + cl.id + '_' + cid,clienteId:cid,personalId:cl.personalId || '',dia:cl.dia,horario:cl.hora,claseId:cl.id,estado:'Activo',createdAt:cl.createdAt || stampLocal(),updatedAt:stampLocal()});
+      });
+    });
+  }
+  function importRelatedRowsFromPilates31(data, clients){
+    const byName = clientByImportedNameMap(clients);
+    function findClient(name){
+      return keyVariants(name).map(function(k){ return byName.get(k); }).find(Boolean);
+    }
+    data.payments = (PILATES_31_PAYMENTS || []).map(function(row,idx){
+      const c = findClient(row.clientName);
+      if(!c) return null;
+      return {id:'pay_pilates31_' + idx,clienteId:c.id,planId:c.planId || '',monto:Number(row.amount || 0),fechaPago:row.date || '',mesAbonado:row.month || '',medioPago:row.method || '',estado:row.status || 'Pendiente',origen:row.source || 'PILATES 31-05.xlsx',observaciones:row.note || '',registradoPor:'admin',createdAt:row.date || stampLocal(),updatedAt:stampLocal()};
+    }).filter(Boolean);
+    data.attendance = (PILATES_31_ATTENDANCE || []).map(function(row,idx){
+      const c = findClient(row.clientName);
+      if(!c) return null;
+      return {id:'att_pilates31_' + idx,clientId:c.id,clienteId:c.id,clientName:clientFullName(c),date:row.date || '',day:row.day || '',time:row.time || '',status:row.status || '',teacherName:row.teacherName || '',createdAt:stampLocal(),updatedAt:stampLocal()};
+    }).filter(Boolean);
+    data.paymentReports = (PILATES_31_PAYMENT_REPORTS || []).map(function(row,idx){
+      const c = findClient(row.clientName);
+      if(!c) return null;
+      return {id:'rep_pilates31_' + idx,clientId:c.id,clienteId:c.id,clientName:clientFullName(c),amount:Number(row.amount || 0),method:row.method || '',date:row.date || '',teacherName:row.teacherName || '',status:row.status || '',note:row.note || '',createdAt:stampLocal(),updatedAt:stampLocal()};
+    }).filter(Boolean);
+  }
+  function paymentLabel(c){
+    if(c && c.paymentStatus) return c.paymentStatus;
+    return 'Pendiente';
+  }
+  function badgeLocal(value){
+    const s = text(value || '-');
+    const cls = /activo|pagado/i.test(s) ? 'badge-ok' : (/pendiente|parcial/i.test(s) ? 'badge-warn' : (/vencido|inactivo|cancel/i.test(s) ? 'badge-danger' : 'badge-muted'));
+    return '<span class="badge '+cls+'">'+escLocal(s)+'</span>';
+  }
+  function scheduleLabel(c){
+    const rows = Array.isArray(c && c.scheduleDays) ? c.scheduleDays : [];
+    return rows.map(function(r){ return text((r.day || r.dia || '') + ' ' + (r.time || r.horario || '')); }).filter(Boolean).join(', ') || '-';
+  }
+  function localToolbar(key,extra,placeholder){
+    if(typeof moduleToolbar === 'function') return moduleToolbar(key, extra || '', placeholder || 'Buscar');
+    if(typeof toolbar === 'function') return toolbar(key, extra || '', placeholder || 'Buscar');
+    return '<div class="module-toolbar"><div class="search-box"><input class="input" placeholder="'+attrLocal(placeholder || 'Buscar')+'" value="'+attrLocal((window.filters && filters.q) || '')+'"></div>'+(extra || '')+'</div>';
+  }
+  function localResponsiveList(headers,rows,cards){
+    if(typeof responsiveList === 'function') return responsiveList(headers, rows, cards);
+    if(!rows.length) return '<div class="empty-state">No se encontraron resultados.</div>';
+    return '<div class="desktop-table"><table class="table"><thead><tr>'+headers.map(function(h){return '<th>'+escLocal(h)+'</th>';}).join('')+'</tr></thead><tbody>'+rows.map(function(row){return '<tr>'+row.map(function(cell){return '<td>'+cell+'</td>';}).join('')+'</tr>';}).join('')+'</tbody></table></div><div class="mobile-card space-y-3">'+cards.join('')+'</div>';
+  }
+  function paymentControl(c){
+    const states = Array.isArray(window.PAYMENT_STATES) ? window.PAYMENT_STATES : ['Pendiente','Pagado','Vencido','Parcial'];
+    return '<select class="nih-payment-select" onchange="window.updateClientPaymentStatus && window.updateClientPaymentStatus(\''+attrLocal(c.id)+'\',this.value)">'+states.map(function(s){ return '<option '+selectedLocal(paymentLabel(c),s)+'>'+escLocal(s)+'</option>'; }).join('')+'</select>';
+  }
+  function clientButtons(c){
+    return '<div class="flex flex-wrap gap-2">'+
+      '<button class="btn btn-soft !px-3 !py-2 !w-auto" onclick="window.viewClient && window.viewClient(\''+attrLocal(c.id)+'\')">Ver</button>'+
+      '<button class="btn btn-soft !px-3 !py-2 !w-auto" onclick="window.editClient && window.editClient(\''+attrLocal(c.id)+'\')">Editar</button>'+
+      '<button class="btn btn-danger !px-3 !py-2 !w-auto" onclick="window.deleteClient && window.deleteClient(\''+attrLocal(c.id)+'\')">Eliminar</button>'+
+    '</div>';
+  }
+  function splitClientName(full){
+    const clean = titleName(full);
+    const parts = clean.split(' ').filter(Boolean);
+    return {apellido:parts.shift() || '', nombre:parts.join(' ')};
+  }
+  function stampLocal(){
+    if(typeof stamp === 'function') return stamp();
+    if(typeof now === 'function') return now();
+    return new Date().toISOString();
+  }
+  function todayLocal(){
+    if(typeof today === 'function') return today();
+    if(typeof todayISO === 'function') return todayISO();
+    return new Date().toISOString().slice(0,10);
+  }
+  function clientSeedList(){
+    const used = new Set();
+    return CLIENTES_EXCEL_NAMES.map(function(full,idx){
+      const parsed = splitClientName(full);
+      const key = nkey(parsed.apellido + ' ' + parsed.nombre);
+      if(used.has(key)) return null;
+      used.add(key);
+      return {
+        id:'excel_cliente_' + String(idx + 1).padStart(3,'0'),
+        apellido:parsed.apellido,
+        nombre:parsed.nombre,
+        dni:'',
+        fechaNacimiento:'',
+        telefono:'',
+        direccion:'',
+        estado:'Activo',
+        planId:'',
+        fechaAlta:todayLocal(),
+        observaciones:'Importado desde clientes.xlsx (lista CLIENTES)',
+        paymentStatus:'Pendiente',
+        scheduleDays:[],
+        createdAt:stampLocal(),
+        updatedAt:stampLocal()
+      };
+    }).filter(Boolean);
+  }
+  function normalizeClientRecord(c){
+    c.apellido = titleName(c.apellido || '');
+    c.nombre = titleName(c.nombre || '');
+    c.estado = c.estado || 'Activo';
+    c.paymentStatus = c.paymentStatus || 'Pendiente';
+    c.updatedAt = c.updatedAt || stampLocal();
+    c.createdAt = c.createdAt || c.updatedAt;
+    return c;
+  }
+  function dedupeClients(list){
+    const seen = new Set();
+    const out = [];
+    (list || []).forEach(function(c){
+      c = normalizeClientRecord(c || {});
+      const key = nkey((c.apellido || '') + ' ' + (c.nombre || ''));
+      if(!key || seen.has(key)) return;
+      seen.add(key);
+      out.push(c);
+    });
+    return out;
+  }
+  function arrLocal(name){ return typeof getArr === 'function' ? getArr(name) : (Array.isArray(db && db[name]) ? db[name] : []); }
+  function cloneLocal(value){
+    try{ return JSON.parse(JSON.stringify(value || {})); }catch(err){ return {}; }
+  }
+  function migrationBackups(){
+    const list = [];
+    try{
+      for(let i=0;i<localStorage.length;i++){
+        const key = localStorage.key(i) || '';
+        if(key.indexOf('nihuenPilatesDB_before_CLIENTES_migration_') !== 0) continue;
+        const parsed = JSON.parse(localStorage.getItem(key) || 'null');
+        if(parsed && typeof parsed === 'object') list.push(parsed);
+      }
+    }catch(err){}
+    return list;
+  }
+  function relationScore(data){
+    data = data || {};
+    const classLinks = (data.classes || []).reduce(function(sum,cl){ return sum + ((cl.clientesIds || []).length); },0);
+    const scheduleLinks = (data.schedules || []).length;
+    return (data.clients || []).length + classLinks * 6 + scheduleLinks * 4 + (data.payments || []).length * 2 + (data.paymentReports || []).length;
+  }
+  function bestRelationSource(current){
+    const sources = [current].concat(migrationBackups()).filter(Boolean);
+    sources.sort(function(a,b){ return relationScore(b) - relationScore(a); });
+    return cloneLocal(sources[0] || current || {});
+  }
+  function markCurrentSeed(data){
+    data.settings = Object.assign({}, data.settings || {}, {
+      clientesExcelSeedVersion: CLIENTES_EXCEL_SEED_VERSION,
+      clientesExcelSource: CLIENTES_EXCEL_SOURCE,
+      clientesExcelUpdatedAt: stampLocal()
+    });
+    data.embeddedClientesExcel = {
+      version: CLIENTES_EXCEL_SEED_VERSION,
+      source: CLIENTES_EXCEL_SOURCE,
+      names: (data.clients || []).map(function(c){ return titleName((c.apellido || '') + ' ' + (c.nombre || '')); }),
+      updatedAt: stampLocal()
+    };
+  }
+  function remapRelatedData(data, relationSource, newClients){
+    relationSource = relationSource || data || {};
+    const oldClients = relationSource.clients || data.clients || [];
+    const oldById = new Map((oldClients || []).map(function(c){ return [c.id,c]; }));
+    const newByName = new Map((newClients || []).map(function(c){ return [nkey((c.apellido || '') + ' ' + (c.nombre || '')),c]; }));
+    const idMap = new Map();
+    (oldClients || []).forEach(function(old){
+      const replacement = newByName.get(nkey((old.apellido || '') + ' ' + (old.nombre || '')));
+      if(replacement && old.id) idMap.set(old.id,replacement.id);
+    });
+    const validNewIds = new Set((newClients || []).map(function(c){ return c.id; }));
+    function mapId(id){ return idMap.get(id) || (validNewIds.has(id) ? id : ''); }
+    data.classes = cloneLocal(relationSource.classes || data.classes || []);
+    (data.classes || []).forEach(function(cl){
+      cl.clientesIds = Array.from(new Set((cl.clientesIds || []).map(mapId).filter(Boolean)));
+    });
+    data.classes = (data.classes || []).filter(function(cl){ return cl.dia && cl.hora; });
+    data.schedules = cloneLocal(relationSource.schedules || data.schedules || []);
+    (data.schedules || []).forEach(function(s){
+      if(s.clienteId) s.clienteId = mapId(s.clienteId);
+    });
+    data.schedules = (data.schedules || []).filter(function(s){ return !s.clienteId || validNewIds.has(s.clienteId); });
+    data.payments = cloneLocal(relationSource.payments || data.payments || []);
+    (data.payments || []).forEach(function(p){
+      if(p.clienteId) p.clienteId = mapId(p.clienteId);
+    });
+    data.payments = (data.payments || []).filter(function(p){ return !p.clienteId || validNewIds.has(p.clienteId); });
+    data.attendance = cloneLocal(relationSource.attendance || data.attendance || []);
+    (data.attendance || []).forEach(function(a){
+      if(a.clientId) a.clientId = mapId(a.clientId);
+      if(a.clienteId) a.clienteId = mapId(a.clienteId);
+    });
+    data.attendance = (data.attendance || []).filter(function(a){ return (!a.clientId || validNewIds.has(a.clientId)) && (!a.clienteId || validNewIds.has(a.clienteId)); });
+    data.paymentReports = cloneLocal(relationSource.paymentReports || data.paymentReports || []);
+    (data.paymentReports || []).forEach(function(r){
+      if(r.clientId) r.clientId = mapId(r.clientId);
+      if(r.clienteId) r.clienteId = mapId(r.clienteId);
+    });
+    data.paymentReports = (data.paymentReports || []).filter(function(r){ return (!r.clientId || validNewIds.has(r.clientId)) && (!r.clienteId || validNewIds.has(r.clienteId)); });
+    newClients.forEach(function(c){
+      const old = (oldClients || []).find(function(x){ return nkey((x.apellido || '') + ' ' + (x.nombre || '')) === nkey((c.apellido || '') + ' ' + (c.nombre || '')); });
+      if(old){
+        c.dni = c.dni || old.dni || '';
+        c.telefono = c.telefono || old.telefono || '';
+        c.direccion = c.direccion || old.direccion || '';
+        c.planId = c.planId || old.planId || '';
+        c.paymentStatus = c.paymentStatus || old.paymentStatus || 'Pendiente';
+        c.scheduleDays = Array.isArray(old.scheduleDays) ? old.scheduleDays : (c.scheduleDays || []);
+        c.fechaAlta = old.fechaAlta || c.fechaAlta;
+      }
+    });
+    (data.classes || []).forEach(function(cl){
+      (cl.clientesIds || []).forEach(function(cid){
+        const client = newClients.find(function(c){ return c.id === cid; });
+        if(!client) return;
+        const row = {day:cl.dia,time:cl.hora,teacherId:cl.personalId || '',teacherName:''};
+        client.scheduleDays = Array.isArray(client.scheduleDays) ? client.scheduleDays : [];
+        const rowKey = nkey(row.day + '|' + row.time + '|' + row.teacherId);
+        if(!client.scheduleDays.some(function(s){ return nkey((s.day || s.dia || '') + '|' + (s.time || s.horario || s.hora || '') + '|' + (s.teacherId || s.personalId || '')) === rowKey; })){
+          client.scheduleDays.push(row);
+        }
+      });
+    });
+  }
+  function applyClientesSeed(force){
+    if(typeof db === 'undefined') return false;
+    db.settings = db.settings || {};
+    const alreadyApplied = db.settings.clientesExcelSeedVersion === CLIENTES_EXCEL_SEED_VERSION;
+    if(force || !alreadyApplied){
+      try{
+        localStorage.setItem('nihuenPilatesDB_before_CLIENTES_migration_' + CLIENTES_EXCEL_SEED_VERSION, JSON.stringify(db));
+      }catch(err){}
+      const relationSource = bestRelationSource(db);
+      const nextClients = clientSeedList();
+      remapRelatedData(db, relationSource, nextClients);
+      applyPilates31Assignments(db, nextClients);
+      rebuildClassesFromClientSchedules(db, nextClients);
+      importRelatedRowsFromPilates31(db, nextClients);
+      db.clients = nextClients;
+    }else{
+      db.clients = dedupeClients(db.clients);
+    }
+    markCurrentSeed(db);
+    if(typeof syncClassesAndSchedules === 'function') syncClassesAndSchedules(db);
+    else if(typeof syncSchedules === 'function') syncSchedules();
+    if(typeof normalizeDB === 'function') db = normalizeDB(db);
+    if(typeof saveLocal === 'function') saveLocal();
+    else localStorage.setItem('nihuenPilatesDB', JSON.stringify(db));
+    return true;
+  }
+  async function applyClientesSeedAndPersist(force){
+    const changed = applyClientesSeed(force);
+    if(changed && typeof saveDB === 'function') await saveDB();
+    if(changed && typeof render === 'function') render();
+    return changed;
+  }
+
+  window.CLIENTES_EXCEL_SOURCE = CLIENTES_EXCEL_SOURCE;
+  window.applyClientesExcelSeed = async function(){ await applyClientesSeedAndPersist(true); if(typeof toast === 'function') toast('Base CLIENTES restaurada desde clientes.xlsx'); };
+
+  const previousSaveDB = typeof saveDB === 'function' ? saveDB : null;
+  window.saveDB = saveDB = async function(){
+    if(typeof db !== 'undefined'){
+      db.clients = dedupeClients(db.clients || []);
+      markCurrentSeed(db);
+    }
+    return previousSaveDB ? previousSaveDB.apply(this, arguments) : true;
+  };
+
+  const previousResetDemo = typeof resetDemo === 'function' ? resetDemo : null;
+  window.resetDemo = resetDemo = function(){
+    if(previousResetDemo) previousResetDemo();
+    applyClientesSeed(true);
+    if(typeof render === 'function') render();
+    if(typeof toast === 'function') toast('Datos reiniciados con la base CLIENTES actual');
+  };
+
+  function downloadClientesXlsxFromCurrent(){
+    const data = typeof normalizeDB === 'function' ? normalizeDB(JSON.parse(JSON.stringify(db))) : JSON.parse(JSON.stringify(db));
+    const rows = [['Nro','CLIENTES']].concat(dedupeClients(data.clients || []).map(function(c,idx){
+      return [idx + 1, titleName((c.apellido || '') + ' ' + (c.nombre || ''))];
+    }));
+    if(typeof downloadXlsx === 'function') downloadXlsx('clientes.xlsx', {CLIENTES:rows});
+    else if(typeof toast === 'function') toast('Exportacion XLSX no disponible en este navegador');
+  }
+  window.downloadClientesXlsxFromCurrent = downloadClientesXlsxFromCurrent;
+  window.overwriteEmbeddedClientesExcel = async function(){
+    const data = typeof normalizeDB === 'function' ? normalizeDB(JSON.parse(JSON.stringify(db))) : JSON.parse(JSON.stringify(db));
+    data.clients = dedupeClients(data.clients || []);
+    markCurrentSeed(data);
+    db = data;
+    await saveDB();
+    downloadClientesXlsxFromCurrent();
+    if(typeof toast === 'function') toast('Base actual guardada y clientes.xlsx generado');
+  };
+
+  window.renderClientes = renderClientes = function(){
+    const q = typeof getModuleSearch === 'function' ? getModuleSearch('clientes') : '';
+    const estado = filters.estado || '', plan = filters.plan || '', pay = filters.pay || '';
+    const states = Array.isArray(window.PAYMENT_STATES) ? window.PAYMENT_STATES : ['Pendiente','Pagado','Vencido','Parcial'];
+    const extra = '<select class="input" onchange="filters.estado=this.value;render()"><option value="">Estado</option><option '+selectedLocal(estado,'Activo')+'>Activo</option><option '+selectedLocal(estado,'Inactivo')+'>Inactivo</option></select>'+
+      '<select class="input" onchange="filters.plan=this.value;render()"><option value="">Plan</option>'+arrLocal('plans').map(function(p){return '<option value="'+attrLocal(p.id)+'" '+selectedLocal(plan,p.id)+'>'+escLocal(p.nombre)+'</option>';}).join('')+'</select>'+
+      '<select class="input" onchange="filters.pay=this.value;render()"><option value="">Pago</option>'+states.map(function(s){return '<option '+selectedLocal(pay,s)+'>'+escLocal(s)+'</option>';}).join('')+'</select>'+
+      (typeof isGeneral === 'function' && isGeneral()?'<button onclick="newClient()" class="btn btn-primary">Nuevo</button><button onclick="overwriteEmbeddedClientesExcel()" class="btn btn-secondary">Actualizar clientes.xlsx</button>':'');
+    const list = arrLocal('clients').map(normalizeClientRecord).filter(function(c){
+      const hay = nkey([clientFullName(c),c.dni,c.telefono,c.estado,paymentLabel(c),planLabel(c),scheduleLabel(c),c.observaciones].join(' '));
+      return (!q || hay.indexOf(nkey(q)) !== -1) && (!estado || c.estado === estado) && (!plan || c.planId === plan) && (!pay || paymentLabel(c) === pay);
+    }).sort(function(a,b){ return clientFullName(a).localeCompare(clientFullName(b),'es'); });
+    return localToolbar('clientes',extra,'Buscar por nombre, DNI, telefono, plan, pago, dia u horario') +
+      localResponsiveList(['#','Cliente','DNI','Plan','Dias fijos','Estado','Pago','Acciones'],
+        list.map(function(c,idx){return [String(idx + 1), escLocal(clientFullName(c)), escLocal(c.dni || '-'), escLocal(planLabel(c)), escLocal(scheduleLabel(c)), badgeLocal(c.estado), paymentControl(c), clientButtons(c)];}),
+        list.map(function(c,idx){return '<article class="client-app-card card"><div class="client-app-head"><div class="client-app-avatar">'+(idx + 1)+'</div><div class="client-app-title"><b>'+escLocal(clientFullName(c))+'</b><span>DNI '+escLocal(c.dni || '-')+'</span></div>'+badgeLocal(c.estado)+'</div><div class="client-app-facts"><div class="client-fact"><div><small>Plan</small><strong>'+escLocal(planLabel(c))+'</strong></div></div><div class="client-fact"><div><small>Dias</small><strong>'+escLocal(scheduleLabel(c))+'</strong></div></div></div><div class="client-app-bottom"><div class="client-pay-wrap">'+paymentControl(c)+'</div><div class="client-menu-wrap">'+clientButtons(c)+'</div></div></article>';})
+      );
+  };
+
+  const previousSaveClient = typeof saveClient === 'function' ? saveClient : null;
+  window.saveClient = saveClient = async function(e,id){
+    if(!e || !e.target || !previousSaveClient) return previousSaveClient ? previousSaveClient.apply(this, arguments) : null;
+    const form = e.target;
+    const fd = Object.fromEntries(new FormData(form).entries());
+    fd.apellido = titleName(fd.apellido || '');
+    fd.nombre = titleName(fd.nombre || '');
+    const duplicate = arrLocal('clients').find(function(c){
+      return c.id !== id && nkey((c.apellido || '') + ' ' + (c.nombre || '')) === nkey(fd.apellido + ' ' + fd.nombre);
+    });
+    if(duplicate){
+      e.preventDefault();
+      if(typeof toast === 'function') toast('Ya existe un cliente con ese nombre: ' + titleName(fd.apellido + ' ' + fd.nombre));
+      return;
+    }
+    form.querySelector('[name="apellido"]').value = fd.apellido;
+    form.querySelector('[name="nombre"]').value = fd.nombre;
+    return previousSaveClient.apply(this, arguments);
+  };
+
+  if(typeof PILATES_EXCEL_IMPORT_DATA === 'object' && PILATES_EXCEL_IMPORT_DATA){
+    PILATES_EXCEL_IMPORT_DATA.sourceFile = 'clientes.xlsx';
+    PILATES_EXCEL_IMPORT_DATA.generatedAt = stampLocal();
+    PILATES_EXCEL_IMPORT_DATA.clientsFromSheet = clientSeedList().map(function(c){ return Object.assign({importId:c.id, fullName:titleName(c.apellido + ' ' + c.nombre), normalizedKey:nkey(c.apellido + ' ' + c.nombre), sources:['CLIENTES'], weeklyClasses:0, planName:'Sin plan'}, c); });
+    PILATES_EXCEL_IMPORT_DATA.classesFromSheet = [];
+    PILATES_EXCEL_IMPORT_DATA.schedulesFromSheet = [];
+    PILATES_EXCEL_IMPORT_DATA.importWarnings = [];
+  }
+
+  window.renderImportar = renderImportar = function(){
+    if(typeof isGeneral === 'function' && !isGeneral()) return denied();
+    const total = arrLocal('clients').length;
+    return localToolbar('importar','<button class="btn btn-primary" onclick="overwriteEmbeddedClientesExcel()">Actualizar clientes.xlsx</button><button class="btn btn-secondary" onclick="exportCurrentDatabaseXlsx && exportCurrentDatabaseXlsx()">Exportar base completa</button>','Buscar importacion')+
+      '<section class="card p-5"><h3 class="nih-section-title">Base CLIENTES</h3><p class="nih-muted">La base inicial vieja fue reemplazada por la lista CLIENTES del Excel. Las altas y eliminaciones se guardan en la aplicacion; este boton genera clientes.xlsx con la base actual para sobrescribir el archivo incorporado.</p><div class="mt-4 grid gap-3 md:grid-cols-3"><div class="rounded-xl border border-[#DED6C8] p-3"><b>Clientes actuales</b><div class="text-2xl font-black">'+escLocal(total)+'</div></div><div class="rounded-xl border border-[#DED6C8] p-3"><b>Origen</b><div class="text-xl font-black">CLIENTES</div></div><div class="rounded-xl border border-[#DED6C8] p-3"><b>Duplicados</b><div class="text-2xl font-black">0</div></div></div><div class="nih-export-actions"><button class="btn btn-primary" onclick="overwriteEmbeddedClientesExcel()">Actualizar clientes.xlsx</button><button class="btn btn-secondary" onclick="applyClientesExcelSeed()">Restaurar base CLIENTES</button></div></section>';
+  };
+
+  window.renderReportes = renderReportes = function(){
+    const clients = arrLocal('clients');
+    const activeClients = clients.filter(function(c){ return c.estado !== 'Inactivo'; }).length;
+    const inactiveClients = clients.filter(function(c){ return c.estado === 'Inactivo'; }).length;
+    const payments = arrLocal('payments');
+    const pendingPayments = payments.filter(function(p){ return p.estado === 'Pendiente'; }).length;
+    const overduePayments = payments.filter(function(p){ return p.estado === 'Vencido'; }).length;
+    const classes = arrLocal('classes');
+    const fullClasses = classes.filter(function(cl){ return (cl.clientesIds || []).length >= Number(cl.cupoMaximo || 8); }).length;
+    const freeSlots = classes.reduce(function(sum,cl){ return sum + Math.max(0, Number(cl.cupoMaximo || 8) - (cl.clientesIds || []).length); }, 0);
+    function statCard(label,value,detail){ return '<div class="card p-5"><b>'+escLocal(label)+'</b><div class="text-4xl font-black mt-3">'+escLocal(value)+'</div><p class="nih-muted mt-2">'+escLocal(detail || '')+'</p></div>'; }
+    return localToolbar('reportes','','Buscar dato o categoria del reporte')+
+      '<div class="metric-grid dashboard-metrics">'+
+      statCard('Clientes activos',activeClients,'Base CLIENTES actual')+
+      statCard('Clientes inactivos',inactiveClients,'Dados de baja')+
+      statCard('Pagos pendientes',pendingPayments,'Registros reales')+
+      statCard('Pagos vencidos',overduePayments,'Registros reales')+
+      statCard('Clases completas',fullClasses,'Cupo completo')+
+      statCard('Cupos disponibles',freeSlots,'Sobre cupos configurados')+
+      '</div>';
+  };
+
+  const style = document.createElement('style');
+  style.textContent = 'body,body *{font-family:"Montserrat",ui-sans-serif,system-ui,sans-serif!important;letter-spacing:0!important}.client-app-avatar{font-family:"Montserrat",ui-sans-serif,system-ui,sans-serif!important}';
+  document.head.appendChild(style);
+
+  applyClientesSeedAndPersist(false);
+  setTimeout(function(){ applyClientesSeedAndPersist(false); }, 600);
+  setTimeout(function(){ applyClientesSeedAndPersist(false); }, 1800);
+  if(typeof render === 'function' && window.currentUser) render();
+})();
+</script>
 </body>
 </html>
