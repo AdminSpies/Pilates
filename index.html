@@ -3744,6 +3744,8 @@ const firebaseConfig = {
   messagingSenderId: "323117949902",
   appId: "1:323117949902:web:5a24052cc1f2ffa874019f"
 };
+// Seguridad Firebase: restringir esta API key en Google Cloud Console > APIs y servicios > Credenciales > Clave API > Restricciones de aplicacion > Sitios web, permitiendo solo https://adminspies.github.io/*.
+// Firestore debe usar reglas que permitan lectura/escritura solo a usuarios autenticados; no dejar reglas publicas en produccion.
 const FIRESTORE_DOC_PATH = 'appState/main';
 let firestore = null;
 let firebaseOnline = false;
@@ -3756,8 +3758,8 @@ const payMethods = ['Efectivo','Transferencia','Mercado Pago','Tarjeta','Otro'];
 const initialData = {
   settings:{studioName:'Nihuen Pilates', allowPartialPaymentsView:false},
   users:[
-    {id:uid(),apellido:'General',nombre:'Admin',dni:'10000000',fechaNacimiento:'1990-01-01',direccion:'-',telefono:'-',titulos:'Administración',usuario:'admin',passwordHash:'admin123',rol:'general',estado:'Activo',horariosAsignados:[],createdAt:now(),updatedAt:now()},
-    {id:'u_profe',apellido:'Suárez',nombre:'Camila',dni:'30111222',fechaNacimiento:'1989-05-10',direccion:'Cipolletti',telefono:'2990000000',titulos:'Instructora Pilates Reformer',usuario:'profe',passwordHash:'profe123',rol:'parcial',estado:'Activo',horariosAsignados:[],createdAt:now(),updatedAt:now()}
+    {id:uid(),apellido:'General',nombre:'Admin',dni:'10000000',fechaNacimiento:'1990-01-01',direccion:'-',telefono:'-',titulos:'Administración',usuario:'admin',passwordHash:'240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9',rol:'general',estado:'Activo',horariosAsignados:[],createdAt:now(),updatedAt:now()},
+    {id:'u_profe',apellido:'Suárez',nombre:'Camila',dni:'30111222',fechaNacimiento:'1989-05-10',direccion:'Cipolletti',telefono:'2990000000',titulos:'Instructora Pilates Reformer',usuario:'profe',passwordHash:'25da2ece06d8767eccaff139d4ba7490dd1b9aeeb51f413de23bce797cc47e68',rol:'parcial',estado:'Activo',horariosAsignados:[],createdAt:now(),updatedAt:now()}
   ],
   clients:[
     {id:'pdf_c1',apellido:"ALOCHIS",nombre:"ADRIANA",dni:'',fechaNacimiento:'',telefono:'',direccion:'',estado:'Activo',planId:'',fechaAlta:todayISO(),observaciones:'',createdAt:now(),updatedAt:now()},
@@ -4147,10 +4149,10 @@ function saveClient(e,id){e.preventDefault(); if(!isGeneral())return toast('Perm
 function lowClient(id){if(!isGeneral())return; const c=getClient(id); const activePays=db.payments.some(p=>p.clienteId===id&&['Pendiente','Vencido','Parcial'].includes(p.estado)); if(activePays&&!confirm('El cliente tiene pagos activos. Confirmar baja.'))return; c.estado='Inactivo';c.updatedAt=now();saveDB();render();toast('Cliente dado de baja')}
 function viewClient(id){const c=getClient(id); const pays=db.payments.filter(p=>p.clienteId===id); const cls=db.classes.filter(cl=>cl.clientesIds.includes(id)); openModal('Ficha de cliente',`${c.nombre} ${c.apellido}`,`<div class="grid gap-4 md:grid-cols-2"><div class="card p-4"><b>Datos</b><p>DNI: ${c.dni}</p><p>Teléfono: ${c.telefono||'-'}</p><p>Dirección: ${c.direccion||'-'}</p><p>Plan: ${getPlan(c.planId)?.nombre||'-'}</p><p>Estado: ${c.estado}</p></div><div class="card p-4"><b>Pago</b><p>Estado: ${paymentSummary(id)}</p><p>Último pago: ${pays[0]?.fechaPago||'-'}</p><p>Próximo vencimiento: día 10 del mes siguiente</p><p>Deuda: ${pays.some(p=>['Pendiente','Vencido','Parcial'].includes(p.estado))?'Tiene deuda':'Sin deuda registrada'}</p></div><div class="card p-4 md:col-span-2"><b>Horarios</b><p>${cls.map(cl=>`${cl.dia} ${cl.hora} · ${userName(cl.personalId)}`).join('<br>')||'Sin horarios asignados'}</p></div><div class="card p-4 md:col-span-2"><b>Historial de pagos</b><p>${pays.map(p=>`${p.mesAbonado} · ${money(p.monto)} · ${p.estado}`).join('<br>')||'Sin pagos'}</p></div></div>`)}
 
-function userForm(u={}){return `<form onsubmit="saveUser(event,'${u.id||''}')">${formGrid([{label:'Apellido',html:`<input required name="apellido" class="input" value="${u.apellido||''}">`},{label:'Nombre',html:`<input required name="nombre" class="input" value="${u.nombre||''}">`},{label:'DNI',html:`<input required name="dni" class="input" value="${u.dni||''}">`},{label:'Fecha nacimiento',html:`<input type="date" name="fechaNacimiento" class="input" value="${u.fechaNacimiento||''}">`},{label:'Dirección',html:`<input name="direccion" class="input" value="${u.direccion||''}">`},{label:'Teléfono',html:`<input name="telefono" class="input" value="${u.telefono||''}">`},{label:'Títulos',html:`<input name="titulos" class="input" value="${u.titulos||''}">`},{label:'Usuario',html:`<input required name="usuario" class="input" value="${u.usuario||''}">`},{label:'Clave',html:`<input required name="passwordHash" class="input" value="${u.passwordHash||''}">`},{label:'Rol',html:`<select name="rol" class="input"><option value="general" ${u.rol==='general'?'selected':''}>Administrador general</option><option value="parcial" ${u.rol==='parcial'?'selected':''}>Administrador parcial</option></select>`},{label:'Estado',html:`<select name="estado" class="input"><option ${u.estado==='Activo'?'selected':''}>Activo</option><option ${u.estado==='Inactivo'?'selected':''}>Inactivo</option></select>`}])}<button class="btn btn-primary mt-5">Guardar</button></form>`}
+function userForm(u={}){return `<form onsubmit="saveUser(event,'${u.id||''}')">${formGrid([{label:'Apellido',html:`<input required name="apellido" class="input" value="${escapeAttr(u.apellido)}">`},{label:'Nombre',html:`<input required name="nombre" class="input" value="${escapeAttr(u.nombre)}">`},{label:'DNI',html:`<input required name="dni" class="input" value="${escapeAttr(u.dni)}">`},{label:'Fecha nacimiento',html:`<input type="date" name="fechaNacimiento" class="input" value="${escapeAttr(u.fechaNacimiento)}">`},{label:'Dirección',html:`<input name="direccion" class="input" value="${escapeAttr(u.direccion)}">`},{label:'Teléfono',html:`<input name="telefono" class="input" value="${escapeAttr(u.telefono)}">`},{label:'Títulos',html:`<input name="titulos" class="input" value="${escapeAttr(u.titulos)}">`},{label:'Usuario',html:`<input required name="usuario" class="input" value="${escapeAttr(u.usuario)}">`},{label:'Clave',html:`<input type="password" ${u.id?'':'required'} name="passwordHash" autocomplete="new-password" class="input" value="" placeholder="${u.id?'Dejar vacía para conservar la actual':'Clave inicial'}">`},{label:'Rol',html:`<select name="rol" class="input"><option value="general" ${u.rol==='general'?'selected':''}>Administrador general</option><option value="parcial" ${u.rol==='parcial'?'selected':''}>Administrador parcial</option></select>`},{label:'Estado',html:`<select name="estado" class="input"><option ${u.estado==='Activo'?'selected':''}>Activo</option><option ${u.estado==='Inactivo'?'selected':''}>Inactivo</option></select>`}])}<button class="btn btn-primary mt-5">Guardar</button></form>`}
 function newUser(){openModal('Nuevo personal','Alta de personal',userForm())}
 function editUser(id){openModal('Editar personal','Modificación de usuario',userForm(getUser(id)))}
-function saveUser(e,id){e.preventDefault(); if(!isGeneral())return; const fd=Object.fromEntries(new FormData(e.target).entries()); if(db.users.find(u=>u.dni===fd.dni&&u.id!==id))return toast('DNI duplicado en personal'); if(db.users.find(u=>u.usuario===fd.usuario&&u.id!==id))return toast('Usuario duplicado'); if(id){Object.assign(getUser(id),fd,{updatedAt:now()})}else{db.users.push({id:uid(),...fd,horariosAsignados:[],createdAt:now(),updatedAt:now()})} saveDB();closeModal();render();toast('Personal guardado')}
+async function saveUser(e,id){e.preventDefault(); if(!isGeneral())return; const fd=Object.fromEntries(new FormData(e.target).entries()); if(db.users.find(u=>u.dni===fd.dni&&u.id!==id))return toast('DNI duplicado en personal'); if(db.users.find(u=>u.usuario===fd.usuario&&u.id!==id))return toast('Usuario duplicado'); const existing=id?getUser(id):null; fd.passwordHash=await passwordHashForSave(fd.passwordHash,existing); if(!fd.passwordHash)return toast('La clave es obligatoria'); if(id){Object.assign(existing,fd,{updatedAt:now()})}else{db.users.push({id:uid(),...fd,horariosAsignados:[],createdAt:now(),updatedAt:now()})} await saveDB();closeModal();render();toast('Personal guardado')}
 
 function planForm(p={}){return `<form onsubmit="savePlan(event,'${p.id||''}')">${formGrid([{label:'Nombre del plan',html:`<input required name="nombre" class="input" value="${p.nombre||''}">`},{label:'Clases semanales',html:`<input required type="number" min="1" name="clasesSemanales" class="input" value="${p.clasesSemanales||1}">`},{label:'Precio',html:`<input required type="number" min="0" name="precio" class="input" value="${p.precio||0}">`},{label:'Estado',html:`<select name="estado" class="input"><option ${p.estado==='Activo'?'selected':''}>Activo</option><option ${p.estado==='Inactivo'?'selected':''}>Inactivo</option></select>`},{label:'Descripción',full:true,html:`<textarea name="descripcion" class="input">${p.descripcion||''}</textarea>`}])}<button class="btn btn-primary mt-5">Guardar</button></form>`}
 function newPlan(){openModal('Nuevo plan','Crear plan y precio',planForm())}
@@ -4322,7 +4324,7 @@ function mergeImportedData(targetDb,dryRun=false){
     const userKey=normalizeText(item.usuario);
     let existing=targetDb.users.find(u=>normalizeText(u.usuario)===userKey||normalizeNameKey(`${u.apellido||''} ${u.nombre||''}`)===key);
     if(existing){stats.duplicatesAvoided++;staffIdByImport[item.importId]=existing.id;return}
-    const id=uid();staffIdByImport[item.importId]=id;if(!dryRun){targetDb.users.push({id,apellido:item.apellido||splitFullName(item.fullName).apellido,nombre:item.nombre||splitFullName(item.fullName).nombre,dni:'',fechaNacimiento:'',direccion:'',telefono:'',titulos:'',usuario:item.usuario||generateUsername(item.fullName),passwordHash:item.passwordHash||'1234',rol:'parcial',estado:'Activo',horariosAsignados:item.horariosAsignados||[],observaciones:'Importado desde Excel PILATES.xlsx',createdAt:now(),updatedAt:now(),importSource:'PILATES.xlsx',importKey:key})}stats.staffCreated++;
+    const id=uid();staffIdByImport[item.importId]=id;if(!dryRun){targetDb.users.push({id,apellido:item.apellido||splitFullName(item.fullName).apellido,nombre:item.nombre||splitFullName(item.fullName).nombre,dni:'',fechaNacimiento:'',direccion:'',telefono:'',titulos:'',usuario:item.usuario||generateUsername(item.fullName),passwordHash:item.passwordHash||'03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4',rol:'parcial',estado:'Activo',horariosAsignados:item.horariosAsignados||[],observaciones:'Importado desde Excel PILATES.xlsx',createdAt:now(),updatedAt:now(),importSource:'PILATES.xlsx',importKey:key})}stats.staffCreated++;
   });
   const classIdByImport={};
   buildClassesFromExcel().forEach(item=>{
@@ -4506,10 +4508,10 @@ function saveClient(e,id){e.preventDefault(); if(!isGeneral())return toast('Perm
 function lowClient(id){if(!canEdit('clients',getClient(id)))return toast('Permiso denegado'); updateEntity('clients',id,{estado:'Inactivo'}); render(); toast('Cliente dado de baja')}
 function deleteClient(id){if(!canDelete('clients',getClient(id)))return toast('Permiso denegado'); const hasPays=db.payments.some(p=>p.clienteId===id); const msg=hasPays?'Este cliente tiene pagos registrados. Si lo eliminás, los pagos quedarán como historial asociado a un cliente eliminado.':'Vas a eliminar este cliente del sistema.'; confirmDelete(msg,()=>{deleteEntity('clients',id);toast('Cliente eliminado')})}
 
-function userForm(u={}){return `<form onsubmit="saveUser(event,'${u.id||''}')">${formGrid([{label:'Apellido',html:`<input required name="apellido" class="input" value="${escapeAttr(u.apellido)}">`},{label:'Nombre',html:`<input required name="nombre" class="input" value="${escapeAttr(u.nombre)}">`},{label:'DNI',html:`<input required name="dni" class="input" value="${escapeAttr(u.dni)}">`},{label:'Fecha nacimiento',html:`<input type="date" name="fechaNacimiento" class="input" value="${escapeAttr(u.fechaNacimiento)}">`},{label:'Dirección',html:`<input name="direccion" class="input" value="${escapeAttr(u.direccion)}">`},{label:'Teléfono',html:`<input name="telefono" class="input" value="${escapeAttr(u.telefono)}">`},{label:'Títulos',html:`<input name="titulos" class="input" value="${escapeAttr(u.titulos)}">`},{label:'Usuario',html:`<input required name="usuario" class="input" value="${escapeAttr(u.usuario)}">`},{label:'Clave',html:`<input required name="passwordHash" class="input" value="${escapeAttr(u.passwordHash)}">`},{label:'Rol',html:`<select name="rol" class="input"><option value="general" ${selected(u.rol,'general')}>Administrador general</option><option value="parcial" ${selected(u.rol,'parcial')}>Administrador parcial</option></select>`},{label:'Estado',html:`<select name="estado" class="input"><option ${selected(u.estado,'Activo')}>Activo</option><option ${selected(u.estado,'Inactivo')}>Inactivo</option></select>`}])}<button class="btn btn-primary mt-5">Guardar</button></form>`}
+function userForm(u={}){return `<form onsubmit="saveUser(event,'${u.id||''}')">${formGrid([{label:'Apellido',html:`<input required name="apellido" class="input" value="${escapeAttr(u.apellido)}">`},{label:'Nombre',html:`<input required name="nombre" class="input" value="${escapeAttr(u.nombre)}">`},{label:'DNI',html:`<input required name="dni" class="input" value="${escapeAttr(u.dni)}">`},{label:'Fecha nacimiento',html:`<input type="date" name="fechaNacimiento" class="input" value="${escapeAttr(u.fechaNacimiento)}">`},{label:'Dirección',html:`<input name="direccion" class="input" value="${escapeAttr(u.direccion)}">`},{label:'Teléfono',html:`<input name="telefono" class="input" value="${escapeAttr(u.telefono)}">`},{label:'Títulos',html:`<input name="titulos" class="input" value="${escapeAttr(u.titulos)}">`},{label:'Usuario',html:`<input required name="usuario" class="input" value="${escapeAttr(u.usuario)}">`},{label:'Clave',html:`<input type="password" ${u.id?'':'required'} name="passwordHash" autocomplete="new-password" class="input" value="" placeholder="${u.id?'Dejar vacía para conservar la actual':'Clave inicial'}">`},{label:'Rol',html:`<select name="rol" class="input"><option value="general" ${selected(u.rol,'general')}>Administrador general</option><option value="parcial" ${selected(u.rol,'parcial')}>Administrador parcial</option></select>`},{label:'Estado',html:`<select name="estado" class="input"><option ${selected(u.estado,'Activo')}>Activo</option><option ${selected(u.estado,'Inactivo')}>Inactivo</option></select>`}])}<button class="btn btn-primary mt-5">Guardar</button></form>`}
 function newUser(){if(!isGeneral())return toast('Solo administrador general'); openModal('users')}
 function editUser(id){if(!isGeneral())return toast('Solo administrador general'); openModal('users',id)}
-function saveUser(e,id){e.preventDefault(); if(!isGeneral())return toast('Solo administrador general'); const fd=Object.fromEntries(new FormData(e.target).entries()); if(db.users.find(u=>u.dni===fd.dni&&u.id!==id))return toast('DNI duplicado en personal'); if(db.users.find(u=>u.usuario===fd.usuario&&u.id!==id))return toast('Usuario duplicado'); saveEntity('users',{...fd,horariosAsignados:getUser(id)?.horariosAsignados||[]},id); closeModal(); render(); toast('Personal guardado')}
+async function saveUser(e,id){e.preventDefault(); if(!isGeneral())return toast('Solo administrador general'); const fd=Object.fromEntries(new FormData(e.target).entries()); if(db.users.find(u=>u.dni===fd.dni&&u.id!==id))return toast('DNI duplicado en personal'); if(db.users.find(u=>u.usuario===fd.usuario&&u.id!==id))return toast('Usuario duplicado'); const existing=id?getUser(id):null; fd.passwordHash=await passwordHashForSave(fd.passwordHash,existing); if(!fd.passwordHash)return toast('La clave es obligatoria'); saveEntity('users',{...fd,horariosAsignados:existing?.horariosAsignados||[]},id); closeModal(); render(); toast('Personal guardado')}
 function lowUser(id){if(!isGeneral())return toast('Solo administrador general'); updateEntity('users',id,{estado:'Inactivo'}); render(); toast('Personal dado de baja')}
 function deleteUser(id){if(!isGeneral())return toast('Solo administrador general'); if(id===currentUser.id)return toast('No podés eliminar tu propio usuario activo'); confirmDelete('Vas a eliminar este usuario de personal.',()=>{deleteEntity('users',id);toast('Personal eliminado')})}
 function viewUser(id){const u=getUser(id); showModal('Ficha de personal',`${u.nombre} ${u.apellido}`,`<div class="grid gap-3 md:grid-cols-2"><p><b>DNI:</b> ${u.dni}</p><p><b>Usuario:</b> ${u.usuario}</p><p><b>Rol:</b> ${u.rol==='general'?'Administrador general':'Administrador parcial'}</p><p><b>Estado:</b> ${u.estado}</p><p><b>Teléfono:</b> ${u.telefono||'-'}</p><p><b>Títulos:</b> ${u.titulos||'-'}</p></div>`)}
@@ -4811,7 +4813,11 @@ function resetDemo(){localStorage.removeItem('nihuenPilatesDB'); db=normalizeDB(
   };
 })();
 
-document.getElementById('loginForm').addEventListener('submit',e=>{e.preventDefault();const rawUser=document.getElementById('loginUser').value.trim();const rawPass=document.getElementById('loginPass').value;const user=rawUser||'AdminSpies';const pass=rawPass||'Basquet123';let found=db.users.find(u=>u.usuario===user&&u.passwordHash===pass&&u.estado==='Activo');if(!found&&user==='AdminSpies'&&pass==='Basquet123'){found=db.users.find(u=>u.rol==='general'&&u.estado==='Activo')||db.users.find(u=>u.usuario==='admin'&&u.estado==='Activo')} if(!found){document.getElementById('loginError').classList.remove('hidden');return} currentUser=found;document.getElementById('loginView').classList.add('hidden');document.getElementById('appView').classList.remove('hidden');currentSection='dashboard';render()});
+async function sha256Hex(value){const input=new TextEncoder().encode(String(value||''));const hash=await crypto.subtle.digest('SHA-256',input);return Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,'0')).join('')}
+function isSha256Hex(value){return /^[a-f0-9]{64}$/i.test(String(value||''))}
+async function passwordHashForSave(value,existing){const raw=String(value||'');if(!raw&&existing)return existing.passwordHash;if(isSha256Hex(raw))return raw;return sha256Hex(raw)}
+async function migratePlainTextUserPasswords(){let changed=false;for(const u of (db.users||[])){if(u&&u.passwordHash&&!isSha256Hex(u.passwordHash)){u.passwordHash=await sha256Hex(u.passwordHash);u.updatedAt=now();changed=true}}if(changed)await saveDB()}
+document.getElementById('loginForm').addEventListener('submit',async e=>{e.preventDefault();const user=document.getElementById('loginUser').value.trim();const pass=document.getElementById('loginPass').value;if(!user||!pass){document.getElementById('loginError').classList.remove('hidden');return}await migratePlainTextUserPasswords();const passHash=await sha256Hex(pass);let found=db.users.find(u=>u.usuario===user&&u.passwordHash===passHash&&u.estado==='Activo');if(!found){document.getElementById('loginError').classList.remove('hidden');return} currentUser=found;document.getElementById('loginView').classList.add('hidden');document.getElementById('appView').classList.remove('hidden');currentSection='dashboard';render()});
 document.getElementById('logoutBtn').onclick=()=>{currentUser=null;document.getElementById('appView').classList.add('hidden');document.getElementById('loginView').classList.remove('hidden')};
 document.getElementById('menuBtn').onclick=()=>{document.getElementById('sidebar').classList.add('open');document.getElementById('overlay').classList.add('show')};
 document.getElementById('overlay').onclick=()=>{document.getElementById('sidebar').classList.remove('open');document.getElementById('overlay').classList.remove('show')};
@@ -4825,10 +4831,19 @@ initFirebaseRealtime().then(()=>{const el=document.getElementById('syncStatus');
 FIREBASE ACTIVO
 Este archivo ya inicializa Firebase y Firestore con la configuración entregada.
 Ruta usada para sincronización inmediata: appState/main.
-La app guarda todo el estado dentro del campo payload y escucha cambios con onSnapshot.
-Para producción estricta se recomienda migrar a colecciones separadas: users, clients, plans, classes, schedules, payments, settings.
-Reglas de Firestore necesarias para probar esta versión: permitir lectura/escritura autenticada o temporalmente lectura/escritura del documento appState/main.
-La seguridad final debe reforzarse con Firebase Authentication, reglas por rol y validaciones backend.
+La app guarda todo el estado dentro del campo payload y escucha cambios con onSnapshot; localStorage queda como cache offline.
+Reglas de Firestore requeridas en produccion: permitir lectura/escritura solo a usuarios autenticados.
+Ejemplo base:
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
+Ademas, restringir la API key en Google Cloud Console > APIs y servicios > Credenciales > Clave API > Restricciones de aplicacion > Sitios web, permitiendo solo https://adminspies.github.io/*.
+Para mayor seguridad, completar Firebase Authentication, reglas por rol y validaciones backend.
 -->
 <!-- NIH_FINAL_VISUAL_REDESIGN_SCRIPT_START -->
 <script>
@@ -5184,7 +5199,7 @@ La seguridad final debe reforzarse con Firebase Authentication, reglas por rol y
     if(!phone){ if(typeof toast==='function') toast('El cliente no tiene telefono valido.'); return; }
     const url = 'https://wa.me/' + phone + '?text=' + encodeURIComponent(buildWhatsAppPaymentMessage(cliente,pago));
     logAudit('Aviso WhatsApp','payments','Se genero aviso para '+clientFullName(cliente));
-    window.open(url,'_blank','noopener');
+    window.open(url,'_blank','noopener,noreferrer');
   };
   window.openPaymentWhatsAppReminderById = function(paymentId){
     const pago = arr('payments').find(p=>p.id===paymentId);
@@ -5780,7 +5795,7 @@ function avisarSeleccionadosPorWhatsApp() {
     logAudit("Aviso WhatsApp", "payments", "Se generó aviso agrupado para " + ((cliente.nombre || "") + " " + (cliente.apellido || "")).trim());
   }
 
-  window.open(url, "_blank", "noopener");
+  window.open(url, "_blank", "noopener,noreferrer");
 }
 
 window.getSelectedPaymentClient = getSelectedPaymentClient;
@@ -5916,7 +5931,7 @@ window.openSelectedWhatsAppReminders = avisarSeleccionadosPorWhatsApp;
       return;
     }
     var message = typeof buildWhatsAppPendingPaymentsMessage === 'function' ? buildWhatsAppPendingPaymentsMessage(c,[p]) : manualPaymentMessage(c,p);
-    window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(message),'_blank','noopener');
+    window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(message),'_blank','noopener,noreferrer');
   };
   function paymentReminderCell(p){
     var c = findClient(p.clienteId);
@@ -10065,7 +10080,7 @@ window.openSelectedWhatsAppReminders = avisarSeleccionadosPorWhatsApp;
   function emptyDB(){
     return {
       settings:{studioName:'Nihuen Pilates',allowPartialPaymentsView:false,sourceOfTruth:'firestore',schemaVersion:PATCH_VERSION},
-      users:[{id:'admin',apellido:'General',nombre:'Admin',dni:'',fechaNacimiento:'',direccion:'',telefono:'',titulos:'Administracion',usuario:'admin',passwordHash:'admin123',rol:'general',estado:'Activo',horariosAsignados:[],createdAt:ts(),updatedAt:ts()}],
+      users:[{id:'admin',apellido:'General',nombre:'Admin',dni:'',fechaNacimiento:'',direccion:'',telefono:'',titulos:'Administracion',usuario:'admin',passwordHash:'240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9',rol:'general',estado:'Activo',horariosAsignados:[],createdAt:ts(),updatedAt:ts()}],
       clients:[],plans:[],classes:[],schedules:[],payments:[],attendance:[],paymentReports:[],deletedRecords:[],syncMeta:{version:PATCH_VERSION,updatedAt:ts()}
     };
   }
