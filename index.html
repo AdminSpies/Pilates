@@ -17,9 +17,13 @@
   <meta name="twitter:title" content="Nihuen Pilates | Administración" />
   <meta name="twitter:description" content="Gestioná tu estudio de Pilates con claridad." />
   <meta name="twitter:image" content="https://adminspies.github.io/Pilates/nihuen-whatsapp-preview.jpg" />
+  <!-- Favicon inline: elimina error 404 de favicon.ico -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2369795a'/%3E%3Cpath d='M10 22c0-5.2 2.9-9.1 7-11-4.8.2-8 2.6-9.5 7.1' stroke='white' stroke-width='1.5' fill='none'/%3E%3Cpath d='M10.2 22c.1-4.7-2-8.2-6.2-10.5.2 5.7 2.3 9.2 6.2 10.5Z' stroke='white' stroke-width='1.5' fill='none'/%3E%3Cpath d='M22 22c0-5.2-2.9-9.1-7-11 4.8.2 8 2.6 9.5 7.1' stroke='white' stroke-width='1.5' fill='none'/%3E%3Cpath d='M21.8 22c-.1-4.7 2-8.2 6.2-10.5-.2 5.7-2.3 9.2-6.2 10.5Z' stroke='white' stroke-width='1.5' fill='none'/%3E%3C/svg%3E">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Suprime el warning de Tailwind CDN en producción -->
+  <script>window.tailwind && (window.tailwind.config = { future: {} });</script>
   <style>
     :root{
       --bg:#f7f4ed; --surface:#fffdf8; --surface2:#f4f0e7; --line:#e8e1d5;
@@ -3969,7 +3973,18 @@ async function initFirebaseRealtime(){
     if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     firestore = firebase.firestore();
     firebaseOnline = true;
-    try{await firestore.enablePersistence({synchronizeTabs:true})}catch(e){console.warn('Persistencia local Firebase no disponible',e?.code||e)}
+    // enablePersistence fue deprecado en Firestore 10.x — se usa la nueva API
+    try{
+      firestore.settings({ cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED });
+      await firestore.enableMultiTabIndexedDbPersistence();
+    }catch(e){
+      if(e?.code === 'failed-precondition'){
+        // Múltiples pestañas abiertas; persistencia disponible solo en una
+        try{ await firestore.enablePersistence(); }catch(_){}
+      } else if(e?.code !== 'unimplemented'){
+        console.warn('Persistencia local Firebase no disponible', e?.code || e);
+      }
+    }
     subscribeRealtime();
   }catch(err){
     console.error('Firebase init error',err);
@@ -4848,6 +4863,14 @@ Para mayor seguridad, completar Firebase Authentication, reglas por rol y valida
 <!-- NIH_FINAL_VISUAL_REDESIGN_SCRIPT_START -->
 <script>
 (function(){
+  // Logo inline SVG — elimina el error 404 de nihuen-logo.png
+  const NIH_FINAL_LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80">
+    <rect width="80" height="80" rx="16" fill="#69795a"/>
+    <path d="M28 58c0-13 7.2-22.8 17.5-27.5C33 31 25 37 21.5 48.5" stroke="white" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <path d="M27.5 58c.3-11.8-5-20.5-15.5-26.3.5 14.3 5.7 23 15.5 26.3Z" stroke="white" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <path d="M52 58c0-13-7.2-22.8-17.5-27.5C47 31 55 37 58.5 48.5" stroke="white" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <path d="M52.5 58c-.3-11.8 5-20.5 15.5-26.3-.5 14.3-5.7 23-15.5 26.3Z" stroke="white" stroke-width="3" fill="none" stroke-linecap="round"/>
+  </svg>`;
   const NIH_FINAL_LOGO = "nihuen-logo.png";
   const icons = {
     calendar:'<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"></rect><path d="M8 2v4"></path><path d="M16 2v4"></path><path d="M3 10h18"></path></svg>',
@@ -4894,7 +4917,8 @@ Para mayor seguridad, completar Firebase Authentication, reglas por rol y valida
     const mark=document.querySelector('.brand-mark');
     if(!mark)return;
     mark.classList.add('logo-image-brand');
-    mark.innerHTML=`<span class="brand-logo-frame"><img class="brand-logo-img" src="${NIH_FINAL_LOGO}" alt="Nihuen Pilates"></span>`;
+    // Usa SVG inline para evitar el error 404 de nihuen-logo.png
+    mark.innerHTML=`<span class="brand-logo-frame">${NIH_FINAL_LOGO_SVG}</span>`;
   }
   installLogo();
   statusBadge = function statusBadge(s){
