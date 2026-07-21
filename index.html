@@ -11329,6 +11329,114 @@ window.openSelectedWhatsAppReminders = avisarSeleccionadosPorWhatsApp;
 })();
 </script>
 <!-- NIH_STUDIO_OS_REINVENTION_END -->
+<!-- NIH_SIDEBAR_CONTROLLER_START -->
+<style>
+  /* Un único contrato de navegación: evita conflictos entre las capas visuales anteriores. */
+  #sidebar.sidebar{z-index:1001!important}
+  #overlay{z-index:1000!important}
+  @media (max-width:980px){
+    #sidebar.sidebar{
+      position:fixed!important;
+      top:0!important;right:auto!important;bottom:0!important;left:0!important;
+      width:min(84vw,340px)!important;
+      height:100dvh!important;
+      margin:0!important;
+      border-radius:0 24px 24px 0!important;
+      transform:translateX(-105%)!important;
+      transition:transform .26s cubic-bezier(.2,.8,.2,1)!important;
+      overscroll-behavior:contain!important;
+    }
+    #sidebar.sidebar.open{transform:translateX(0)!important}
+    #overlay{display:block!important;opacity:0!important;pointer-events:none!important;transition:opacity .22s ease!important}
+    #overlay.show{opacity:1!important;pointer-events:auto!important}
+    #menuBtn{display:inline-flex!important;align-items:center!important;justify-content:center!important}
+    body.sidebar-open{overflow:hidden!important}
+  }
+  @media (min-width:981px){
+    #sidebar.sidebar{transform:none!important}
+    #overlay{display:none!important}
+    #menuBtn{display:none!important}
+  }
+</style>
+<script>
+/* Controlador definitivo de la barra lateral y navegación entre pestañas. */
+(function(){
+  function byId(id){ return document.getElementById(id); }
+  function isDrawer(){ return window.matchMedia ? window.matchMedia('(max-width: 980px)').matches : window.innerWidth <= 980; }
+  function sidebar(){ return byId('sidebar'); }
+  function overlay(){ return byId('overlay'); }
+  function setToggleLabel(){
+    var toggle=byId('sidebarToggle'), app=byId('appView');
+    if(!toggle || !app) return;
+    var collapsed=app.classList.contains('sidebar-collapsed');
+    toggle.setAttribute('aria-label',collapsed?'Expandir menú':'Contraer menú');
+    toggle.title=collapsed?'Expandir menú':'Contraer menú';
+  }
+  function close(){
+    var side=sidebar(), layer=overlay();
+    if(side) side.classList.remove('open');
+    if(layer){ layer.classList.remove('show'); layer.classList.add('hidden'); }
+    document.body.classList.remove('sidebar-open');
+  }
+  function open(){
+    if(!isDrawer()) return;
+    var side=sidebar(), layer=overlay();
+    if(side) side.classList.add('open');
+    if(layer){ layer.classList.remove('hidden'); layer.classList.add('show'); }
+    document.body.classList.add('sidebar-open');
+  }
+  function toggle(){
+    var side=sidebar();
+    if(side && side.classList.contains('open')) close(); else open();
+  }
+
+  /* Se exponen para los botones ya existentes y para cualquier interacción externa. */
+  window.openSidebar=open;
+  window.closeSidebar=close;
+  window.toggleSidebar=toggle;
+
+  window.renderNav=function(){
+    var nav=byId('nav');
+    if(!nav || typeof allowedSections!=='function') return;
+    nav.innerHTML=allowedSections().map(function(section){
+      var id=section[0], name=section[1], icon=section[3]||'';
+      return '<button type="button" class="tab '+(currentSection===id?'active':'')+'" data-section="'+id+'" title="'+name+'" aria-label="'+name+'"><span class="nav-icon">'+icon+'</span><span class="nav-label">'+name+'</span></button>';
+    }).join('');
+  };
+
+  function bind(){
+    var menu=byId('menuBtn'), layer=overlay(), nav=byId('nav'), sideToggle=byId('sidebarToggle'), logout=byId('logoutBtn'), app=byId('appView');
+    if(menu) menu.onclick=function(event){ event.preventDefault(); toggle(); };
+    if(layer) layer.onclick=function(event){ event.preventDefault(); close(); };
+    if(sideToggle) sideToggle.onclick=function(event){
+      event.preventDefault();
+      if(isDrawer()){ toggle(); return; }
+      if(app) app.classList.toggle('sidebar-collapsed');
+      setToggleLabel();
+    };
+    if(logout) logout.addEventListener('click',close);
+    if(nav && !nav.dataset.nihSidebarController){
+      nav.dataset.nihSidebarController='1';
+      nav.addEventListener('click',function(event){
+        var tab=event.target.closest('.tab[data-section]');
+        if(!tab || !nav.contains(tab)) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        var id=tab.dataset.section;
+        if(id && typeof window.go==='function') window.go(id);
+        close();
+      },true);
+    }
+    setToggleLabel();
+    if(typeof window.renderNav==='function') window.renderNav();
+  }
+
+  document.addEventListener('keydown',function(event){ if(event.key==='Escape') close(); });
+  window.addEventListener('resize',function(){ if(!isDrawer()) close(); });
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',bind); else bind();
+})();
+</script>
+<!-- NIH_SIDEBAR_CONTROLLER_END -->
 <!-- NIH_UNIFIED_DESKTOP_DESIGN_END -->
 </body>
 </html>
