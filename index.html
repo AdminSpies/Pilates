@@ -11438,5 +11438,168 @@ window.openSelectedWhatsAppReminders = avisarSeleccionadosPorWhatsApp;
 </script>
 <!-- NIH_SIDEBAR_CONTROLLER_END -->
 <!-- NIH_UNIFIED_DESKTOP_DESIGN_END -->
+<script>
+/*
+  NIH_PERSISTENCE_SINGLE_WRITER_2026_07_24
+  Esta es la única capa autorizada para leer, combinar, guardar y escuchar el
+  documento de Firestore. Sustituye las capas anteriores que coexistían en el
+  archivo y podían volver a aplicar una instantánea antigua tras una edición.
+*/
+(function(){
+  'use strict';
+  var STORAGE_KEY = 'nihuenPilatesDB';
+  var COLLECTIONS = ['users','clients','plans','classes','payments','attendance','paymentReports'];
+  var derivedCollections = ['schedules'];
+  var baseline = null;
+  var writeChain = Promise.resolve();
+  var listening = false;
+  var applyingSnapshot = false;
+  var localRevision = 0;
+
+  function clone(value){ return JSON.parse(JSON.stringify(value || {})); }
+  function time(value){ var parsed = Date.parse(String(value || '')); return Number.isFinite(parsed) ? parsed : 0; }
+  function recordTime(record){ return time(record && (record.updatedAt || record.createdAt)); }
+  function idOf(record){ return String(record && record.id || ''); }
+  function equal(a,b){ return JSON.stringify(a) === JSON.stringify(b); }
+  function status(message){ var el=document.getElementById('syncStatus'); if(el) el.textContent=message; }
+  function normalize(data){ return typeof window.normalizeDB === 'function' ? window.normalizeDB(clone(data)) : clone(data); }
+  function saveCache(data){
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }catch(error){ console.error('No se pudo actualizar el respaldo local', error); }
+  }
+  function buildTombstones(current, previous){
+    var rows = Array.isArray(current.deletedRecords) ? current.deletedRecords.slice() : [];
+    var old = previous || {};
+    COLLECTIONS.concat(derivedCollections).forEach(function(collection){
+      var before = new Set((old[collection] || []).map(idOf).filter(Boolean));
+      var present = new Set((current[collection] || []).map(idOf).filter(Boolean));
+      before.forEach(function(id){
+        if(!present.has(id) && !rows.some(function(row){ return row && row.collection===collection && String(row.id)===id; })){
+          rows.push({collection:collection,id:id,deletedAt:new Date().toISOString()});
+        }
+      });
+    });
+    return rows.slice(-1000);
+  }
+  function tombstoneMap(remote, local){
+    var map = new Map();
+    (remote || []).concat(local || []).forEach(function(row){
+      if(!row || !row.collection || !row.id) return;
+      var key=row.collection+'|'+String(row.id), previous=map.get(key);
+      if(!previous || time(row.deletedAt)>=time(previous.deletedAt)) map.set(key,clone(row));
+    });
+    return map;
+  }
+  function mergeRows(remoteRows, localRows, collection, tombstones){
+    var out=new Map();
+    (remoteRows || []).forEach(function(row){ if(idOf(row) && !tombstones.has(collection+'|'+idOf(row))) out.set(idOf(row),clone(row)); });
+    (localRows || []).forEach(function(row){
+      var id=idOf(row); if(!id || tombstones.has(collection+'|'+id)) return;
+      var previous=out.get(id);
+      if(!previous || recordTime(row)>=recordTime(previous)) out.set(id,clone(row));
+    });
+    return Array.from(out.values());
+  }
+  function merge(remotePayload, localPayload){
+    var remote=normalize(remotePayload), local=normalize(localPayload);
+    local.deletedRecords=buildTombstones(local,baseline);
+    var tombstones=tombstoneMap(remote.deletedRecords,local.deletedRecords);
+    var merged=clone(remote);
+    COLLECTIONS.forEach(function(collection){ merged[collection]=mergeRows(remote[collection],local[collection],collection,tombstones); });
+    merged.deletedRecords=Array.from(tombstones.values()).slice(-1000);
+    merged.settings=Object.assign({},remote.settings || {},local.settings || {});
+    merged.syncMeta=Object.assign({},remote.syncMeta || {},local.syncMeta || {},{persistenceVersion:'single-writer-2026-07-24',updatedAt:new Date().toISOString()});
+    return normalize(merged);
+  }
+  function setDatabase(next, renderAfter){
+    applyingSnapshot=true;
+    db=normalize(next);
+    saveCache(db);
+    applyingSnapshot=false;
+    if(renderAfter && currentUser && typeof window.render==='function') window.render();
+  }
+  async function commit(snapshot){
+    if(!(window.firebase && firestore && firebaseOnline)) return true;
+    var revision=++localRevision;
+    status('Guardando cambios...');
+    try{
+      await firestore.runTransaction(async function(transaction){
+        var ref=firestore.doc(FIRESTORE_DOC_PATH);
+        var remoteDocument=await transaction.get(ref);
+        var remotePayload=remoteDocument.exists && remoteDocument.data() && remoteDocument.data().payload ? remoteDocument.data().payload : {};
+        var resolved=merge(remotePayload,snapshot);
+        transaction.set(ref,{payload:clone(resolved),updatedAt:firebase.firestore.FieldValue.serverTimestamp(),schemaVersion:'single-writer-2026-07-24'},{merge:false});
+        snapshot=resolved;
+      });
+      if(revision===localRevision) setDatabase(snapshot,false);
+      baseline=clone(snapshot);
+      status('Firebase conectado: cambios sincronizados');
+      return true;
+    }catch(error){
+      console.error('Error de sincronización con Firestore',error);
+      status('Cambios guardados en este dispositivo: conexión pendiente');
+      return false;
+    }
+  }
+  window.saveDB = saveDB = function(){
+    if(typeof db==='undefined' || applyingSnapshot) return Promise.resolve(true);
+    var snapshot=normalize(db);
+    snapshot.deletedRecords=buildTombstones(snapshot,baseline);
+    snapshot.syncMeta=Object.assign({},snapshot.syncMeta || {},{persistenceVersion:'single-writer-2026-07-24',updatedAt:new Date().toISOString()});
+    db=snapshot;
+    saveCache(snapshot);
+    writeChain=writeChain.catch(function(){ return true; }).then(function(){ return commit(snapshot); });
+    return writeChain;
+  };
+  function subscribe(){
+    if(!(window.firebase && firestore && firebaseOnline) || listening) return;
+    if(typeof unsubscribeRealtime==='function') unsubscribeRealtime();
+    listening=true;
+    unsubscribeRealtime=firestore.doc(FIRESTORE_DOC_PATH).onSnapshot(function(snapshot){
+      if(!snapshot.exists){
+        window.saveDB();
+        return;
+      }
+      var remote=snapshot.data() && snapshot.data().payload;
+      if(!remote || applyingSnapshot) return;
+      var merged=merge(remote,db);
+      var remoteChanged=!baseline || !equal(normalize(remote),baseline);
+      setDatabase(merged,true);
+      baseline=clone(normalize(remote));
+      if(!equal(merged,normalize(remote)) && !snapshot.metadata.hasPendingWrites) window.saveDB();
+      else if(remoteChanged) status('Firebase conectado: sincronización activa');
+    },function(error){
+      console.error('Error del listener de Firestore',error);
+      listening=false;
+      status('Cambios guardados localmente: sincronización pendiente');
+    });
+    status('Firebase conectado: sincronización activa');
+  }
+  window.subscribeRealtime = subscribeRealtime = function(){
+    if(typeof unsubscribeRealtime==='function') unsubscribeRealtime();
+    listening=false;
+    subscribe();
+  };
+  window.initFirebaseRealtime = initFirebaseRealtime = async function(){
+    try{
+      if(!window.firebase) throw new Error('Firebase SDK no disponible');
+      if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+      firestore=firebase.firestore();
+      firebaseOnline=true;
+      window.subscribeRealtime();
+      return true;
+    }catch(error){
+      console.error('No se pudo iniciar Firebase',error);
+      firebaseOnline=false;
+      status('Cambios guardados en este dispositivo: Firebase no disponible');
+      return false;
+    }
+  };
+  /* La base embebida es solo material de importación histórico; no puede borrar datos operativos. */
+  window.applyClientesExcelSeed = async function(){ if(typeof toast==='function') toast('Restauración automática desactivada para proteger los datos actuales.'); };
+  window.resetDemo = function(){ if(typeof toast==='function') toast('El reinicio de datos está desactivado para proteger los datos actuales.'); };
+  window.addEventListener('online',function(){ listening=false; window.initFirebaseRealtime(); });
+  if(window.firebase && firestore && firebaseOnline) window.subscribeRealtime();
+})();
+</script>
 </body>
 </html>
