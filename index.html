@@ -4209,7 +4209,7 @@ function deleteEntity(entityType,id){
   entityType=normalizeEntityType(entityType);
   if(entityType==='schedules'){const s=getSchedule(id); if(s) removeClientFromClass(s.claseId,s.clienteId,true); saveDB(); render(); return true}
   db[entityMap[entityType]]=db[entityMap[entityType]].filter(x=>x.id!==id);
-  if(entityType==='clients'){db.classes.forEach(cl=>cl.clientesIds=(cl.clientesIds||[]).filter(cid=>cid!==id));syncSchedules()}
+  if(entityType==='clients'){db.classes.forEach(cl=>{if((cl.clientesIds||[]).includes(id)){cl.clientesIds=(cl.clientesIds||[]).filter(cid=>cid!==id);cl.updatedAt=now()}});syncSchedules()}
   if(entityType==='classes')syncSchedules();
   saveDB();
   render();
@@ -4525,7 +4525,7 @@ function canAssignClient(cid,cl,sourceClassId){
   if(weekly>Number(plan?.clasesSemanales||0))return 'El cliente supera la cantidad de clases semanales de su plan';
   return true;
 }
-function saveSchedule(e,id){e.preventDefault(); const fd=Object.fromEntries(new FormData(e.target).entries()); if(!fd.dia||!fd.horario)return toast('No se permiten horarios sin día y hora'); const old=id?getSchedule(id):null; const target=db.classes.find(c=>c.id===fd.claseId); if(!target)return toast('Seleccioná una clase asociada'); if(old&&!canEdit('schedules',old))return toast('Permiso denegado'); if(!isGeneral()&&target.personalId!==currentUser.id)return toast('No podés modificar horarios ajenos'); const validation=canAssignClient(fd.clienteId,target,old?.claseId); if(validation!==true)return toast(validation); if(old?.claseId&&old.claseId!==fd.claseId){const prev=db.classes.find(c=>c.id===old.claseId); if(prev)prev.clientesIds=(prev.clientesIds||[]).filter(cid=>cid!==old.clienteId)} if(!(target.clientesIds||[]).includes(fd.clienteId))target.clientesIds.push(fd.clienteId); const scheduleData={...fd,id:id||scheduleId(fd.claseId,fd.clienteId),createdAt:old?.createdAt||now(),updatedAt:now()}; db.schedules=db.schedules.filter(s=>s.id!==id&&scheduleKey(s.claseId,s.clienteId)!==scheduleKey(fd.claseId,fd.clienteId)); db.schedules.push(scheduleData); saveDB(); closeModal(); render(); toast('Horario guardado')}
+function saveSchedule(e,id){e.preventDefault(); const fd=Object.fromEntries(new FormData(e.target).entries()); if(!fd.dia||!fd.horario)return toast('No se permiten horarios sin día y hora'); const old=id?getSchedule(id):null; const target=db.classes.find(c=>c.id===fd.claseId); if(!target)return toast('Seleccioná una clase asociada'); if(old&&!canEdit('schedules',old))return toast('Permiso denegado'); if(!isGeneral()&&target.personalId!==currentUser.id)return toast('No podés modificar horarios ajenos'); const validation=canAssignClient(fd.clienteId,target,old?.claseId); if(validation!==true)return toast(validation); if(old?.claseId&&old.claseId!==fd.claseId){const prev=db.classes.find(c=>c.id===old.claseId); if(prev){prev.clientesIds=(prev.clientesIds||[]).filter(cid=>cid!==old.clienteId);prev.updatedAt=now()}} if(!(target.clientesIds||[]).includes(fd.clienteId))target.clientesIds.push(fd.clienteId);target.updatedAt=now(); const scheduleData={...fd,id:id||scheduleId(fd.claseId,fd.clienteId),createdAt:old?.createdAt||now(),updatedAt:now()}; db.schedules=db.schedules.filter(s=>s.id!==id&&scheduleKey(s.claseId,s.clienteId)!==scheduleKey(fd.claseId,fd.clienteId)); db.schedules.push(scheduleData); saveDB(); closeModal(); render(); toast('Horario guardado')}
 function removeSchedule(id){const s=getSchedule(id); if(!canEdit('schedules',s))return toast('Permiso denegado'); removeClientFromClass(s.claseId,s.clienteId,true); saveDB(); render(); toast('Cliente quitado del horario')}
 function deleteSchedule(id){const s=getSchedule(id); if(!canDelete('schedules',s))return toast('Permiso denegado'); confirmDelete('Vas a eliminar solo esta asignación de horario. El cliente no se eliminará.',()=>{deleteEntity('schedules',id);toast('Horario eliminado')})}
 function removeClientFromClass(clid,cid,silent=false){const cl=db.classes.find(c=>c.id===clid); if(!cl)return; if(!isGeneral()&&cl.personalId!==currentUser.id)return toast('No podés modificar horarios ajenos'); cl.clientesIds=(cl.clientesIds||[]).filter(id=>id!==cid); db.schedules=db.schedules.filter(s=>!(s.claseId===clid&&s.clienteId===cid)); cl.updatedAt=now(); if(!silent){saveDB(); closeModal(); viewClass(clid); render(); toast('Cliente quitado')}}
@@ -6535,7 +6535,7 @@ window.openSelectedWhatsAppReminders = avisarSeleccionadosPorWhatsApp;
     if(!isGeneral()) return toast('Permiso denegado');
     confirmDelete('Vas a eliminar este cliente. Sus pagos formales quedaran como historial asociado a su id.',async function(){
       db.clients = getArr('clients').filter(c=>c.id!==id);
-      db.classes.forEach(cl=>cl.clientesIds=(cl.clientesIds || []).filter(cid=>cid!==id));
+      db.classes.forEach(cl=>{if((cl.clientesIds || []).includes(id)){cl.clientesIds=(cl.clientesIds || []).filter(cid=>cid!==id);cl.updatedAt=stamp()}});
       db.schedules = getArr('schedules').filter(s=>s.clienteId!==id);
       if(await persist('Cliente eliminado')) render();
     });
@@ -10446,7 +10446,7 @@ window.openSelectedWhatsAppReminders = avisarSeleccionadosPorWhatsApp;
       client = Object.assign({id:localId('client'),createdAt:ts()},fd); arr('clients').push(client);
     }
     Object.assign(client,fd,{updatedAt:ts()});
-    arr('classes').forEach(cl=>{ cl.clientesIds = (cl.clientesIds || []).filter(cid=>cid !== client.id); });
+    arr('classes').forEach(cl=>{ if((cl.clientesIds || []).includes(client.id)){ cl.clientesIds = (cl.clientesIds || []).filter(cid=>cid !== client.id); cl.updatedAt = ts(); } });
     requested.forEach(function(r){
       let cl = arr('classes').find(x=>dayKeyLocal(x.dia)===dayKeyLocal(r.day) && timeLabelLocal(x.hora)===r.time && String(x.personalId || '')===String(r.teacherId || ''));
       if(!cl){ cl = {id:localId('class'),dia:r.day,hora:r.time,personalId:r.teacherId || '',clientesIds:[],cupoMaximo:MAX_CUPO || 8,estado:'Activa',observaciones:'',createdAt:ts(),updatedAt:ts()}; arr('classes').push(cl); }
