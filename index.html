@@ -3978,7 +3978,7 @@ function closeModal(){document.getElementById('modal').classList.remove('show')}
 function openModal(title,subtitle,html){document.getElementById('modalTitle').textContent=title;document.getElementById('modalSubtitle').textContent=subtitle||'';document.getElementById('modalBody').innerHTML=html;document.getElementById('modal').classList.add('show')}
 
 const sections = [
-  ['dashboard','Dashboard','Resumen general',''],['clientes','Clientes','Altas, bajas y modificaciones',''],['personal','Personal','Usuarios y profesores',''],['planes','Planes y Precios','Configuración de planes',''],['horarios','Horarios','Asignaciones por alumno',''],['clases','Clases','Cupos y alumnos',''],['pagos','Pagos','Estado mensual',''],['agenda','Agenda Semanal','Vista por día y hora',''],['importar','Importar base','Importación de base PILATES.xlsx',''],['reportes','Reportes','Indicadores principales',''],['config','Configuración','Datos generales',''],['perfil','Perfil','Sesión actual','']
+  ['dashboard','Dashboard','Resumen general',''],['clientes','Clientes','Altas, bajas y modificaciones',''],['personal','Personal','Usuarios y profesores',''],['planes','Planes y Precios','Configuración de planes',''],['horarios','Horarios','Asignaciones por alumno',''],['clases','Clases','Cupos y alumnos',''],['pagos','Pagos','Estado mensual',''],['agenda','Agenda Semanal','Vista por día y hora',''],['importar','Sincronización','Datos con Google Sheets',''],['reportes','Reportes','Indicadores principales',''],['config','Configuración','Datos generales',''],['perfil','Perfil','Sesión actual','']
 ];
 function allowedSections(){return isGeneral()?sections:sections.filter(s=>!['personal','planes','reportes','config','importar'].includes(s[0]) && (s[0]!=='pagos'||canViewPayments()))}
 function renderNav(){document.getElementById('nav').innerHTML=allowedSections().map(([id,name,,icon])=>`<button class="tab ${currentSection===id?'active':''}" onclick="go('${id}')" title="${name}"><span class="nav-icon">${icon}</span><span class="nav-label">${name}</span></button>`).join('')}
@@ -5534,14 +5534,7 @@ Para mayor seguridad, completar Firebase Authentication, reglas por rol y valida
   };
   window.createManualBackup = function(){exportFullBackup();};
   function backupPanel(){
-    return '<section class="card p-5 backup-panel"><h3 class="panel-title">Datos y respaldo</h3><p class="mt-1 text-sm font-bold text-[#66706A]">Herramientas administrativas para exportar, importar y auditar cambios.</p><div class="backup-actions">'+
-      '<button class="btn btn-secondary" onclick="exportToCSV(\'clients\')">Exportar clientes a Excel</button>'+
-      '<button class="btn btn-secondary" onclick="exportToCSV(\'payments\')">Exportar pagos a Excel</button>'+
-      '<button class="btn btn-secondary" onclick="exportToCSV(\'classes\')">Exportar clases a Excel</button>'+
-      '<button class="btn btn-primary" onclick="exportFullBackup()">Exportar todo a JSON</button>'+
-      '<label class="btn btn-secondary">Importar backup JSON<input type="file" accept="application/json" hidden onchange="importFullBackup(this.files[0])"></label>'+
-      '<button class="btn btn-secondary" onclick="createManualBackup()">Crear backup manual</button>'+
-      '</div><h3 class="panel-title mt-5">Historial de cambios</h3>'+renderAuditLog()+'</section>';
+    return '<section class="card p-5 backup-panel"><h3 class="panel-title">Sincronización con Google Sheets</h3><p class="mt-1 text-sm font-bold text-[#66706A]">Google Sheets es la base conectada. Usá la sincronización manual para traer los datos más recientes a la aplicación.</p><div class="backup-actions"><button class="btn btn-primary" onclick="forceGoogleSheetsSync()">Sincronizar ahora</button></div><h3 class="panel-title mt-5">Historial de cambios</h3>'+renderAuditLog()+'</section>';
   }
   const baseRenderConfig = typeof renderConfig === 'function' ? renderConfig : null;
   if(baseRenderConfig){
@@ -10522,8 +10515,8 @@ const STORAGE_KEY = 'nihuenPilatesDB-clean-20260815';
   };
   window.renderImportar = function(){
     var total=Array.isArray(db && db.clients)?db.clients.length:0;
-    return '<div class="module-toolbar"><div class="toolbar-title"><b>Importar pacientes</b></div><div class="toolbar-actions"><button class="btn btn-primary" onclick="openClientImport()">Cargar Excel o CSV</button><button class="btn btn-secondary" onclick="exportCurrentDatabaseXlsx && exportCurrentDatabaseXlsx()">Exportar respaldo</button></div></div>'+
-      '<section class="card p-5"><h3 class="nih-section-title">Base de pacientes</h3><p class="nih-muted">Los pacientes se guardan en la aplicación y se sincronizan en la nube. El archivo Excel no queda dentro del código ni restaura una copia anterior.</p><div class="mt-4 grid gap-3 md:grid-cols-3"><div class="rounded-xl border border-[#DED6C8] p-3"><b>Pacientes actuales</b><div class="text-2xl font-black">'+total+'</div></div><div class="rounded-xl border border-[#DED6C8] p-3"><b>Importación</b><div class="text-xl font-black">Excel o CSV</div></div><div class="rounded-xl border border-[#DED6C8] p-3"><b>Modo</b><div class="text-xl font-black">Actualiza sin duplicar</div></div></div><p class="nih-muted mt-4">Encabezados admitidos: Apellido, Nombre, Cliente o Nombre completo, DNI, Teléfono, Estado, Dirección, Fecha alta y Observaciones. Se identifican coincidencias por DNI o nombre.</p></section>';
+    return '<div class="module-toolbar"><div class="toolbar-title"><b>Sincronización de datos</b></div><div class="toolbar-actions"><button class="btn btn-primary" onclick="forceGoogleSheetsSync()">Sincronizar ahora</button></div></div>'+
+      '<section class="card p-5"><h3 class="nih-section-title">Google Sheets conectado</h3><p class="nih-muted">Esta acción consulta inmediatamente la base `BASE_PILATES` de Google Sheets y reemplaza los datos visibles de la aplicación por la versión más reciente de la hoja.</p><div class="mt-4 grid gap-3 md:grid-cols-3"><div class="rounded-xl border border-[#DED6C8] p-3"><b>Pacientes actuales</b><div class="text-2xl font-black">'+total+'</div></div><div class="rounded-xl border border-[#DED6C8] p-3"><b>Origen</b><div class="text-xl font-black">Google Sheets</div></div><div class="rounded-xl border border-[#DED6C8] p-3"><b>Modo</b><div class="text-xl font-black">Sincronización manual</div></div></div><p class="nih-muted mt-4">Los cambios hechos en la aplicación se envían automáticamente a Google Sheets. El botón solo fuerza una actualización inmediata desde la hoja.</p></section>';
   };
   window.applyClientesExcelSeed = async function(){ if(typeof toast==='function') toast('La restauración automática está desactivada. Usá Cargar Excel o CSV para incorporar datos.'); };
   window.overwriteEmbeddedClientesExcel = function(){ if(typeof exportCurrentDatabaseXlsx==='function') exportCurrentDatabaseXlsx(); };
@@ -11284,6 +11277,13 @@ window.NIHUEN_GOOGLE_SHEETS = {
     return result;
   };
   window.syncGoogleSheetsNow=function(){ return pull(); };
+  window.forceGoogleSheetsSync=function(){
+    status('Sincronizando datos desde Google Sheets...');
+    return pull().then(function(updated){
+      if(typeof toast==='function') toast(updated ? 'Datos sincronizados desde Google Sheets.' : 'Google Sheets está vacío.');
+      return updated;
+    });
+  };
   window.addEventListener('online',function(){ pull(); });
   setTimeout(pull,900);
   setInterval(pull,15000);
