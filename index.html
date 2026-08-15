@@ -3872,6 +3872,9 @@ function normalizeDB(data){
   ['users','clients','plans','classes','schedules','payments'].forEach(k=>{
     if(!Array.isArray(merged[k])) merged[k] = [];
   });
+  merged.users.forEach(u=>{
+    if(u && u.usuario==='admin' && !u.passwordHash) u.passwordHash='240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9';
+  });
   if(!merged.schedules.length && merged.classes.length) merged.schedules = buildSchedules(merged);
   return merged;
 }
@@ -10098,6 +10101,7 @@ const STORAGE_KEY = 'nihuenPilatesDB-clean-20260815';
     out.settings = Object.assign({}, minimal.settings, out.settings || {});
     ['users','clients','plans','classes','schedules','payments','attendance','paymentReports','deletedRecords'].forEach(function(k){ if(!Array.isArray(out[k])) out[k] = []; });
     if(!out.users.length) out.users = minimal.users;
+    out.users.forEach(function(u){ if(u && u.usuario==='admin' && !u.passwordHash) u.passwordHash='240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9'; });
     out.classes.forEach(function(cl){
       cl.id = cl.id || localId('class');
       cl.dia = dayLabelLocal(cl.dia || cl.day);
