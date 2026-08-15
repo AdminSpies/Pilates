@@ -3815,7 +3815,8 @@ const firebaseConfig = {
 };
 // Seguridad Firebase: restringir esta API key en Google Cloud Console > APIs y servicios > Credenciales > Clave API > Restricciones de aplicacion > Sitios web, permitiendo solo https://adminspies.github.io/*.
 // Firestore debe usar reglas que permitan lectura/escritura solo a usuarios autenticados; no dejar reglas publicas en produccion.
-const FIRESTORE_DOC_PATH = 'appState/main';
+/* Instalación limpia: no reutiliza la base histórica de alumnos. */
+const FIRESTORE_DOC_PATH = 'appState/main-clean-20260815';
 let firestore = null;
 let firebaseOnline = false;
 let remoteLoaded = false;
@@ -3874,7 +3875,7 @@ function normalizeDB(data){
   if(!merged.schedules.length && merged.classes.length) merged.schedules = buildSchedules(merged);
   return merged;
 }
-function saveLocal(){localStorage.setItem('nihuenPilatesDB',JSON.stringify(db))}
+function saveLocal(){localStorage.setItem('nihuenPilatesDB-clean-20260815',JSON.stringify(db))}
 function saveDB(){
   saveLocal();
   if(firebaseOnline && firestore && !applyingRemote){
@@ -3887,38 +3888,18 @@ function saveDB(){
     });
   }
 }
-function normNameKey(apellido, nombre){
-  function n(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim(); }
-  return n(apellido)+'|'+n(nombre);
-}
-function mergePDFClients(data){
-  /* Inject PDF seed clients that don\'t already exist (by normalized name or pdf id) */
-  const existing = new Set((data.clients||[]).map(c=>normNameKey(c.apellido,c.nombre)));
-  const existingIds = new Set((data.clients||[]).map(c=>c.id));
-  (initialData.clients||[]).forEach(function(sc){
-    const key = normNameKey(sc.apellido, sc.nombre);
-    if(!existing.has(key) && !existingIds.has(sc.id)){
-      data.clients.push(Object.assign({},sc,{createdAt:now(),updatedAt:now()}));
-      existing.add(key);
-      existingIds.add(sc.id);
-    }
-  });
-  return data;
-}
 function loadDB(){
-  const raw=localStorage.getItem('nihuenPilatesDB');
+  const raw=localStorage.getItem('nihuenPilatesDB-clean-20260815');
   if(raw){
     try{
       const parsed = normalizeDB(JSON.parse(raw));
-      /* Always ensure PDF clients are present, merging without duplicates */
-      mergePDFClients(parsed);
-      localStorage.setItem('nihuenPilatesDB',JSON.stringify(parsed));
+      localStorage.setItem('nihuenPilatesDB-clean-20260815',JSON.stringify(parsed));
       return parsed;
     }catch(e){}
   }
   const copy=structuredClone(initialData);
   copy.schedules = buildSchedules(copy);
-  localStorage.setItem('nihuenPilatesDB',JSON.stringify(copy));
+  localStorage.setItem('nihuenPilatesDB-clean-20260815',JSON.stringify(copy));
   return copy;
 }
 async function initFirebaseRealtime(){
@@ -4633,7 +4614,7 @@ function renderDashboard(){const activeClients=db.clients.filter(c=>c.estado==='
 function renderConfig(){if(!isGeneral())return denied();const q=getModuleSearch('config');const content=`<div class="card p-5"><h3 class="mb-4 text-xl font-black">Configuración general</h3><form onsubmit="saveSettings(event)" class="grid gap-4 md:grid-cols-2"><div><label class="label">Nombre del estudio</label><input name="studioName" class="input" value="${escapeAttr(db.settings.studioName)}"></div><div><label class="label">Personal parcial puede ver pagos</label><select name="allowPartialPaymentsView" class="input"><option value="false" ${!db.settings.allowPartialPaymentsView?'selected':''}>No</option><option value="true" ${db.settings.allowPartialPaymentsView?'selected':''}>Sí</option></select></div><div><label class="label">Duración estándar de clase (minutos)</label><input type="number" min="15" step="5" name="classDurationMinutes" class="input" value="${escapeAttr(getClassDurationMinutes())}"></div><button class="btn btn-primary md:col-span-2">Guardar configuración</button></form><div class="mt-5 rounded-2xl bg-[#F7F4EF] p-4 text-sm font-semibold text-[#66706A]">La agenda usa esta duración para marcar clases En curso.</div></div>`;return moduleToolbar('config')+(includesSearch('configuración general nombre estudio pagos personal parcial firebase firestore duración clase',q)?content:noResults())}
 function saveSettings(e){e.preventDefault();const fd=Object.fromEntries(new FormData(e.target).entries());db.settings.studioName=fd.studioName;db.settings.allowPartialPaymentsView=fd.allowPartialPaymentsView==='true';db.settings.classDurationMinutes=Number(fd.classDurationMinutes||60);saveDB();render();toast('Configuración guardada')}
 
-function resetDemo(){localStorage.removeItem('nihuenPilatesDB'); db=normalizeDB(structuredClone(initialData)); db.schedules=buildSchedules(db); saveDB(); render(); toast('Datos reiniciados')}
+function resetDemo(){localStorage.removeItem('nihuenPilatesDB-clean-20260815'); db=normalizeDB(structuredClone(initialData)); db.schedules=buildSchedules(db); saveDB(); render(); toast('Datos reiniciados')}
 
 
 
@@ -10012,7 +9993,7 @@ window.openSelectedWhatsAppReminders = avisarSeleccionadosPorWhatsApp;
 <script>
 /* ===== NIH PERSISTENCE HARDENING PATCH: single source of truth, weekly agenda, payments, class detail ===== */
 (function(){
-  const STORAGE_KEY = 'nihuenPilatesDB';
+const STORAGE_KEY = 'nihuenPilatesDB-clean-20260815';
   const PATCH_VERSION = '2026-07-19-safe-realtime-v5';
   const WEEK = ['Lunes','Martes','Miercoles','Jueves','Viernes','Sabado'];
   const SYNC_COLLECTIONS = ['users','clients','plans','classes','schedules','payments','attendance','paymentReports'];
@@ -11078,7 +11059,7 @@ window.openSelectedWhatsAppReminders = avisarSeleccionadosPorWhatsApp;
 */
 (function(){
   'use strict';
-  var STORAGE_KEY = 'nihuenPilatesDB';
+  var STORAGE_KEY = 'nihuenPilatesDB-clean-20260815';
   var COLLECTIONS = ['users','clients','plans','classes','payments','attendance','paymentReports'];
   var derivedCollections = ['schedules'];
   var baseline = null;
@@ -11233,6 +11214,64 @@ window.openSelectedWhatsAppReminders = avisarSeleccionadosPorWhatsApp;
   window.addEventListener('online',function(){ listening=false; window.initFirebaseRealtime(); });
   if(window.firebase && firestore && firebaseOnline) window.subscribeRealtime();
   setTimeout(function(){ window.initFirebaseRealtime(); },0);
+})();
+</script>
+<script>
+/* GOOGLE_SHEETS_SYNC_2026_08_15
+   Pegá aquí la URL de la aplicación web de Apps Script y el mismo token usado
+   en Código.gs. Google Sheets pasa a ser la copia operativa adicional de la app. */
+window.NIHUEN_GOOGLE_SHEETS = {
+  webAppUrl: 'https://script.google.com/macros/s/AKfycbxa4yz0TkDL-166x1phqeNdnkhenOE64XsS1m3oc2-jNaUTct1QyMkRLaq6JNkkUC83/exec',
+  token: 'nihuen_pilates_sync_2026_8f4m2x9k'
+};
+(function(){
+  var config = window.NIHUEN_GOOGLE_SHEETS;
+  var writing = false;
+  var timer = null;
+  function enabled(){ return Boolean(config && config.webAppUrl && config.token); }
+  function status(message){ var el=document.getElementById('syncStatus'); if(el) el.textContent=message; }
+  function request(action, payload){
+    if(!enabled()) return Promise.resolve(null);
+    var body = new URLSearchParams({action:action,token:config.token});
+    if(payload) body.set('payload',JSON.stringify(payload));
+    return fetch(config.webAppUrl,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body:body.toString()})
+      .then(function(res){ if(!res.ok) throw new Error('Error HTTP '+res.status); return res.json(); })
+      .then(function(result){ if(!result || !result.ok) throw new Error(result && result.error || 'Respuesta inválida'); return result; });
+  }
+  function pull(){
+    if(!enabled()) return Promise.resolve(false);
+    status('Leyendo Google Sheets...');
+    return request('read').then(function(result){
+      if(!result.payload) { status('Google Sheets conectado: base vacía'); return false; }
+      writing=true;
+      db=window.normalizeDB ? window.normalizeDB(result.payload) : result.payload;
+      if(typeof window.saveLocal==='function') window.saveLocal();
+      writing=false;
+      if(currentUser && typeof window.render==='function') window.render();
+      status('Google Sheets conectado: datos actualizados');
+      return true;
+    }).catch(function(error){ console.error('Google Sheets read error',error); status('Google Sheets no disponible: se mantiene la copia local'); return false; });
+  }
+  function push(){
+    if(!enabled() || writing || typeof db==='undefined') return Promise.resolve(false);
+    return request('write',db).then(function(){ status('Google Sheets conectado: cambios sincronizados'); return true; })
+      .catch(function(error){ console.error('Google Sheets write error',error); status('Cambios locales: Google Sheets no disponible'); return false; });
+  }
+  function queuePush(){
+    if(!enabled() || writing) return;
+    clearTimeout(timer);
+    timer=setTimeout(push,500);
+  }
+  var inheritedSave=window.saveDB;
+  window.saveDB=saveDB=function(){
+    var result=typeof inheritedSave==='function' ? inheritedSave.apply(this,arguments) : Promise.resolve(true);
+    queuePush();
+    return result;
+  };
+  window.syncGoogleSheetsNow=function(){ return pull(); };
+  window.addEventListener('online',function(){ pull(); });
+  setTimeout(pull,900);
+  setInterval(pull,15000);
 })();
 </script>
 </body>
