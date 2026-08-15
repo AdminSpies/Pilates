@@ -11230,18 +11230,33 @@ window.NIHUEN_GOOGLE_SHEETS = {
   var timer = null;
   function enabled(){ return Boolean(config && config.webAppUrl && config.token); }
   function status(message){ var el=document.getElementById('syncStatus'); if(el) el.textContent=message; }
-  function request(action, payload){
+  function readRequest(){
     if(!enabled()) return Promise.resolve(null);
-    var body = new URLSearchParams({action:action,token:config.token});
-    if(payload) body.set('payload',JSON.stringify(payload));
-    return fetch(config.webAppUrl,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body:body.toString()})
-      .then(function(res){ if(!res.ok) throw new Error('Error HTTP '+res.status); return res.json(); })
-      .then(function(result){ if(!result || !result.ok) throw new Error(result && result.error || 'Respuesta inválida'); return result; });
+    return new Promise(function(resolve,reject){
+      var callback='NIHUEN_SHEETS_CB_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+      var script=document.createElement('script');
+      var clean=function(){ delete window[callback]; script.remove(); };
+      var timeout=setTimeout(function(){ clean(); reject(new Error('Google Sheets no respondió')); },12000);
+      window[callback]=function(result){ clearTimeout(timeout); clean(); resolve(result); };
+      script.onerror=function(){ clearTimeout(timeout); clean(); reject(new Error('No se pudo leer Google Sheets')); };
+      script.src=config.webAppUrl+(config.webAppUrl.indexOf('?')===-1?'?':'&')+'action=read&token='+encodeURIComponent(config.token)+'&prefix='+callback;
+      document.head.appendChild(script);
+    }).then(function(result){ if(!result || !result.ok) throw new Error(result && result.error || 'Respuesta inválida'); return result; });
+  }
+  function writeRequest(payload){
+    if(!enabled()) return Promise.resolve(false);
+    var frame=document.getElementById('nihuenSheetsWriteFrame');
+    if(!frame){ frame=document.createElement('iframe'); frame.id='nihuenSheetsWriteFrame'; frame.name='nihuenSheetsWriteFrame'; frame.hidden=true; document.body.appendChild(frame); }
+    var form=document.createElement('form');
+    form.method='POST'; form.action=config.webAppUrl; form.target='nihuenSheetsWriteFrame'; form.style.display='none';
+    [['action','write'],['token',config.token],['payload',JSON.stringify(payload)]].forEach(function(pair){ var input=document.createElement('input'); input.name=pair[0]; input.value=pair[1]; form.appendChild(input); });
+    document.body.appendChild(form); form.submit(); form.remove();
+    return Promise.resolve(true);
   }
   function pull(){
     if(!enabled()) return Promise.resolve(false);
     status('Leyendo Google Sheets...');
-    return request('read').then(function(result){
+    return readRequest().then(function(result){
       if(!result.payload) { status('Google Sheets conectado: base vacía'); return false; }
       writing=true;
       db=window.normalizeDB ? window.normalizeDB(result.payload) : result.payload;
@@ -11254,7 +11269,7 @@ window.NIHUEN_GOOGLE_SHEETS = {
   }
   function push(){
     if(!enabled() || writing || typeof db==='undefined') return Promise.resolve(false);
-    return request('write',db).then(function(){ status('Google Sheets conectado: cambios sincronizados'); return true; })
+    return writeRequest(db).then(function(){ status('Google Sheets conectado: cambios enviados'); return true; })
       .catch(function(error){ console.error('Google Sheets write error',error); status('Cambios locales: Google Sheets no disponible'); return false; });
   }
   function queuePush(){
