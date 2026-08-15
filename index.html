@@ -11254,6 +11254,9 @@ window.NIHUEN_GOOGLE_SHEETS = {
       writing=true;
       db=window.normalizeDB ? window.normalizeDB(result.payload) : result.payload;
       if(typeof window.saveLocal==='function') window.saveLocal();
+      /* La hoja es fuente de verdad: registra como eliminadas las clases antiguas
+         de Firebase para que no vuelvan a mezclarse tras esta actualización. */
+      if(typeof inheritedSave==='function') Promise.resolve(inheritedSave()).catch(function(error){ console.error('Firebase refresh after Sheets pull error',error); });
       writing=false;
       if(currentUser && typeof window.render==='function') window.render();
       status('Google Sheets conectado: datos actualizados');
