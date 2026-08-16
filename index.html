@@ -11389,5 +11389,63 @@ window.NIHUEN_GOOGLE_SHEETS = {
   setTimeout(function(){pull(true);},200);
 })();
 </script>
+<script>
+/* Importación única XLSX: CLIENTES + CLASES + PAGOS. Reemplaza solo esas tres colecciones. */
+(function(){
+  function clean(v){return String(v==null?'':v).trim();}
+  function key(v){return clean(v).toLocaleLowerCase('es-AR').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,' ').replace(/\s+/g,' ').trim();}
+  function time(v){var m=clean(v).match(/^(\d{1,2}):(\d{2})$/);if(!m||+m[1]>23||+m[2]>59)return '';return String(+m[1]).padStart(2,'0')+':'+m[2];}
+  function id(prefix,value){return prefix+'_'+key(value).replace(/\s+/g,'_').slice(0,70);}
+  function title(v){return clean(v).toLocaleLowerCase('es-AR').replace(/(^|\s)\S/g,function(c){return c.toLocaleUpperCase('es-AR');});}
+  function field(row,names){for(var i=0;i<names.length;i++){var found=Object.keys(row).find(function(h){return key(h)===key(names[i]);});if(found&&clean(row[found]))return clean(row[found]);}return '';}
+  function rowsFor(book,sheetName,required){
+    var actual=book.SheetNames.find(function(name){return key(name)===key(sheetName);});
+    if(!actual)throw new Error('Falta la pestaña '+sheetName+'.');
+    var matrix=XLSX.utils.sheet_to_json(book.Sheets[actual],{header:1,defval:'',raw:false});
+    var at=-1;
+    for(var i=0;i<Math.min(10,matrix.length);i++){var headers=matrix[i].map(key);if(required.some(function(h){return headers.includes(key(h));})){at=i;break;}}
+    if(at<0)throw new Error('No se encontraron encabezados válidos en '+sheetName+'.');
+    var headers=matrix[at].map(clean);
+    return matrix.slice(at+1).filter(function(row){return row.some(function(v){return clean(v);});}).map(function(values){var row={};headers.forEach(function(h,index){if(h)row[h]=values[index];});return row;});
+  }
+  function split(v){return clean(v).split(/[\/,;|]+/).map(clean).filter(Boolean);}
+  function studentId(value,byId,byDni,byName){var raw=clean(value);return byId.get(raw)||byDni.get(raw)||byName.get(key(raw))||'';}
+  window.openWorkbookImport=function(){
+    var input=document.createElement('input');input.type='file';input.accept='.xlsx,.xls';input.hidden=true;
+    input.onchange=function(){if(input.files[0])window.importWorkbook(input.files[0]);input.remove();};document.body.appendChild(input);input.click();
+  };
+  window.importWorkbook=async function(file){
+    if(!window.XLSX)return toast('No se pudo cargar el lector de Excel.');
+    try{
+      var book=XLSX.read(await file.arrayBuffer(),{type:'array'});
+      var clientRows=rowsFor(book,'CLIENTES',['apellido','nombre','cliente','dni']);
+      var classRows=rowsFor(book,'CLASES',['dia','día','hora']);
+      var paymentRows=rowsFor(book,'PAGOS',['cliente','alumno','monto','importe']);
+      var stamp=typeof now==='function'?now():new Date().toISOString(), errors=[];
+      var existingClients=Array.isArray(db.clients)?db.clients:[], existingPlans=Array.isArray(db.plans)?db.plans:[];
+      var oldByDni=new Map(),oldByName=new Map();existingClients.forEach(function(c){if(clean(c.dni))oldByDni.set(clean(c.dni),c);oldByName.set(key((c.apellido||'')+' '+(c.nombre||'')),c);});
+      var plans=existingPlans.slice(), planByName=new Map(plans.map(function(p){return [key(p.nombre),p];}));
+      function planId(name){if(!clean(name))return '';var k=key(name),p=planByName.get(k);if(!p){p={id:id('plan',name),nombre:clean(name),clasesSemanales:0,precio:0,estado:'Activo',createdAt:stamp,updatedAt:stamp};plans.push(p);planByName.set(k,p);}return p.id;}
+      var clients=[],byId=new Map(),byDni=new Map(),byName=new Map();
+      clientRows.forEach(function(row,index){
+        var apellido=field(row,['apellido','apellidos']), nombre=field(row,['nombre','nombres','cliente','alumno','alumna']);
+        if(!apellido&&nombre){var pieces=nombre.split(/\s+/);apellido=pieces.shift()||'';nombre=pieces.join(' ');}
+        var dni=field(row,['dni','documento','nro documento']), nameKey=key(apellido+' '+nombre);
+        if(!nameKey&&!dni){errors.push('CLIENTES fila '+(index+1)+': falta nombre o DNI.');return;}
+        var previous=(dni&&oldByDni.get(dni))||oldByName.get(nameKey);
+        var client={id:field(row,['id','id app','id cliente'])||((previous&&previous.id)||id('client',dni||nameKey)),apellido:title(apellido),nombre:title(nombre),dni:dni,telefono:field(row,['telefono','teléfono','celular','whatsapp']),fechaNacimiento:field(row,['fecha nacimiento','fecha de nacimiento']),direccion:field(row,['direccion','dirección','domicilio']),estado:field(row,['estado'])||'Activo',planId:planId(field(row,['plan'])),fechaAlta:field(row,['fecha alta','alta'])||(previous&&previous.fechaAlta)||new Date().toISOString().slice(0,10),observaciones:field(row,['observaciones','notas']),paymentStatus:field(row,['estado de pago','estado pago'])||(previous&&previous.paymentStatus)||'Pendiente',createdAt:(previous&&previous.createdAt)||stamp,updatedAt:stamp};
+        if(byId.has(client.id)||(dni&&byDni.has(dni))||byName.has(nameKey)){errors.push('CLIENTES fila '+(index+1)+': alumno duplicado.');return;}
+        clients.push(client);byId.set(client.id,client);if(dni)byDni.set(dni,client);byName.set(nameKey,client);
+      });
+      var classes=[];classRows.forEach(function(row,index){var dia=field(row,['dia','día']),hora=time(field(row,['hora','horario']));if(!dia||!hora){errors.push('CLASES fila '+(index+1)+': día u hora inválidos.');return;}var names=split(field(row,['alumnos','clientes','alumnas'])),students=names.map(function(v){return studentId(v,byId,byDni,byName);});if(names.length!==students.filter(Boolean).length){errors.push('CLASES fila '+(index+1)+': contiene alumnas que no existen en CLIENTES.');return;}students=Array.from(new Set(students));var cap=Number(field(row,['cupo','cupo maximo']))||8;if(students.length>cap){errors.push('CLASES fila '+(index+1)+': supera el cupo.');return;}classes.push({id:field(row,['id','id app','id clase'])||id('class',dia+'|'+hora+'|'+index),dia:dia,hora:hora,personalId:field(row,['personal id','profesor id']),clientesIds:students,cupoMaximo:cap,estado:field(row,['estado'])||'Activa',observaciones:field(row,['observaciones','notas']),createdAt:stamp,updatedAt:stamp});});
+      var payments=[];paymentRows.forEach(function(row,index){var who=field(row,['cliente','alumno','alumna','paciente']),cid=studentId(who,byId,byDni,byName);if(!cid){errors.push('PAGOS fila '+(index+1)+': alumno inexistente en CLIENTES.');return;}var amount=Number(field(row,['monto','importe','valor']).replace(/[^0-9,.-]/g,'').replace(',','.'));if(!Number.isFinite(amount)){errors.push('PAGOS fila '+(index+1)+': monto inválido.');return;}payments.push({id:field(row,['id','id app','id pago'])||id('payment',cid+'|'+field(row,['mes abonado','mes'])+'|'+index),clienteId:cid,planId:planId(field(row,['plan'])),monto:amount,fechaPago:field(row,['fecha pago','fecha de pago','fecha']),mesAbonado:field(row,['mes abonado','mes']),medioPago:field(row,['medio pago','medio de pago','metodo','método']),estado:field(row,['estado'])||'Pendiente',observaciones:field(row,['observaciones','notas']),createdAt:stamp,updatedAt:stamp});});
+      if(errors.length)throw new Error(errors.slice(0,8).join(' ')+(errors.length>8?' Hay '+errors.length+' errores en total.':''));
+      db.clients=clients;db.classes=classes;db.payments=payments;db.plans=plans;db.schedules=classes.flatMap(function(c){return c.clientesIds.map(function(cid){return {id:'schedule_'+c.id+'_'+cid,claseId:c.id,clienteId:cid,personalId:c.personalId,dia:c.dia,horario:c.hora,estado:c.estado==='Activa'?'Activo':'Cancelado',createdAt:stamp,updatedAt:stamp};});});
+      await saveDB();render();toast('Importación completa: '+clients.length+' clientes, '+classes.length+' clases y '+payments.length+' pagos.');
+    }catch(error){console.error('Importación Excel',error);toast('No se importó ningún dato. '+error.message);}
+  };
+  window.renderImportar=function(){return '<div class="module-toolbar"><div class="toolbar-title"><b>Importar Excel</b></div><div class="toolbar-actions"><button class="btn btn-primary" onclick="openWorkbookImport()">Importar archivo Excel</button></div></div><section class="card p-5"><h3 class="nih-section-title">Base individual</h3><p class="nih-muted">El archivo debe contener las pestañas CLIENTES, CLASES y PAGOS. La importación valida todo antes de actualizar la aplicación. Si existe un error, no se modifica ningún dato.</p><div class="mt-4 grid gap-3 md:grid-cols-3"><div class="rounded-xl border border-[#DED6C8] p-3"><b>CLIENTES</b><div class="mt-1 text-sm">Apellido, Nombre o DNI</div></div><div class="rounded-xl border border-[#DED6C8] p-3"><b>CLASES</b><div class="mt-1 text-sm">Día, Hora, Alumnos, Cupo</div></div><div class="rounded-xl border border-[#DED6C8] p-3"><b>PAGOS</b><div class="mt-1 text-sm">Cliente, Monto, Fecha, Estado</div></div></div></section>';};
+})();
+</script>
 </body>
 </html>
