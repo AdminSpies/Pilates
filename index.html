@@ -4540,11 +4540,11 @@ function planSearchText(p){return [p.nombre,p.clasesSemanales,p.precio,p.estado,
 function classSearchText(cl){return [cl.dia,cl.hora,userName(cl.personalId),cl.estado,cl.observaciones,(cl.clientesIds||[]).map(clientName).join(' ')].join(' ')}
 function scheduleSearchText(s){return [clientName(s.clienteId),userName(s.personalId),s.dia,s.horario,s.estado,s.claseId].join(' ')}
 function paymentSearchText(p){return [clientName(p.clienteId),getPlan(p.planId)?.nombre,p.monto,p.fechaPago,p.mesAbonado,p.medioPago,p.estado,p.observaciones].join(' ')}
-function moduleToolbar(module,extra='',placeholder){const key=moduleKey(module),value=getModuleSearch(module),ph=placeholder||moduleSearchPlaceholders[module]||'Buscar';return `<div class="module-toolbar"><div class="search-box"><span class="icon">⌕</span><input value="${escapeAttr(value)}" placeholder="${escapeAttr(ph)}" oninput="setModuleSearch('${key}',this.value)">${value?`<button type="button" class="btn btn-soft clear-search" onclick="clearModuleSearch('${key}')" aria-label="Limpiar búsqueda">×</button>`:''}</div>${extra?`<div class="toolbar-actions">${extra}</div>`:''}</div>`}
+function moduleToolbar(module,extra='',placeholder){const key=moduleKey(module),value=getModuleSearch(module),ph=placeholder||moduleSearchPlaceholders[module]||'Buscar';return `<div class="module-toolbar"><div class="search-box"><span class="icon">⌕</span><input value="${escapeAttr(value)}" placeholder="${escapeAttr(ph)}" oninput="setModuleSearch('${key}',this.value)">${value?`<button type="button" class="btn btn-secondary clear-search" onclick="clearModuleSearch('${key}')" aria-label="Limpiar búsqueda">×</button>`:''}</div>${extra?`<div class="toolbar-actions">${extra}</div>`:''}</div>`}
 function controls(module,extra=''){return moduleToolbar(module,extra)}
 function noResults(){return '<div class="empty-state">No se encontraron resultados.</div>'}
 function responsiveList(headers,rows,cards){if(!rows.length)return noResults();return `<div class="desktop-table"><table class="table"><thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div><div class="mobile-card space-y-3">${cards.join('')}</div>`}
-function renderDashboard(){const q=getModuleSearch('dashboard');const activeClients=db.clients.filter(c=>c.estado==='Activo').length;const activeUsers=db.users.filter(u=>u.estado==='Activo').length;const todayName=new Date().toLocaleDateString('es-AR',{weekday:'long'}).replace(/^./,m=>m.toUpperCase());const visible=visibleClasses().filter(c=>c.estado==='Activa');const dayClasses=visible.filter(c=>c.dia===todayName);const pending=db.payments.filter(p=>p.estado==='Pendiente').length;const overdue=db.payments.filter(p=>p.estado==='Vencido').length;const pendingAmount=db.payments.filter(p=>p.estado==='Pendiente').reduce((a,p)=>a+Number(p.monto),0);const overdueAmount=db.payments.filter(p=>p.estado==='Vencido').reduce((a,p)=>a+Number(p.monto),0);const monthIncome=db.payments.filter(p=>p.estado==='Pagado'&&p.mesAbonado===monthKey()).reduce((a,p)=>a+Number(p.monto),0);const totalSlots=visible.length*MAX_CUPO;const occupied=visible.reduce((a,c)=>a+(c.clientesIds||[]).length,0);const occupancyPct=totalSlots?Math.round((occupied/totalSlots)*100):0;const cuposAll=visible.reduce((a,c)=>a+(MAX_CUPO-(c.clientesIds||[]).length),0);const dashMatches=[...visible.filter(c=>includesSearch(classSearchText(c),q)).slice(0,5).map(c=>`Clase ${c.dia} ${c.hora} - ${userName(c.personalId)}`),...db.clients.filter(c=>includesSearch(clientSearchText(c),q)).slice(0,5).map(c=>`Cliente ${c.nombre} ${c.apellido}`),...db.payments.filter(p=>includesSearch(paymentSearchText(p),q)).slice(0,5).map(p=>`Pago ${clientName(p.clienteId)} - ${p.estado}`)];return `${moduleToolbar('dashboard')}${q?`<section class="card p-5 mb-4"><h3 class="panel-title">Resultados del dashboard</h3>${dashMatches.length?`<div class="mt-3 grid gap-2 md:grid-cols-2">${dashMatches.map(x=>`<div class="rounded-2xl border border-[#DED6C8] bg-[#F7F4EF] p-3 text-sm font-bold">${x}</div>`).join('')}</div>`:noResults()}</section>`:''}<div class="metric-grid">${stat('Clientes activos',activeClients,'Activos en el sistema','ok')}${stat('Personal activo',activeUsers,'Usuarios habilitados','ok')}${stat('Clases de hoy',dayClasses.length,'Agenda del día','ok')}${canViewPayments()?stat('Pagos pendientes',pending,money(pendingAmount),'warn'):''}${canViewPayments()?stat('Pagos vencidos',overdue,money(overdueAmount),'danger'):''}${canViewPayments()?stat('Ingresos del mes',money(monthIncome),'Pagos registrados','ok'):''}${stat('Horarios completos',occupancyPct+'%','de ocupación','gold')}${stat('Cupos disponibles',cuposAll,'sobre cupo máximo 8','ok')}</div><section class="card quickbar mt-4"><h3 class="panel-title">Accesos rápidos</h3><div class="quick-grid">${isGeneral()?'<button onclick="newClient()" class="btn btn-soft">Nuevo cliente</button><button onclick="newPayment()" class="btn btn-soft">Nuevo pago</button><button onclick="newClass()" class="btn btn-soft">Nueva clase</button><button onclick="newUser()" class="btn btn-soft">Nuevo personal</button>':'<button onclick="go(\'clases\')" class="btn btn-soft">Mis clases</button>'}<button onclick="go('agenda')" class="btn btn-soft">Ver horarios</button>${canViewPayments()?'<button onclick="filters.estado=\'Pendiente\';go(\'pagos\')" class="btn btn-soft">Ver pagos pendientes</button>':''}</div></section><div class="dashboard-grid mt-4"><section class="card dash-panel"><div class="flex items-center justify-between gap-3"><h3 class="panel-title">Agenda semanal</h3><button onclick="go('agenda')" class="btn btn-soft !w-auto !py-2">Ver agenda completa</button></div>${agendaMini()}</section><section class="card dash-panel"><div class="flex items-center justify-between gap-3"><h3 class="panel-title">Pagos recientes</h3><button onclick="go('pagos')" class="btn btn-soft !w-auto !py-2">Ver todos</button></div>${paymentsMini()}</section></div><div class="dash-lower"><section class="card dash-panel"><h3 class="panel-title">Clases y ocupación</h3>${occupationMini()}</section><section class="card dash-panel"><h3 class="panel-title">Clientes destacados</h3>${clientsMini()}</section><section class="card dash-panel"><h3 class="panel-title">Permisos y roles</h3>${rolesMini()}</section></div>`}
+function renderDashboard(){const q=getModuleSearch('dashboard');const activeClients=db.clients.filter(c=>c.estado==='Activo').length;const activeUsers=db.users.filter(u=>u.estado==='Activo').length;const todayName=new Date().toLocaleDateString('es-AR',{weekday:'long'}).replace(/^./,m=>m.toUpperCase());const visible=visibleClasses().filter(c=>c.estado==='Activa');const dayClasses=visible.filter(c=>c.dia===todayName);const pending=db.payments.filter(p=>p.estado==='Pendiente').length;const overdue=db.payments.filter(p=>p.estado==='Vencido').length;const pendingAmount=db.payments.filter(p=>p.estado==='Pendiente').reduce((a,p)=>a+Number(p.monto),0);const overdueAmount=db.payments.filter(p=>p.estado==='Vencido').reduce((a,p)=>a+Number(p.monto),0);const monthIncome=db.payments.filter(p=>p.estado==='Pagado'&&p.mesAbonado===monthKey()).reduce((a,p)=>a+Number(p.monto),0);const totalSlots=visible.length*MAX_CUPO;const occupied=visible.reduce((a,c)=>a+(c.clientesIds||[]).length,0);const occupancyPct=totalSlots?Math.round((occupied/totalSlots)*100):0;const cuposAll=visible.reduce((a,c)=>a+(MAX_CUPO-(c.clientesIds||[]).length),0);const dashMatches=[...visible.filter(c=>includesSearch(classSearchText(c),q)).slice(0,5).map(c=>`Clase ${c.dia} ${c.hora} - ${userName(c.personalId)}`),...db.clients.filter(c=>includesSearch(clientSearchText(c),q)).slice(0,5).map(c=>`Cliente ${c.nombre} ${c.apellido}`),...db.payments.filter(p=>includesSearch(paymentSearchText(p),q)).slice(0,5).map(p=>`Pago ${clientName(p.clienteId)} - ${p.estado}`)];return `${moduleToolbar('dashboard')}${q?`<section class="card p-5 mb-4"><h3 class="panel-title">Resultados del dashboard</h3>${dashMatches.length?`<div class="mt-3 grid gap-2 md:grid-cols-2">${dashMatches.map(x=>`<div class="rounded-2xl border border-[#DED6C8] bg-[#F7F4EF] p-3 text-sm font-bold">${x}</div>`).join('')}</div>`:noResults()}</section>`:''}<div class="metric-grid">${stat('Clientes activos',activeClients,'Activos en el sistema','ok')}${stat('Personal activo',activeUsers,'Usuarios habilitados','ok')}${stat('Clases de hoy',dayClasses.length,'Agenda del día','ok')}${canViewPayments()?stat('Pagos pendientes',pending,money(pendingAmount),'warn'):''}${canViewPayments()?stat('Pagos vencidos',overdue,money(overdueAmount),'danger'):''}${canViewPayments()?stat('Ingresos del mes',money(monthIncome),'Pagos registrados','ok'):''}${stat('Horarios completos',occupancyPct+'%','de ocupación','gold')}${stat('Cupos disponibles',cuposAll,'sobre cupo máximo 8','ok')}</div><section class="card quickbar mt-4"><h3 class="panel-title">Accesos rápidos</h3><div class="quick-grid">${isGeneral()?'<button onclick="newClient()" class="btn btn-secondary">Nuevo cliente</button><button onclick="newPayment()" class="btn btn-secondary">Nuevo pago</button><button onclick="newClass()" class="btn btn-secondary">Nueva clase</button><button onclick="newUser()" class="btn btn-secondary">Nuevo personal</button>':'<button onclick="go(\'clases\')" class="btn btn-secondary">Mis clases</button>'}<button onclick="go('agenda')" class="btn btn-secondary">Ver horarios</button>${canViewPayments()?'<button onclick="filters.estado=\'Pendiente\';go(\'pagos\')" class="btn btn-secondary">Ver pagos pendientes</button>':''}</div></section><div class="dashboard-grid mt-4"><section class="card dash-panel"><div class="flex items-center justify-between gap-3"><h3 class="panel-title">Agenda semanal</h3><button onclick="go('agenda')" class="btn btn-soft !w-auto !py-2">Ver agenda completa</button></div>${agendaMini()}</section><section class="card dash-panel"><div class="flex items-center justify-between gap-3"><h3 class="panel-title">Pagos recientes</h3><button onclick="go('pagos')" class="btn btn-soft !w-auto !py-2">Ver todos</button></div>${paymentsMini()}</section></div><div class="dash-lower"><section class="card dash-panel"><h3 class="panel-title">Clases y ocupación</h3>${occupationMini()}</section><section class="card dash-panel"><h3 class="panel-title">Clientes destacados</h3>${clientsMini()}</section><section class="card dash-panel"><h3 class="panel-title">Permisos y roles</h3>${rolesMini()}</section></div>`}
 function renderClientes(){const q=getModuleSearch('clientes'),estado=filters.estado||'',plan=filters.plan||'';let list=visibleClients().filter(c=>includesSearch(clientSearchText(c),q)).filter(c=>!estado||c.estado===estado).filter(c=>!plan||c.planId===plan);const extra=`<select class="input" onchange="filters.estado=this.value;render()"><option value="">Estado</option><option ${selected(estado,'Activo')}>Activo</option><option ${selected(estado,'Inactivo')}>Inactivo</option></select><select class="input" onchange="filters.plan=this.value;render()"><option value="">Plan</option>${db.plans.map(p=>`<option value="${p.id}" ${selected(plan,p.id)}>${p.nombre}</option>`).join('')}</select>${isGeneral()?'<button onclick="newClient()" class="btn btn-primary">Nuevo</button>':''}`;return moduleToolbar('clientes',extra)+responsiveList(['Cliente','DNI','Plan','Estado','Pago','Acciones'],list.map(c=>[`${c.nombre} ${c.apellido}`,c.dni,getPlan(c.planId)?.nombre||'-',statusBadge(c.estado),paymentSummary(c.id),clientActions(c)]),list.map(c=>mobileClient(c)))}
 function renderPersonal(){if(!isGeneral())return denied();const q=getModuleSearch('personal'),rol=filters.rol||'',estado=filters.estado||'';let list=db.users.filter(u=>includesSearch(userSearchText(u),q)).filter(u=>!rol||u.rol===rol).filter(u=>!estado||u.estado===estado);const extra=`<select class="input" onchange="filters.rol=this.value;render()"><option value="">Rol</option><option value="general" ${selected(rol,'general')}>Administrador general</option><option value="parcial" ${selected(rol,'parcial')}>Administrador parcial</option></select><select class="input" onchange="filters.estado=this.value;render()"><option value="">Estado</option><option ${selected(estado,'Activo')}>Activo</option><option ${selected(estado,'Inactivo')}>Inactivo</option></select><button onclick="newUser()" class="btn btn-primary">Nuevo</button>`;return moduleToolbar('personal',extra)+responsiveList(['Personal','DNI','Usuario','Rol','Estado','Acciones'],list.map(u=>[`${u.nombre} ${u.apellido}`,u.dni,u.usuario,u.rol==='general'?'General':'Parcial',statusBadge(u.estado),personalActions(u)]),list.map(u=>`<div class="card p-4"><b>${u.nombre} ${u.apellido}</b><div class="text-sm font-semibold text-[#7d7466]">${u.rol==='general'?'Administrador general':'Administrador parcial'} · DNI ${u.dni}</div><div class="mt-2">${statusBadge(u.estado)}</div><div class="mt-3">${personalActions(u)}</div></div>`))}
 function renderPlanes(){if(!isGeneral())return denied();const q=getModuleSearch('planes');const list=db.plans.filter(p=>includesSearch(planSearchText(p),q));return moduleToolbar('planes','<button onclick="newPlan()" class="btn btn-primary">Nuevo</button>')+responsiveList(['Plan','Clases semanales','Precio','Estado','Descripción','Acciones'],list.map(p=>[p.nombre,p.clasesSemanales,money(p.precio),statusBadge(p.estado),p.descripcion||'-',planActions(p)]),list.map(p=>`<div class="card p-4"><b>${p.nombre}</b><div class="text-sm font-semibold text-[#7d7466]">${p.clasesSemanales} clase/s semanal/es · ${money(p.precio)}</div><div class="mt-2">${statusBadge(p.estado)}</div><div class="mt-3">${planActions(p)}</div></div>`))}
@@ -4592,7 +4592,7 @@ function getClassesGroupedByDate(){const grouped={};getWeekDays(agendaState.curr
 function getAgendaSummaryByDay(group){const classes=group.classes;const students=classes.reduce((a,c)=>a+(c.clientesIds||[]).length,0);const free=classes.reduce((a,c)=>a+Math.max(0,MAX_CUPO-(c.clientesIds||[]).length),0);return `${classes.length} clases · ${students} alumnas · ${free} cupos disponibles`}
 function getCurrentClassStatus(){return getClassesForSelectedWeek().filter(c=>isClassInProgress(c,c.agendaDate))}
 function toggleAgendaDay(dateKeyValue){agendaExpandedDays[dateKeyValue]=!agendaExpandedDays[dateKeyValue];render()}
-function renderAgendaControls(){const months=Array.from({length:12},(_,i)=>new Intl.DateTimeFormat('es-AR',{month:'long'}).format(new Date(2026,i,1)).replace(/^./,m=>m.toUpperCase()));const yearNow=new Date().getFullYear();const years=Array.from({length:9},(_,i)=>yearNow-4+i);return `<div class="agenda-controls"><button class="btn btn-soft" onclick="changeAgendaWeek(-1)">← Semana anterior</button><select class="input" onchange="setAgendaMonth(this.value)">${months.map((m,i)=>`<option value="${i}" ${Number(agendaState.selectedMonth)===i?'selected':''}>${m}</option>`).join('')}</select><select class="input" onchange="setAgendaYear(this.value)">${years.map(y=>`<option value="${y}" ${Number(agendaState.selectedYear)===y?'selected':''}>${y}</option>`).join('')}</select><button class="btn btn-soft" onclick="goToToday()">Hoy</button><button class="btn btn-soft" onclick="changeAgendaWeek(1)">Semana siguiente →</button></div>`}
+function renderAgendaControls(){const months=Array.from({length:12},(_,i)=>new Intl.DateTimeFormat('es-AR',{month:'long'}).format(new Date(2026,i,1)).replace(/^./,m=>m.toUpperCase()));const yearNow=new Date().getFullYear();const years=Array.from({length:9},(_,i)=>yearNow-4+i);return `<div class="agenda-controls"><button class="btn btn-secondary" onclick="changeAgendaWeek(-1)">← Semana anterior</button><select class="input" onchange="setAgendaMonth(this.value)">${months.map((m,i)=>`<option value="${i}" ${Number(agendaState.selectedMonth)===i?'selected':''}>${m}</option>`).join('')}</select><select class="input" onchange="setAgendaYear(this.value)">${years.map(y=>`<option value="${y}" ${Number(agendaState.selectedYear)===y?'selected':''}>${y}</option>`).join('')}</select><button class="btn btn-secondary" onclick="goToToday()">Hoy</button><button class="btn btn-secondary" onclick="changeAgendaWeek(1)">Semana siguiente →</button></div>`}
 function renderAgendaFilters(){const prof=filters.agendaProf||'',estado=filters.agendaEstado||'',cliente=filters.agendaCliente||'',dia=filters.agendaDay||'',availability=filters.agendaAvailability||'';return `<div class="agenda-filters"><select class="input" onchange="filters.agendaProf=this.value;render()"><option value="">Profesor</option>${db.users.filter(u=>u.estado==='Activo').map(u=>`<option value="${u.id}" ${selected(prof,u.id)}>${u.nombre} ${u.apellido}</option>`).join('')}</select><select class="input" onchange="filters.agendaEstado=this.value;render()"><option value="">Estado</option>${['Activa','En curso','Completa','Cancelada','Finalizada'].map(s=>`<option ${selected(estado,s)}>${s}</option>`).join('')}</select><select class="input" onchange="filters.agendaCliente=this.value;render()"><option value="">Cliente</option>${visibleClients().map(c=>`<option value="${c.id}" ${selected(cliente,c.id)}>${c.nombre} ${c.apellido}</option>`).join('')}</select><select class="input" onchange="filters.agendaDay=this.value;render()"><option value="">Día</option>${days.map(d=>`<option ${selected(dia,d)}>${d}</option>`).join('')}</select><select class="input" onchange="filters.agendaAvailability=this.value;render()"><option value="">Cupo / estado rápido</option><option value="available" ${selected(availability,'available')}>Solo con cupo disponible</option><option value="full" ${selected(availability,'full')}>Solo completas</option><option value="progress" ${selected(availability,'progress')}>Solo en curso</option></select></div>`}
 function renderAgendaClassCard(item,compact=false){const status=getClassStatusForDate(item,item.agendaDate);return `<div class="agenda-class-card" onclick="viewClass('${item.id}')"><div class="agenda-class-main"><div class="agenda-class-title">${item.hora} · ${userName(item.personalId)} · ${(item.clientesIds||[]).length}/${MAX_CUPO}</div><div class="flex flex-wrap gap-2">${statusBadge(status)}${cupoBadge(item)}</div></div>${compact?'':`<div class="agenda-class-meta">${(item.clientesIds||[]).map(clientName).join(', ')||'Sin alumnas'}</div>`}</div>`}
 function renderAgendaDayBlock(group,compact=false){const key=dateKey(group.date);if(agendaExpandedDays[key]===undefined)agendaExpandedDays[key]=sameCalendarDate(group.date,new Date());const open=!!agendaExpandedDays[key];return `<section class="agenda-day-block"><button class="agenda-day-header" onclick="toggleAgendaDay('${key}')"><div><div class="agenda-day-title"><span class="agenda-arrow">${open?'⌄':'›'}</span><span>${formatAgendaDate(group.date)}</span></div><div class="agenda-day-summary">${getAgendaSummaryByDay(group)}</div></div>${group.classes.some(c=>isClassInProgress(c,c.agendaDate))?statusBadge('En curso'):''}</button>${open?`<div class="agenda-day-content">${group.classes.length?group.classes.map(c=>renderAgendaClassCard(c,compact)).join(''):noResults()}</div>`:''}</section>`}
@@ -5190,7 +5190,7 @@ Para mayor seguridad, completar Firebase Authentication, reglas por rol y valida
     const buttons = ids.map(function(id){
       const p = arr('payments').find(x=>x.id===id);
       const c = getPaymentClient(p);
-      return '<button type="button" class="btn btn-soft" onclick="openPaymentWhatsAppReminderById(\''+a(id)+'\')">'+h(clientFullName(c))+' - '+h(p.estado)+' - '+h(safeMoney(p.monto))+'</button>';
+      return '<button type="button" class="btn btn-secondary" onclick="openPaymentWhatsAppReminderById(\''+a(id)+'\')">'+h(clientFullName(c))+' - '+h(p.estado)+' - '+h(safeMoney(p.monto))+'</button>';
     }).join('');
     showModal('Avisos por WhatsApp','Abrilos uno por uno para evitar bloqueos del navegador','<div class="grid gap-2">'+buttons+'</div>');
   };
@@ -5218,7 +5218,7 @@ Para mayor seguridad, completar Firebase Authentication, reglas por rol y valida
         '<select class="input" name="clienteId" onchange="filters.payClient=this.value;filters.clienteId=this.value;render()"><option value="">Cliente</option>'+arr('clients').map(c=>'<option value="'+a(c.id)+'" '+(filters.payClient===c.id?'selected':'')+'>'+h(clientFullName(c))+'</option>').join('')+'</select>'+
         '<input class="input" type="number" min="0" placeholder="Monto minimo" value="'+a(filters.payMin||'')+'" oninput="filters.payMin=this.value;render()">'+
         '<input class="input" type="number" min="0" placeholder="Monto maximo" value="'+a(filters.payMax||'')+'" oninput="filters.payMax=this.value;render()">'+
-        '<button type="button" class="btn btn-soft" onclick="clearFilters()">Limpiar</button>'+
+        '<button type="button" class="btn btn-secondary" onclick="clearFilters()">Limpiar</button>'+
         '<button type="button" class="btn btn-primary" onclick="avisarSeleccionadosPorWhatsApp()">Avisar seleccionados por WhatsApp</button>'+
         (typeof isGeneral==='function' && isGeneral()?'<button onclick="newPayment()" class="btn btn-primary">Nuevo</button>':'')+
         '</div>';
@@ -5251,7 +5251,7 @@ Para mayor seguridad, completar Firebase Authentication, reglas por rol y valida
         '<select class="input" onchange="filters.clientEstado=this.value;render()"><option value="">Todos</option><option '+(filters.clientEstado==='Activo'?'selected':'')+'>Activo</option><option '+(filters.clientEstado==='Inactivo'?'selected':'')+'>Inactivo</option></select>'+
         '<select class="input" onchange="filters.clientDebt=this.value;render()"><option value="">Pagos</option><option value="pending" '+(filters.clientDebt==='pending'?'selected':'')+'>Con pagos pendientes</option><option value="overdue" '+(filters.clientDebt==='overdue'?'selected':'')+'>Con pagos vencidos</option></select>'+
         '<select class="input" onchange="filters.clientPlan=this.value;render()"><option value="">Plan</option>'+arr('plans').map(p=>'<option value="'+a(p.id)+'" '+(filters.clientPlan===p.id?'selected':'')+'>'+h(p.nombre)+'</option>').join('')+'</select>'+
-        '<button type="button" class="btn btn-soft" onclick="clearFilters()">Limpiar</button>'+
+        '<button type="button" class="btn btn-secondary" onclick="clearFilters()">Limpiar</button>'+
         (typeof isGeneral==='function' && isGeneral()?'<button onclick="newClient()" class="btn btn-primary">Nuevo</button>':'')+
         '</div>';
       const list = filterClients();
@@ -5284,7 +5284,7 @@ Para mayor seguridad, completar Firebase Authentication, reglas por rol y valida
     const agendaDate = date || cl.agendaDate || getClassDateForWeek(cl,getStartOfWeek(agendaDateFromSelected()));
     return '<article class="agenda-class-card '+status.className+'" onclick="viewClass(\''+a(cl.id)+'\')">'+
       '<div class="agenda-class-main"><div><div class="agenda-class-title">'+h(cl.hora||'')+' · '+h(userName(cl.personalId))+'</div><div class="agenda-class-meta">'+h((cl.clientesIds||[]).map(clientName).join(', ')||'Sin alumnas')+'</div></div><div class="flex flex-wrap gap-2">'+statusBadge(status.label)+cupoBadge(cl)+'</div></div>'+
-      '<div class="agenda-class-actions" onclick="event.stopPropagation()"><button class="btn btn-soft" onclick="viewClass(\''+a(cl.id)+'\')">Ver detalle</button>'+(canEdit('classes',cl)?'<button class="btn btn-soft" onclick="editClass(\''+a(cl.id)+'\')">Editar</button><button class="btn btn-soft" onclick="duplicateClass(\''+a(cl.id)+'\')">Duplicar clase</button><button class="btn btn-soft" onclick="openRepeatClassWeekly(\''+a(cl.id)+'\')">Repetir semanalmente</button><button class="btn btn-soft" onclick="markClassComplete(\''+a(cl.id)+'\')">Marcar completa</button>':'')+(canDelete('classes',cl)?'<button class="btn btn-delete btn-small" onclick="deleteClass(\''+a(cl.id)+'\')">Eliminar</button>':'')+'</div>'+
+      '<div class="agenda-class-actions" onclick="event.stopPropagation()"><button class="btn btn-secondary" onclick="viewClass(\''+a(cl.id)+'\')">Ver detalle</button>'+(canEdit('classes',cl)?'<button class="btn btn-secondary" onclick="editClass(\''+a(cl.id)+'\')">Editar</button><button class="btn btn-secondary" onclick="duplicateClass(\''+a(cl.id)+'\')">Duplicar clase</button><button class="btn btn-secondary" onclick="openRepeatClassWeekly(\''+a(cl.id)+'\')">Repetir semanalmente</button><button class="btn btn-secondary" onclick="markClassComplete(\''+a(cl.id)+'\')">Marcar completa</button>':'')+(canDelete('classes',cl)?'<button class="btn btn-delete btn-small" onclick="deleteClass(\''+a(cl.id)+'\')">Eliminar</button>':'')+'</div>'+
       '</article>';
   }
   window.renderDayView = function(){
@@ -5316,7 +5316,7 @@ Para mayor seguridad, completar Firebase Authentication, reglas por rol y valida
   if(baseRenderAgenda){
     renderAgenda = function(){
       const mode = agendaState.viewMode || 'week';
-      const controls = '<div class="agenda-view-toolbar"><button class="btn btn-soft" onclick="goToToday()">Hoy</button><button class="btn btn-soft" onclick="changeAgendaDate(-1)">Anterior</button><button class="btn btn-soft" onclick="changeAgendaDate(1)">Siguiente</button><select class="input" onchange="setAgendaMonth(this.value)">'+Array.from({length:12},(_,i)=>'<option value="'+i+'" '+(Number(agendaState.selectedMonth)===i?'selected':'')+'>'+h(new Intl.DateTimeFormat('es-AR',{month:'long'}).format(new Date(2026,i,1)).replace(/^./,m=>m.toUpperCase()))+'</option>').join('')+'</select><select class="input" onchange="setAgendaYear(this.value)">'+Array.from({length:9},(_,i)=>new Date().getFullYear()-4+i).map(y=>'<option value="'+y+'" '+(Number(agendaState.selectedYear)===y?'selected':'')+'>'+y+'</option>').join('')+'</select><div class="agenda-view-tabs"><button class="'+(mode==='day'?'active':'')+'" onclick="setAgendaView(\'day\')">Dia</button><button class="'+(mode==='week'?'active':'')+'" onclick="setAgendaView(\'week\')">Semana</button><button class="'+(mode==='month'?'active':'')+'" onclick="setAgendaView(\'month\')">Mes</button></div></div>';
+      const controls = '<div class="agenda-view-toolbar"><button class="btn btn-secondary" onclick="goToToday()">Hoy</button><button class="btn btn-secondary" onclick="changeAgendaDate(-1)">Anterior</button><button class="btn btn-secondary" onclick="changeAgendaDate(1)">Siguiente</button><select class="input" onchange="setAgendaMonth(this.value)">'+Array.from({length:12},(_,i)=>'<option value="'+i+'" '+(Number(agendaState.selectedMonth)===i?'selected':'')+'>'+h(new Intl.DateTimeFormat('es-AR',{month:'long'}).format(new Date(2026,i,1)).replace(/^./,m=>m.toUpperCase()))+'</option>').join('')+'</select><select class="input" onchange="setAgendaYear(this.value)">'+Array.from({length:9},(_,i)=>new Date().getFullYear()-4+i).map(y=>'<option value="'+y+'" '+(Number(agendaState.selectedYear)===y?'selected':'')+'>'+y+'</option>').join('')+'</select><div class="agenda-view-tabs"><button class="'+(mode==='day'?'active':'')+'" onclick="setAgendaView(\'day\')">Dia</button><button class="'+(mode==='week'?'active':'')+'" onclick="setAgendaView(\'week\')">Semana</button><button class="'+(mode==='month'?'active':'')+'" onclick="setAgendaView(\'month\')">Mes</button></div></div>';
       return moduleToolbar('agenda',controls)+renderAgendaFilters()+renderAgendaView();
     };
   }
@@ -6454,7 +6454,7 @@ window.openSelectedWhatsAppReminders = avisarSeleccionadosPorWhatsApp;
   function scheduleEditor(c){
     const rows = cleanScheduleDaysForClient(c || {},db);
     if(!rows.length) rows.push({day:'Lunes',time:'17:00',teacherId:''});
-    return '<div class="nih-schedule-editor" id="scheduleRows">'+rows.map(scheduleRow).join('')+'</div><button type="button" class="btn btn-soft mt-3" onclick="addScheduleRow()">Agregar dia y horario</button>';
+    return '<div class="nih-schedule-editor" id="scheduleRows">'+rows.map(scheduleRow).join('')+'</div><button type="button" class="btn btn-secondary mt-3" onclick="addScheduleRow()">Agregar dia y horario</button>';
   }
   function scheduleRow(item){
     return '<div class="nih-schedule-row">'+
@@ -6639,7 +6639,7 @@ window.openSelectedWhatsAppReminders = avisarSeleccionadosPorWhatsApp;
       const teacherId = slot.clientTeacher[c.id] || slot.teacherId || '';
       const initials = fullName(c).split(' ').filter(Boolean).slice(0,2).map(part=>part[0]).join('').toUpperCase() || 'NP';
       const attendanceText = att ? att.status : 'Sin marcar';
-      return '<div class="nih-student-row"><div class="nih-student-avatar">'+esc(initials)+'</div><div class="nih-student-main"><b>'+esc(fullName(c))+'</b><div class="nih-student-plan">'+esc(clientPlan(c)?.nombre || '-')+'</div><div class="nih-student-meta"><span>Pago: <strong>'+esc(c.paymentStatus || quickPaymentStatus(c,db))+'</strong></span><span>Asistencia: <strong>'+esc(attendanceText)+'</strong></span></div></div><div class="nih-student-status">'+status(attendanceText)+'</div><div class="nih-inline-actions"><button class="btn btn-primary !w-auto" onclick="markAttendance(\''+attr(selectedDate)+'\',\''+attr(slot.day)+'\',\''+attr(time)+'\',\''+attr(c.id)+'\',\'Presente\',\''+attr(teacherId || '')+'\')">Presente</button><button class="btn btn-soft !w-auto" onclick="markAttendance(\''+attr(selectedDate)+'\',\''+attr(slot.day)+'\',\''+attr(time)+'\',\''+attr(c.id)+'\',\'Ausente\',\''+attr(teacherId || '')+'\')">Ausente</button><button class="btn btn-gold !w-auto" onclick="openPaymentReportForm(\''+attr(c.id)+'\',\''+attr(selectedDate)+'\',\''+attr(slot.day)+'\',\''+attr(time)+'\',\''+attr(teacherId || '')+'\')">Pago informado</button><button class="btn btn-soft !w-auto nih-details-btn" onclick="viewClient(\''+attr(c.id)+'\')">Ver detalles</button></div></div>';
+      return '<div class="nih-student-row"><div class="nih-student-avatar">'+esc(initials)+'</div><div class="nih-student-main"><b>'+esc(fullName(c))+'</b><div class="nih-student-plan">'+esc(clientPlan(c)?.nombre || '-')+'</div><div class="nih-student-meta"><span>Pago: <strong>'+esc(c.paymentStatus || quickPaymentStatus(c,db))+'</strong></span><span>Asistencia: <strong>'+esc(attendanceText)+'</strong></span></div></div><div class="nih-student-status">'+status(attendanceText)+'</div><div class="nih-inline-actions"><button class="btn btn-primary !w-auto" onclick="markAttendance(\''+attr(selectedDate)+'\',\''+attr(slot.day)+'\',\''+attr(time)+'\',\''+attr(c.id)+'\',\'Presente\',\''+attr(teacherId || '')+'\')">Presente</button><button class="btn btn-secondary !w-auto" onclick="markAttendance(\''+attr(selectedDate)+'\',\''+attr(slot.day)+'\',\''+attr(time)+'\',\''+attr(c.id)+'\',\'Ausente\',\''+attr(teacherId || '')+'\')">Ausente</button><button class="btn btn-gold !w-auto" onclick="openPaymentReportForm(\''+attr(c.id)+'\',\''+attr(selectedDate)+'\',\''+attr(slot.day)+'\',\''+attr(time)+'\',\''+attr(teacherId || '')+'\')">Pago informado</button><button class="btn btn-soft !w-auto nih-details-btn" onclick="viewClient(\''+attr(c.id)+'\')">Ver detalles</button></div></div>';
     }).join('');
     showModal('Detalle de clase',slot.day+' '+selectedDate+' - '+time+' - '+(slot.teacherName || 'Sin profesora'),'<div class="grid gap-3">'+(rows || 'Sin alumnas asignadas')+'</div>');
   };
@@ -6803,8 +6803,8 @@ window.openSelectedWhatsAppReminders = avisarSeleccionadosPorWhatsApp;
     const data = PILATES_EXCEL_IMPORT_DATA || {};
     const preview = excelImportPreview;
     const summary = preview ? [['Clientes nuevos',preview.clientsCreated],['Clases nuevas',preview.classesCreated],['Asignaciones nuevas',preview.schedulesCreated],['Duplicados evitados',preview.duplicatesAvoided]] : [['Clientes actuales',getArr('clients').length],['Pagos actuales',getArr('payments').length],['Asistencias',getArr('attendance').length],['Pagos informados',getArr('paymentReports').length]];
-    return toolbar('importar','<button class="btn btn-primary" onclick="previewExcelImport()">Vista previa</button><button class="btn btn-gold" onclick="confirmExcelImport()">Confirmar importacion</button><button class="btn btn-soft" onclick="exportCurrentDatabaseXlsx()">Exportar Excel .xlsx</button>','Buscar importacion')+
-      '<section class="card p-5"><h3 class="nih-section-title">Importar base y exportar</h3><p class="nih-muted">La importacion se guarda en Firestore y la exportacion toma la base sincronizada actual.</p><div class="mt-4 grid gap-3 md:grid-cols-4">'+summary.map(x=>'<div class="rounded-xl border border-[#DED6C8] p-3"><b>'+esc(x[0])+'</b><div class="text-2xl font-black">'+esc(x[1])+'</div></div>').join('')+'</div><div class="nih-export-actions"><button class="btn btn-primary" onclick="previewExcelImport()">Vista previa PILATES.xlsx</button><button class="btn btn-gold" onclick="confirmExcelImport()" '+(preview?'':'disabled style="opacity:.45"')+'>Guardar importacion</button><button class="btn btn-soft" onclick="exportCurrentDatabaseXlsx()">Exportar base actual</button></div></section>';
+    return toolbar('importar','<button class="btn btn-primary" onclick="previewExcelImport()">Vista previa</button><button class="btn btn-gold" onclick="confirmExcelImport()">Confirmar importacion</button><button class="btn btn-secondary" onclick="exportCurrentDatabaseXlsx()">Exportar Excel .xlsx</button>','Buscar importacion')+
+      '<section class="card p-5"><h3 class="nih-section-title">Importar base y exportar</h3><p class="nih-muted">La importacion se guarda en Firestore y la exportacion toma la base sincronizada actual.</p><div class="mt-4 grid gap-3 md:grid-cols-4">'+summary.map(x=>'<div class="rounded-xl border border-[#DED6C8] p-3"><b>'+esc(x[0])+'</b><div class="text-2xl font-black">'+esc(x[1])+'</div></div>').join('')+'</div><div class="nih-export-actions"><button class="btn btn-primary" onclick="previewExcelImport()">Vista previa PILATES.xlsx</button><button class="btn btn-gold" onclick="confirmExcelImport()" '+(preview?'':'disabled style="opacity:.45"')+'>Guardar importacion</button><button class="btn btn-secondary" onclick="exportCurrentDatabaseXlsx()">Exportar base actual</button></div></section>';
   };
 
   async function latestDBForExport(){
@@ -10519,16 +10519,8 @@ const STORAGE_KEY = 'nihuenPilatesDB-clean-20260815';
   };
   window.renderImportar = function(){
     var total=Array.isArray(db && db.clients)?db.clients.length:0;
-    var totalClases=Array.isArray(db && db.classes)?db.classes.length:0;
-    var totalPagos=Array.isArray(db && db.payments)?db.payments.length:0;
-    return '<div class="module-toolbar"><div class="toolbar-title"><b>Sincronización de datos</b></div><div class="toolbar-actions"><button class="btn btn-primary" onclick="forceGoogleSheetsSync()">Sincronizar todo</button></div></div>'+
-      '<section class="card p-5"><h3 class="nih-section-title">Google Sheets conectado</h3><p class="nih-muted">Elegí qué hoja traer desde Google Sheets, o sincronizá todo junto. Esta acción reemplaza los datos visibles de la aplicación por la versión más reciente de la hoja seleccionada.</p>'+
-      '<div class="mt-4 grid gap-3 md:grid-cols-3">'+
-        '<div class="rounded-xl border border-[#DED6C8] p-3"><b>Alumnos</b><div class="text-2xl font-black">'+total+'</div><button class="btn btn-soft mt-3 w-full" onclick="syncGoogleSheetsScope(\'alumnos\')">Sincronizar Alumnos</button></div>'+
-        '<div class="rounded-xl border border-[#DED6C8] p-3"><b>Clases</b><div class="text-2xl font-black">'+totalClases+'</div><button class="btn btn-soft mt-3 w-full" onclick="syncGoogleSheetsScope(\'clases\')">Sincronizar Clases</button></div>'+
-        '<div class="rounded-xl border border-[#DED6C8] p-3"><b>Pagos</b><div class="text-2xl font-black">'+totalPagos+'</div><button class="btn btn-soft mt-3 w-full" onclick="syncGoogleSheetsScope(\'pagos\')">Sincronizar Pagos</button></div>'+
-      '</div>'+
-      '<p class="nih-muted mt-4">Los cambios hechos en la aplicación se envían automáticamente a Google Sheets. Los botones solo fuerzan una actualización inmediata desde la hoja elegida. La app también revisa Google Sheets automáticamente cada 15 segundos.</p></section>';
+    return '<div class="module-toolbar"><div class="toolbar-title"><b>Sincronización de datos</b></div><div class="toolbar-actions"><button class="btn btn-primary" onclick="forceGoogleSheetsSync()">Sincronizar ahora</button></div></div>'+
+      '<section class="card p-5"><h3 class="nih-section-title">Google Sheets conectado</h3><p class="nih-muted">Esta acción consulta inmediatamente la base `BASE_PILATES` de Google Sheets y reemplaza los datos visibles de la aplicación por la versión más reciente de la hoja.</p><div class="mt-4 grid gap-3 md:grid-cols-3"><div class="rounded-xl border border-[#DED6C8] p-3"><b>Pacientes actuales</b><div class="text-2xl font-black">'+total+'</div></div><div class="rounded-xl border border-[#DED6C8] p-3"><b>Origen</b><div class="text-xl font-black">Google Sheets</div></div><div class="rounded-xl border border-[#DED6C8] p-3"><b>Modo</b><div class="text-xl font-black">Sincronización manual</div></div></div><p class="nih-muted mt-4">Los cambios hechos en la aplicación se envían automáticamente a Google Sheets. El botón solo fuerza una actualización inmediata desde la hoja.</p></section>';
   };
   window.applyClientesExcelSeed = async function(){ if(typeof toast==='function') toast('La restauración automática está desactivada. Usá Cargar Excel o CSV para incorporar datos.'); };
   window.overwriteEmbeddedClientesExcel = function(){ if(typeof exportCurrentDatabaseXlsx==='function') exportCurrentDatabaseXlsx(); };
@@ -11235,8 +11227,7 @@ window.NIHUEN_GOOGLE_SHEETS = {
   var timer = null;
   function enabled(){ return Boolean(config && config.webAppUrl && config.token); }
   function status(message){ var el=document.getElementById('syncStatus'); if(el) el.textContent=message; }
-  var SCOPE_LABELS={alumnos:'Alumnos',clases:'Clases',pagos:'Pagos'};
-  function readRequest(scope){
+  function readRequest(){
     if(!enabled()) return Promise.resolve(null);
     return new Promise(function(resolve,reject){
       var callback='NIHUEN_SHEETS_CB_'+Date.now()+'_'+Math.random().toString(36).slice(2);
@@ -11245,9 +11236,7 @@ window.NIHUEN_GOOGLE_SHEETS = {
       var timeout=setTimeout(function(){ clean(); reject(new Error('Google Sheets no respondió')); },12000);
       window[callback]=function(result){ clearTimeout(timeout); clean(); resolve(result); };
       script.onerror=function(){ clearTimeout(timeout); clean(); reject(new Error('No se pudo leer Google Sheets')); };
-      var url=config.webAppUrl+(config.webAppUrl.indexOf('?')===-1?'?':'&')+'action=read&token='+encodeURIComponent(config.token)+'&prefix='+callback;
-      if(scope) url+='&scope='+encodeURIComponent(scope);
-      script.src=url;
+      script.src=config.webAppUrl+(config.webAppUrl.indexOf('?')===-1?'?':'&')+'action=read&token='+encodeURIComponent(config.token)+'&prefix='+callback;
       document.head.appendChild(script);
     }).then(function(result){ if(!result || !result.ok) throw new Error(result && result.error || 'Respuesta inválida'); return result; });
   }
@@ -11278,28 +11267,6 @@ window.NIHUEN_GOOGLE_SHEETS = {
       return true;
     }).catch(function(error){ console.error('Google Sheets read error',error); status('Google Sheets no disponible: se mantiene la copia local'); return false; });
   }
-  /* Sincronización selectiva: trae solo la porción elegida (alumnos/clases/pagos)
-     y la combina con el resto del estado local, sin pisar lo que no corresponde. */
-  function pullScope(scope){
-    if(!enabled()) return Promise.resolve(false);
-    var label=SCOPE_LABELS[scope]||scope;
-    status('Leyendo '+label+' desde Google Sheets...');
-    return readRequest(scope).then(function(result){
-      if(!result.payload){ status('Google Sheets conectado: '+label+' vacío'); return false; }
-      writing=true;
-      var incoming=result.payload;
-      var base=(typeof db==='object'&&db)?db:{};
-      var merged=Object.assign({},base);
-      Object.keys(incoming).forEach(function(key){ if(incoming[key]!==undefined) merged[key]=incoming[key]; });
-      db=window.normalizeDB ? window.normalizeDB(merged) : merged;
-      if(typeof window.saveLocal==='function') window.saveLocal();
-      if(typeof inheritedSave==='function') Promise.resolve(inheritedSave()).catch(function(error){ console.error('Firebase refresh after Sheets pull error',error); });
-      writing=false;
-      if(currentUser && typeof window.render==='function') window.render();
-      status('Google Sheets conectado: '+label+' actualizado');
-      return true;
-    }).catch(function(error){ console.error('Google Sheets scoped read error',error); status('Google Sheets no disponible: se mantiene la copia local'); return false; });
-  }
   function push(){
     if(!enabled() || writing || typeof db==='undefined') return Promise.resolve(false);
     return writeRequest(db).then(function(){ status('Google Sheets conectado: cambios enviados'); return true; })
@@ -11324,16 +11291,102 @@ window.NIHUEN_GOOGLE_SHEETS = {
       return updated;
     });
   };
-  window.syncGoogleSheetsScope=function(scope){
-    var label=SCOPE_LABELS[scope]||scope;
-    return pullScope(scope).then(function(updated){
-      if(typeof toast==='function') toast(updated ? label+' sincronizado desde Google Sheets.' : 'No se encontraron datos de '+label+' en Google Sheets.');
-      return updated;
-    });
-  };
   window.addEventListener('online',function(){ pull(); });
   setTimeout(pull,900);
   setInterval(pull,15000);
+})();
+</script>
+<script>
+/* NIHuen Backup V2: única sincronización activa (Apps Script + BASE_PILATES). */
+(function(){
+  'use strict';
+  var CONFIG={
+    url:'https://script.google.com/macros/s/AKfycbyxWCpFw75396rOuqJrWjatS8uyveGiuagKsOB1oVCoV1m3Z2npWulLgn474PDuIZOD/exec',
+    token:'nihuen_pilates_sync_2026_8f4m2x9k', cacheKey:'nihuenPilatesBackupV2'
+  };
+  var ADMIN_HASH='240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9';
+  var revision=0, hydrated=false, writing=false, timer=null;
+
+  /* Desactiva las capas heredadas: no se mezcla Firebase ni el sincronizador anterior. */
+  if(window.NIHUEN_GOOGLE_SHEETS){ window.NIHUEN_GOOGLE_SHEETS.webAppUrl=''; window.NIHUEN_GOOGLE_SHEETS.token=''; }
+  try{ if(typeof window.unsubscribeRealtime==='function') window.unsubscribeRealtime(); }catch(_e){}
+  window.firebaseOnline=false; window.firestore=null;
+  window.subscribeRealtime=window.initFirebaseRealtime=function(){ return Promise.resolve(false); };
+
+  function iso(){ return new Date().toISOString(); }
+  function clone(value){ return JSON.parse(JSON.stringify(value)); }
+  function validTime(value){ var m=String(value||'').trim().match(/^(\d{1,2}):(\d{2})$/); if(!m) return ''; var h=Number(m[1]), n=Number(m[2]); return h<24&&n<60?String(h).padStart(2,'0')+':'+String(n).padStart(2,'0'):''; }
+  function list(value){ return Array.isArray(value)?value:[]; }
+  function admin(){ return {id:'admin_general',nombre:'Admin',apellido:'General',usuario:'admin',passwordHash:ADMIN_HASH,rol:'general',estado:'Activo',createdAt:iso(),updatedAt:iso()}; }
+  function normalize(input){
+    var base=(input&&typeof input==='object'&&!Array.isArray(input))?clone(input):{};
+    ['users','clients','plans','classes','payments','schedules','attendance','paymentReports','deletedRecords'].forEach(function(key){base[key]=list(base[key]);});
+    base.settings=base.settings&&typeof base.settings==='object'?base.settings:{};
+    base.users=base.users.filter(function(item){return item&&item.id;});
+    var a=base.users.find(function(item){return item.usuario==='admin';});
+    if(a){ if(!a.passwordHash) a.passwordHash=ADMIN_HASH; if(!a.rol) a.rol='general'; if(!a.estado) a.estado='Activo'; }
+    else base.users.unshift(admin());
+    var seenClients={};
+    base.clients=base.clients.filter(function(item){ if(!item||!item.id||seenClients[item.id]) return false; seenClients[item.id]=true; item.estado=item.estado||'Activo'; return true; });
+    var clientIds={}; base.clients.forEach(function(item){clientIds[item.id]=true;});
+    var seenClasses={};
+    base.classes=base.classes.filter(function(item){
+      if(!item||!item.id||seenClasses[item.id]||!item.dia) return false;
+      item.hora=validTime(item.hora); if(!item.hora) return false;
+      seenClasses[item.id]=true; item.clientesIds=Array.from(new Set(list(item.clientesIds).filter(function(id){return clientIds[id];})));
+      item.cupoMaximo=Number(item.cupoMaximo)||8; item.estado=item.estado||'Activa'; return true;
+    });
+    base.payments=base.payments.filter(function(item){return item&&item.id&&(!item.clienteId||clientIds[item.clienteId]);}).map(function(item){ item.monto=Number(item.monto)||0; item.estado=item.estado||'Pendiente'; return item; });
+    base.schedules=base.classes.flatMap(function(cl){ return cl.clientesIds.map(function(cid){return {id:'schedule_'+cl.id+'_'+cid,claseId:cl.id,clienteId:cid,personalId:cl.personalId||'',dia:cl.dia,horario:cl.hora,estado:cl.estado==='Activa'?'Activo':'Cancelado',createdAt:cl.createdAt||iso(),updatedAt:cl.updatedAt||iso()};}); });
+    base.backupMeta=Object.assign({},base.backupMeta||{}, {schema:'nihuen-backup-v2'});
+    return base;
+  }
+  function cache(payload){ try{localStorage.setItem(CONFIG.cacheKey,JSON.stringify({revision:revision,payload:payload}));}catch(error){console.warn('No se pudo guardar la copia local',error);} }
+  function cached(){ try{var item=JSON.parse(localStorage.getItem(CONFIG.cacheKey)||'null'); if(item&&item.payload){revision=Number(item.revision)||0; return normalize(item.payload);}}catch(_e){} return null; }
+  function status(message){ var el=document.getElementById('syncStatus'); if(el) el.textContent=message; }
+  function render(){ if(typeof currentUser!=='undefined'&&currentUser&&typeof window.render==='function') window.render(); }
+  function read(){
+    return new Promise(function(resolve,reject){
+      var callback='NIHUEN_BACKUP_CB_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+      var node=document.createElement('script'), done=false;
+      function finish(error,result){if(done)return;done=true;clearTimeout(timeout);delete window[callback];node.remove();error?reject(error):resolve(result);}
+      var timeout=setTimeout(function(){finish(new Error('Google Sheets no respondió'));},15000);
+      window[callback]=function(result){finish(null,result);}; node.onerror=function(){finish(new Error('No se pudo leer el backup'));};
+      node.src=CONFIG.url+'?action=read&token='+encodeURIComponent(CONFIG.token)+'&prefix='+callback+'&_='+Date.now(); document.head.appendChild(node);
+    }).then(function(result){if(!result||!result.ok)throw new Error((result&&result.error)||'Respuesta inválida');return result;});
+  }
+  function post(payload){
+    var frame=document.getElementById('nihuenBackupPostFrame');
+    if(!frame){frame=document.createElement('iframe');frame.id='nihuenBackupPostFrame';frame.name='nihuenBackupPostFrame';frame.hidden=true;document.body.appendChild(frame);}
+    var form=document.createElement('form');form.method='post';form.action=CONFIG.url;form.target=frame.name;form.style.display='none';
+    [['action','write'],['token',CONFIG.token],['baseRevision',String(revision)],['payload',JSON.stringify(payload)]].forEach(function(pair){var input=document.createElement('input');input.name=pair[0];input.value=pair[1];form.appendChild(input);});
+    document.body.appendChild(form);form.submit();form.remove();
+  }
+  function pull(silent){
+    status('Verificando copia de seguridad...');
+    return read().then(function(result){
+      hydrated=true; revision=Number(result.revision)||0;
+      if(result.payload){ window.db=db=normalize(result.payload); cache(db); render(); status('Backup actualizado: '+db.clients.length+' alumnos, '+db.classes.length+' clases y '+db.payments.length+' pagos.'); return true; }
+      status('Backup conectado y aún vacío.'); return false;
+    }).catch(function(error){console.error('Error leyendo backup',error); status('Sin conexión al backup: se conserva la copia local.'); if(!silent&&typeof window.toast==='function') window.toast('No se pudo leer Google Sheets.'); return false;});
+  }
+  function queueWrite(){
+    if(!hydrated||writing||typeof db==='undefined') return;
+    clearTimeout(timer); timer=setTimeout(function(){
+      writing=true; var snapshot=normalize(db); cache(snapshot); post(snapshot);
+      /* El POST cross-origin no expone la respuesta. Se avanza la revisión de forma
+         optimista y nunca se relee enseguida (eso podía sobrescribir un cambio que
+         Apps Script aún estaba guardando). El botón Sincronizar es la lectura segura. */
+      revision+=1; cache(snapshot); writing=false; status('Respaldo enviado a Google Sheets.');
+    },700);
+  }
+  var initial=cached(); if(initial){window.db=db=initial;}
+  window.saveLocal=function(){ if(typeof db!=='undefined') cache(normalize(db)); };
+  window.saveDB=saveDB=function(){ if(typeof db==='undefined')return Promise.resolve(false); db=window.db=normalize(db); cache(db); queueWrite(); return Promise.resolve(true); };
+  window.syncGoogleSheetsNow=function(){return pull(false);};
+  window.forceGoogleSheetsSync=function(){return pull(false).then(function(ok){if(typeof window.toast==='function')window.toast(ok?'Datos restaurados desde el backup.':'El backup está conectado pero no contiene datos.');return ok;});};
+  window.addEventListener('online',function(){pull(true);});
+  setTimeout(function(){pull(true);},200);
 })();
 </script>
 </body>
