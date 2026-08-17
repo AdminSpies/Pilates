@@ -11644,5 +11644,59 @@ window.NIHUEN_GOOGLE_SHEETS = {
   window.renderImportar=function(){var synced=(db.settings||{}).lastWorkbookSyncAt?new Date(db.settings.lastWorkbookSyncAt).toLocaleString('es-AR'):'Sin sincronizar';return '<div class="module-toolbar"><div class="toolbar-title"><b>Sincronización con Excel</b></div><div class="toolbar-actions"><button class="btn btn-primary" onclick="openWorkbookImport()">Actualizar desde Excel</button></div></div><section class="card p-5"><h3 class="nih-section-title">Excel como única fuente de datos</h3><p class="nih-muted">El botón reemplaza los clientes, clases, alumnas por clase, profesoras y pagos por lo que esté escrito en el archivo seleccionado. No conserva ni agrega alumnos, clases, profesoras o pagos predeterminados.</p><div class="mt-4 grid gap-3 md:grid-cols-3"><div class="rounded-xl border border-[#DED6C8] p-3"><b>Pestañas requeridas</b><div class="mt-1 text-sm">CLIENTES, CLASES y PAGOS</div></div><div class="rounded-xl border border-[#DED6C8] p-3"><b>Vínculo de clases</b><div class="mt-1 text-sm">CLASES → columna Alumnos</div></div><div class="rounded-xl border border-[#DED6C8] p-3"><b>Última sincronización</b><div class="mt-1 text-sm">'+synced+'</div></div></div></section>';};
 })();
 </script>
+<script>
+/* PROFESORAS_DESDE_EXCEL_2026_08_17: la pestaña PERSONAL se carga desde PROFESORAS. */
+(function(){
+  'use strict';
+  var previousImport=window.importWorkbook;
+  function clean(v){return String(v==null?'':v).trim();}
+  function norm(v){return clean(v).toLocaleLowerCase('es-AR').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,' ').replace(/\s+/g,' ').trim();}
+  function fullKey(name){return norm(name).split(' ').filter(Boolean).sort().join(' ');}
+  function field(row,names){for(var i=0;i<names.length;i++){var h=Object.keys(row||{}).find(function(x){return norm(x)===norm(names[i]);});if(h!==undefined)return clean(row[h]);}return '';}
+  function sheetRows(book,name){
+    var actual=book.SheetNames.find(function(x){return norm(x)===norm(name);});if(!actual)throw new Error('Falta la pestaña PROFESORAS.');
+    var matrix=XLSX.utils.sheet_to_json(book.Sheets[actual],{header:1,defval:'',raw:false}), header=-1;
+    for(var i=0;i<Math.min(12,matrix.length);i++){var h=matrix[i].map(norm);if(h.indexOf('usuario')>=0&&h.indexOf('clave')>=0&&h.indexOf('rol')>=0){header=i;break;}}
+    if(header<0)throw new Error('PROFESORAS debe incluir Nombre, Apellido, Usuario, Clave y Rol.');
+    var headers=matrix[header].map(clean);return matrix.slice(header+1).filter(function(r){return r.some(function(v){return clean(v);});}).map(function(r){var o={};headers.forEach(function(h,i){if(h)o[h]=r[i];});return o;});
+  }
+  function title(v){return clean(v).toLocaleLowerCase('es-AR').replace(/(^|\s)\S/g,function(x){return x.toLocaleUpperCase('es-AR');});}
+  function role(v){return norm(v).indexOf('general')>=0?'general':'parcial';}
+  window.importWorkbook=async function(file){
+    if(!window.XLSX)return toast('No se pudo cargar el lector de Excel.');
+    try{
+      var book=XLSX.read(await file.arrayBuffer(),{type:'array'}), source=sheetRows(book,'PROFESORAS'), stamp=typeof now==='function'?now():new Date().toISOString(), users=[], byName=new Map(), byUser=new Set(), errors=[];
+      for(var i=0;i<source.length;i++){
+        var row=source[i], first=field(row,['Nombre','Nombres']), last=field(row,['Apellido','Apellidos']), user=field(row,['Usuario']), password=field(row,['Clave','Contraseña','Contrasena']), userRole=field(row,['Rol']), name=fullKey(last+' '+first);
+        if(!first||!last||!user||!password||!userRole){errors.push('PROFESORAS fila '+(i+2)+': faltan datos obligatorios.');continue;}
+        if(byName.has(name)||byUser.has(norm(user))){errors.push('PROFESORAS fila '+(i+2)+': profesora o usuario duplicado.');continue;}
+        var item={id:'user_'+norm(user).replace(/\s+/g,'_'),nombre:title(first),apellido:title(last),dni:'',fechaNacimiento:'',direccion:'',telefono:'',titulos:'',usuario:user,passwordHash:await sha256Hex(password),rol:role(userRole),estado:'Activo',horariosAsignados:[],createdAt:stamp,updatedAt:stamp,importSource:'Excel PROFESORAS'};
+        users.push(item);byName.set(name,item);byUser.add(norm(user));
+      }
+      var classesSheet=book.SheetNames.find(function(x){return norm(x)==='clases';});
+      if(!classesSheet)errors.push('Falta la pestaña CLASES.');
+      else{
+        var classMatrix=XLSX.utils.sheet_to_json(book.Sheets[classesSheet],{header:1,defval:'',raw:false}), classHeader=-1;
+        for(var j=0;j<Math.min(12,classMatrix.length);j++){var heads=classMatrix[j].map(norm);if(heads.indexOf('dia')>=0&&heads.indexOf('hora')>=0){classHeader=j;break;}}
+        if(classHeader<0)errors.push('CLASES no contiene sus encabezados.');
+        else{var names=classMatrix[classHeader].map(clean);classMatrix.slice(classHeader+1).filter(function(r){return r.some(function(v){return clean(v);});}).forEach(function(values,index){var row={};names.forEach(function(h,n){if(h)row[h]=values[n];});var classTeacher=field(row,['Profesora','Profesor','Personal']);if(classTeacher&&!['sin asignar','sin personal','sin profesora','-'].includes(norm(classTeacher))&&!byName.has(fullKey(classTeacher)))errors.push('CLASES fila '+(index+classHeader+2)+': profesora inexistente en PROFESORAS.');});}
+      }
+      if(errors.length)throw new Error(errors.join(' '));
+      await previousImport(file);
+      /* Solo continúa si la importación principal fue válida. Las clases se reasignan
+         a los IDs provenientes de PROFESORAS, no a personal generado por defecto. */
+      var importedUsers=Array.isArray(db.users)?db.users:[], priorById=new Map(importedUsers.map(function(u){return [u.id,fullKey((u.apellido||'')+' '+(u.nombre||''))];}));
+      var unmatched=[];
+      (db.classes||[]).forEach(function(cl){var key=priorById.get(cl.personalId)||'';if(!key){cl.personalId='';return;}var teacher=byName.get(key);if(!teacher)unmatched.push((cl.dia||'')+' '+(cl.hora||'')+' ('+key+')');else cl.personalId=teacher.id;});
+      if(unmatched.length)throw new Error('CLASES tiene profesoras que no existen en PROFESORAS: '+unmatched.join(', ')+'.');
+      db.users=users;
+      if(typeof syncClassesAndSchedules==='function')syncClassesAndSchedules(db);
+      await saveDB();if(typeof render==='function')render();toast('Excel sincronizado: Personal actualizado con '+users.length+' profesoras.');
+    }catch(error){console.error('Importación de profesoras',error);toast('No se actualizó ningún dato. '+error.message);}
+  };
+  var oldRender=window.renderImportar;
+  window.renderImportar=function(){var base=oldRender();return base.replace('CLIENTES, CLASES y PAGOS','CLIENTES, CLASES, PAGOS y PROFESORAS').replace('Pestañas requeridas','Pestañas requeridas');};
+})();
+</script>
 </body>
 </html>
