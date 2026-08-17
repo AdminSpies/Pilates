@@ -11659,12 +11659,21 @@ window.NIHUEN_GOOGLE_SHEETS = {
       });
       var payments=[];
       sourcePayments.forEach(function(row,index){
-        var who=field(row,['Cliente','Alumno','Alumna','Paciente']), amountText=field(row,['Monto','Importe','Valor']);
+        /* La hoja PAGOS puede contener subtotales o un TOTAL al final. Esas
+           filas son fórmulas de resumen, no pagos; antes abortaban toda la
+           sincronización porque no correspondían a un alumno. */
+        var who=field(row,['Cliente','Alumno','Alumna','Paciente']), amountText=field(row,['Monto','Importe','Valor']), rowLabel=norm(who);
+        if(['total','subtotal','totales','resumen'].indexOf(rowLabel)>=0)return;
         if(!who&&!amountText)return;
         var client=clientsByDni.get(trim(who))||clientsByName.get(nameKey(who)), amount=money(amountText);
         if(!client){errors.push('PAGOS fila '+(index+2)+': alumno inexistente en CLIENTES.');return;}
         if(!Number.isFinite(amount)){errors.push('PAGOS fila '+(index+2)+': monto inválido.');return;}
-        payments.push({id:makeId('payment',client.id+' '+field(row,['Mes abonado','Mes'])+' '+index,index+1),clienteId:client.id,planId:planId(field(row,['Plan']))||client.planId,monto:amount,fechaPago:date(field(row,['Fecha','Fecha de pago','Fecha pago'])),mesAbonado:field(row,['Mes abonado','Mes']),medioPago:field(row,['Método','Metodo','Medio','Medio de pago'])||'',estado:field(row,['Estado'])||'Pendiente',observaciones:field(row,['Observaciones','Notas']),createdAt:stamp,updatedAt:stamp,importSource:'Excel'});
+        var paidDate=date(field(row,['Fecha','Fecha de pago','Fecha pago'])), paidMonth=field(row,['Mes abonado','Mes']);
+        /* Cuando la fecha viene como dd/mm/aaaa, se guarda además el mes
+           técnico yyyy-mm para que el filtro mensual nunca pierda registros. */
+        var dm=paidDate.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        if(dm)paidMonth=dm[3]+'-'+String(Number(dm[2])).padStart(2,'0');
+        payments.push({id:makeId('payment',client.id+' '+paidMonth+' '+paidDate+' '+index,index+1),clienteId:client.id,planId:planId(field(row,['Plan']))||client.planId,monto:amount,fechaPago:paidDate,mesAbonado:paidMonth,medioPago:field(row,['Método','Metodo','Medio','Medio de pago'])||'',estado:field(row,['Estado'])||'Pendiente',observaciones:field(row,['Observaciones','Notas']),createdAt:stamp,updatedAt:stamp,importSource:'Excel'});
       });
       if(errors.length)throw new Error(errors.slice(0,7).join(' ')+(errors.length>7?' Hay '+errors.length+' errores en total.':''));
       var schedules=classes.flatMap(function(cl){return cl.clientesIds.map(function(id){return {id:'schedule_'+cl.id+'_'+id,claseId:cl.id,clienteId:id,personalId:cl.personalId,dia:cl.dia,horario:cl.hora,estado:cl.estado==='Activa'?'Activo':'Cancelado',createdAt:stamp,updatedAt:stamp};});});
@@ -12041,7 +12050,14 @@ body,.app-shell,.main{font-family:Montserrat,Inter,Arial,sans-serif!important;co
   function paymentMonth(payment){
     var date=String(payment.fechaPago||'').trim();
     if(/^\d{4}-\d{2}/.test(date))return date.slice(0,7);
-    return String(payment.mesAbonado||'').slice(0,7);
+    var latinDate=date.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if(latinDate)return latinDate[3]+'-'+String(Number(latinDate[2])).padStart(2,'0');
+    var month=String(payment.mesAbonado||'').trim();
+    if(/^\d{4}-\d{2}/.test(month))return month.slice(0,7);
+    var names={enero:'01',febrero:'02',marzo:'03',abril:'04',mayo:'05',junio:'06',julio:'07',agosto:'08',septiembre:'09',setiembre:'09',octubre:'10',noviembre:'11',diciembre:'12'};
+    var normalized=month.toLocaleLowerCase('es-AR').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+    var year=(date.match(/(20\d{2})/)||month.match(/(20\d{2})/)||[])[1];
+    return year&&names[normalized]?year+'-'+names[normalized]:month.slice(0,7);
   }
   function fullDate(value){
     var raw=String(value||'').trim();
