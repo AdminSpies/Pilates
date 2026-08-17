@@ -11447,5 +11447,202 @@ window.NIHUEN_GOOGLE_SHEETS = {
   window.renderImportar=function(){return '<div class="module-toolbar"><div class="toolbar-title"><b>Importar Excel</b></div><div class="toolbar-actions"><button class="btn btn-primary" onclick="openWorkbookImport()">Importar archivo Excel</button></div></div><section class="card p-5"><h3 class="nih-section-title">Base individual</h3><p class="nih-muted">El archivo debe contener las pestañas CLIENTES, CLASES y PAGOS. La importación valida todo antes de actualizar la aplicación. Si existe un error, no se modifica ningún dato.</p><div class="mt-4 grid gap-3 md:grid-cols-3"><div class="rounded-xl border border-[#DED6C8] p-3"><b>CLIENTES</b><div class="mt-1 text-sm">Apellido, Nombre o DNI</div></div><div class="rounded-xl border border-[#DED6C8] p-3"><b>CLASES</b><div class="mt-1 text-sm">Día, Hora, Alumnos, Cupo</div></div><div class="rounded-xl border border-[#DED6C8] p-3"><b>PAGOS</b><div class="mt-1 text-sm">Cliente, Monto, Fecha, Estado</div></div></div></section>';};
 })();
 </script>
+<script>
+/* SINCRONIZACION_XLSX_CLASES_Y_CLIENTES_2026_08_17
+   Esta es la capa final de importacion. Un archivo actualiza CLIENTES y CLASES
+   de manera atomica: los nombres de la columna Alumnos se transforman en los
+   mismos IDs de CLIENTES y se generan los horarios derivados. */
+(function(){
+  'use strict';
+  function clean(value){ return String(value == null ? '' : value).trim(); }
+  function normal(value){ return clean(value).toLocaleLowerCase('es-AR').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,' ').replace(/\s+/g,' ').trim(); }
+  function nameKey(value){ return normal(value).split(' ').filter(Boolean).sort().join(' '); }
+  function display(value){ return clean(value).toLocaleLowerCase('es-AR').replace(/(^|\s)\S/g,function(letter){ return letter.toLocaleUpperCase('es-AR'); }); }
+  function uidFor(prefix,value,index){ return prefix+'_'+normal(value).replace(/\s+/g,'_').slice(0,64)+'_'+index; }
+  function day(value){ var map={lunes:'Lunes',martes:'Martes',miercoles:'Miércoles',jueves:'Jueves',viernes:'Viernes',sabado:'Sábado',domingo:'Domingo'}; return map[normal(value)] || clean(value); }
+  function hour(value){
+    var text=clean(value), match=text.match(/^(\d{1,2})(?::(\d{2}))?$/);
+    if(!match) return '';
+    var h=Number(match[1]), m=Number(match[2] || 0);
+    return h < 24 && m < 60 ? String(h).padStart(2,'0')+':'+String(m).padStart(2,'0') : '';
+  }
+  function field(row,names){
+    var headers=Object.keys(row || {});
+    for(var i=0;i<names.length;i++){
+      var header=headers.find(function(item){ return normal(item)===normal(names[i]); });
+      if(header !== undefined) return clean(row[header]);
+    }
+    return '';
+  }
+  function sheetRows(book,expected,headers){
+    var actual=book.SheetNames.find(function(name){ return normal(name)===normal(expected); });
+    if(!actual) throw new Error('Falta la pestaña '+expected+'.');
+    var matrix=XLSX.utils.sheet_to_json(book.Sheets[actual],{header:1,defval:'',raw:false});
+    var headerRow=-1;
+    for(var i=0;i<Math.min(matrix.length,12);i++){
+      var rowHeaders=matrix[i].map(normal);
+      if(headers.some(function(item){ return rowHeaders.indexOf(normal(item)) !== -1; })){ headerRow=i; break; }
+    }
+    if(headerRow < 0) throw new Error('No se encontraron los encabezados requeridos en '+expected+'.');
+    var names=matrix[headerRow].map(clean);
+    return matrix.slice(headerRow+1).filter(function(values){ return values.some(function(value){ return clean(value); }); }).map(function(values){
+      var row={}; names.forEach(function(header,index){ if(header) row[header]=values[index]; }); return row;
+    });
+  }
+  function splitStudents(value){ return clean(value).split(/[,;|/\n]+/).map(clean).filter(Boolean); }
+  function splitName(value){ var parts=clean(value).split(/\s+/).filter(Boolean); return {apellido:parts.shift() || '',nombre:parts.join(' ')}; }
+  function dateValue(value,fallback){
+    var raw=clean(value); if(!raw) return fallback;
+    if(/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+    var parsed=new Date(raw); return isNaN(parsed.getTime()) ? fallback : parsed.toISOString().slice(0,10);
+  }
+  function planId(name,plans,byPlan,stamp){
+    var label=clean(name); if(!label) return '';
+    var key=normal(label), current=byPlan.get(key);
+    if(current) return current.id;
+    current={id:'plan_'+key.replace(/\s+/g,'_'),nombre:label,clasesSemanales:0,precio:0,estado:'Activo',createdAt:stamp,updatedAt:stamp};
+    plans.push(current); byPlan.set(key,current); return current.id;
+  }
+  function teacherId(name,users,stamp){
+    var full=clean(name);
+    if(!full || ['sin asignar','sin personal','sin profesora','-'].indexOf(normal(full)) !== -1) return '';
+    var key=nameKey(full), current=users.find(function(user){ return nameKey((user.apellido||'')+' '+(user.nombre||''))===key; });
+    if(current) return current.id;
+    var parts=splitName(full), id='user_'+key.replace(/\s+/g,'_');
+    users.push({id:id,apellido:display(parts.apellido),nombre:display(parts.nombre),dni:'',telefono:'',titulos:'',usuario:'prof.'+normal(full).replace(/\s+/g,'.'),passwordHash:'',rol:'parcial',estado:'Activo',horariosAsignados:[],createdAt:stamp,updatedAt:stamp,importSource:'Excel CLASES'});
+    return id;
+  }
+  function sourceMatches(current,fileName){ return current && current.settings && current.settings.lastWorkbookFile===fileName; }
+  window.openWorkbookImport=function(){
+    var input=document.createElement('input'); input.type='file'; input.accept='.xlsx,.xls'; input.hidden=true;
+    input.onchange=function(){ if(input.files && input.files[0]) window.importWorkbook(input.files[0]); input.remove(); };
+    document.body.appendChild(input); input.click();
+  };
+  window.importWorkbook=async function(file){
+    if(!window.XLSX) return toast('No se pudo cargar el lector de Excel.');
+    try{
+      var book=XLSX.read(await file.arrayBuffer(),{type:'array'});
+      var clientRows=sheetRows(book,'CLIENTES',['Apellido','Nombre','Cliente','DNI']);
+      var classRows=sheetRows(book,'CLASES',['Día','Dia','Hora','Alumnos']);
+      var stamp=typeof now==='function'?now():new Date().toISOString();
+      var today=stamp.slice(0,10), errors=[], plans=Array.isArray(db.plans)?db.plans.slice():[], users=Array.isArray(db.users)?db.users.slice():[];
+      var oldClients=Array.isArray(db.clients)?db.clients:[], oldByDni=new Map(), oldByName=new Map();
+      oldClients.forEach(function(client){ if(clean(client.dni)) oldByDni.set(clean(client.dni),client); oldByName.set(nameKey((client.apellido||'')+' '+(client.nombre||'')),client); });
+      var byPlan=new Map(plans.map(function(plan){ return [normal(plan.nombre),plan]; }));
+      var clients=[], byName=new Map(), byDni=new Map();
+      clientRows.forEach(function(row,index){
+        var apellido=field(row,['Apellido','Apellidos']), nombre=field(row,['Nombre','Nombres','Cliente','Alumno','Alumna']);
+        if(!apellido && nombre){ var pieces=splitName(nombre); apellido=pieces.apellido; nombre=pieces.nombre; }
+        var dni=field(row,['DNI','Documento','Nro documento']), complete=nameKey(apellido+' '+nombre);
+        if(!complete && !dni){ errors.push('CLIENTES fila '+(index+2)+': falta nombre o DNI.'); return; }
+        if((complete && byName.has(complete)) || (dni && byDni.has(dni))){ errors.push('CLIENTES fila '+(index+2)+': alumno duplicado.'); return; }
+        var previous=(dni && oldByDni.get(dni)) || oldByName.get(complete);
+        var client={id:(previous&&previous.id)||uidFor('client',dni||complete,index+1),apellido:display(apellido),nombre:display(nombre),dni:dni,telefono:field(row,['Teléfono','Telefono','Celular','Whatsapp']) || (previous&&previous.telefono)||'',fechaNacimiento:field(row,['Fecha de nacimiento','Fecha nacimiento']) || (previous&&previous.fechaNacimiento)||'',direccion:field(row,['Dirección','Direccion','Domicilio']) || (previous&&previous.direccion)||'',estado:field(row,['Estado']) || (previous&&previous.estado)||'Activo',planId:planId(field(row,['Plan']) || '',plans,byPlan,stamp) || (previous&&previous.planId)||'',fechaAlta:dateValue(field(row,['Fecha alta','Alta']),(previous&&previous.fechaAlta)||today),observaciones:field(row,['Observaciones','Notas']) || (previous&&previous.observaciones)||'',paymentStatus:field(row,['Estado de pago','Estado pago']) || (previous&&previous.paymentStatus)||'Pendiente',createdAt:(previous&&previous.createdAt)||stamp,updatedAt:stamp};
+        clients.push(client); if(complete) byName.set(complete,client); if(dni) byDni.set(dni,client);
+      });
+      var classes=[];
+      classRows.forEach(function(row,index){
+        var classDay=day(field(row,['Día','Dia'])), classHour=hour(field(row,['Hora','Horario']));
+        if(!classDay || !classHour){ errors.push('CLASES fila '+(index+2)+': día u hora inválidos.'); return; }
+        var listed=splitStudents(field(row,['Alumnos','Alumnas','Clientes'])), ids=[], missing=[];
+        listed.forEach(function(item){ var student=byDni.get(clean(item)) || byName.get(nameKey(item)); if(student){ if(ids.indexOf(student.id)===-1) ids.push(student.id); } else missing.push(item); });
+        if(missing.length){ errors.push('CLASES fila '+(index+2)+': no existen en CLIENTES: '+missing.join(', ')+'.'); return; }
+        var capacity=Number(field(row,['Cupo','Cupo máximo','Cupo maximo'])) || 8;
+        if(ids.length>capacity){ errors.push('CLASES fila '+(index+2)+': '+ids.length+' alumnas para un cupo de '+capacity+'.'); return; }
+        var teacher=teacherId(field(row,['Profesora','Profesor','Personal']),users,stamp);
+        classes.push({id:uidFor('class',classDay+'|'+classHour+'|'+field(row,['Profesora','Profesor','Personal']),index+1),dia:classDay,hora:classHour,personalId:teacher,clientesIds:ids,cupoMaximo:capacity,estado:field(row,['Estado de clase','Estado'])||'Activa',observaciones:field(row,['Observaciones','Notas']),createdAt:stamp,updatedAt:stamp,importSource:'Excel CLASES'});
+      });
+      if(errors.length) throw new Error(errors.slice(0,7).join(' ') + (errors.length>7?' Hay '+errors.length+' errores en total.':''));
+      var schedules=classes.flatMap(function(cl){ return cl.clientesIds.map(function(clientId){ return {id:'schedule_'+cl.id+'_'+clientId,claseId:cl.id,clienteId:clientId,personalId:cl.personalId,dia:cl.dia,horario:cl.hora,estado:cl.estado==='Activa'?'Activo':'Cancelado',createdAt:stamp,updatedAt:stamp}; }); });
+      db.clients=clients; db.classes=classes; db.schedules=schedules; db.plans=plans; db.users=users;
+      db.settings=Object.assign({},db.settings||{},{lastWorkbookFile:file.name,lastWorkbookSyncAt:stamp});
+      if(typeof syncClassesAndSchedules==='function') syncClassesAndSchedules(db);
+      await saveDB(); if(typeof render==='function') render();
+      toast('Sincronización completa: '+clients.length+' alumnos, '+classes.length+' clases y '+schedules.length+' asignaciones.');
+    }catch(error){ console.error('Sincronización de Excel',error); toast('No se actualizó ningún dato. '+error.message); }
+  };
+  window.renderImportar=function(){
+    var clients=Array.isArray(db&&db.clients)?db.clients.length:0, classes=Array.isArray(db&&db.classes)?db.classes.length:0;
+    var info=(db.settings||{}).lastWorkbookSyncAt ? new Date(db.settings.lastWorkbookSyncAt).toLocaleString('es-AR') : 'Todavía no se sincronizó un archivo';
+    return '<div class="module-toolbar"><div class="toolbar-title"><b>Sincronización con Excel</b></div><div class="toolbar-actions"><button class="btn btn-primary" onclick="openWorkbookImport()">Actualizar desde Excel</button></div></div>'+ 
+      '<section class="card p-5"><h3 class="nih-section-title">Clases y alumnos</h3><p class="nih-muted">Al tocar “Actualizar desde Excel”, seleccioná el archivo. La aplicación toma las pestañas CLIENTES y CLASES. Cada nombre de la columna Alumnos queda vinculado a ese mismo alumno de CLIENTES, por lo que aparece en Clientes, Clases y Agenda.</p>'+ 
+      '<div class="mt-4 grid gap-3 md:grid-cols-3"><div class="rounded-xl border border-[#DED6C8] p-3"><b>Alumnos en Clientes</b><div class="text-2xl font-black">'+clients+'</div></div><div class="rounded-xl border border-[#DED6C8] p-3"><b>Clases cargadas</b><div class="text-2xl font-black">'+classes+'</div></div><div class="rounded-xl border border-[#DED6C8] p-3"><b>Última sincronización</b><div class="mt-1 text-sm font-bold">'+info+'</div></div></div>'+ 
+      '<div class="mt-4 rounded-xl border border-[#DED6C8] bg-[#F7F4EF] p-3 text-sm"><b>Formato requerido:</b> CLIENTES con Apellido y Nombre; CLASES con Día, Hora y Alumnos. Profesora y Cupo se leen si existen. Si un alumno escrito en CLASES no existe en CLIENTES, no se guarda ningún cambio.</div></section>';
+  };
+})();
+</script>
+<script>
+/* EXCEL_ES_UNICA_FUENTE_2026_08_17: no fusiona ni conserva registros anteriores. */
+(function(){
+  'use strict';
+  function trim(v){return String(v==null?'':v).trim();}
+  function norm(v){return trim(v).toLocaleLowerCase('es-AR').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,' ').replace(/\s+/g,' ').trim();}
+  function nameKey(v){return norm(v).split(' ').filter(Boolean).sort().join(' ');}
+  function label(v){return trim(v).toLocaleLowerCase('es-AR').replace(/(^|\s)\S/g,function(x){return x.toLocaleUpperCase('es-AR');});}
+  function field(row,names){for(var i=0;i<names.length;i++){var h=Object.keys(row||{}).find(function(x){return norm(x)===norm(names[i]);});if(h!==undefined)return trim(row[h]);}return '';}
+  function date(v){var x=trim(v);if(!x)return '';if(/^\d{4}-\d{2}-\d{2}$/.test(x))return x;var d=new Date(x);return isNaN(d.getTime())?x:d.toISOString().slice(0,10);}
+  function money(v){var x=trim(v).replace(/\$/g,'').replace(/\s/g,'');if(!x)return NaN;if(x.indexOf(',')>-1&&x.indexOf('.')>-1)x=x.replace(/\./g,'').replace(',','.');else if(x.indexOf(',')>-1)x=x.replace(',','.');return Number(x);}
+  function rows(book,expected,required){
+    var sheetName=book.SheetNames.find(function(x){return norm(x)===norm(expected);});
+    if(!sheetName)throw new Error('Falta la pestaña '+expected+'.');
+    var table=XLSX.utils.sheet_to_json(book.Sheets[sheetName],{header:1,defval:'',raw:false}), headerIndex=-1;
+    for(var i=0;i<Math.min(12,table.length);i++){var hs=table[i].map(norm);if(required.some(function(h){return hs.indexOf(norm(h))!==-1;})){headerIndex=i;break;}}
+    if(headerIndex<0)throw new Error('No se encontraron encabezados válidos en '+expected+'.');
+    var headers=table[headerIndex].map(trim);
+    return table.slice(headerIndex+1).filter(function(r){return r.some(function(v){return trim(v);});}).map(function(r){var obj={};headers.forEach(function(h,i){if(h)obj[h]=r[i];});return obj;});
+  }
+  function split(v){return trim(v).split(/[,;|/\n]+/).map(trim).filter(Boolean);}
+  function makeId(prefix,value,index){return prefix+'_'+norm(value).replace(/\s+/g,'_').slice(0,64)+'_'+index;}
+  function parseName(last,first){if(last||first)return {apellido:label(last),nombre:label(first)};var p=trim(first).split(/\s+/);return {apellido:label(p.shift()||''),nombre:label(p.join(' '))};}
+  function day(v){return {lunes:'Lunes',martes:'Martes',miercoles:'Miércoles',jueves:'Jueves',viernes:'Viernes',sabado:'Sábado',domingo:'Domingo'}[norm(v)]||trim(v);}
+  function hour(v){var m=trim(v).match(/^(\d{1,2})(?::(\d{2}))?$/);if(!m||Number(m[1])>23||Number(m[2]||0)>59)return '';return String(Number(m[1])).padStart(2,'0')+':'+String(Number(m[2]||0)).padStart(2,'0');}
+  window.importWorkbook=async function(file){
+    if(!window.XLSX)return toast('No se pudo cargar el lector de Excel.');
+    try{
+      var book=XLSX.read(await file.arrayBuffer(),{type:'array'});
+      var sourceClients=rows(book,'CLIENTES',['Apellido','Nombre','Cliente','DNI']);
+      var sourceClasses=rows(book,'CLASES',['Día','Dia','Hora','Alumnos']);
+      var sourcePayments=rows(book,'PAGOS',['Cliente','Alumno','Monto','Importe']);
+      var stamp=typeof now==='function'?now():new Date().toISOString(), errors=[], plans=[], planMap=new Map();
+      function planId(value){var name=trim(value);if(!name)return '';var k=norm(name), p=planMap.get(k);if(!p){p={id:'plan_'+k.replace(/\s+/g,'_'),nombre:name,clasesSemanales:0,precio:0,estado:'Activo',createdAt:stamp,updatedAt:stamp};plans.push(p);planMap.set(k,p);}return p.id;}
+      var clients=[], clientsByName=new Map(), clientsByDni=new Map();
+      sourceClients.forEach(function(row,index){
+        var last=field(row,['Apellido','Apellidos']), first=field(row,['Nombre','Nombres','Cliente','Alumno','Alumna']), person=parseName(last,first), dni=field(row,['DNI','Documento','Nro documento']), k=nameKey(person.apellido+' '+person.nombre);
+        if(!k&&!dni){errors.push('CLIENTES fila '+(index+2)+': falta nombre o DNI.');return;}
+        if((k&&clientsByName.has(k))||(dni&&clientsByDni.has(dni))){errors.push('CLIENTES fila '+(index+2)+': alumno duplicado.');return;}
+        var client={id:makeId('client',dni||k,index+1),apellido:person.apellido,nombre:person.nombre,dni:dni,telefono:field(row,['Teléfono','Telefono','Celular','Whatsapp']),fechaNacimiento:date(field(row,['Fecha de nacimiento','Fecha nacimiento'])),direccion:field(row,['Dirección','Direccion','Domicilio']),estado:field(row,['Estado'])||'Activo',planId:planId(field(row,['Plan'])),fechaAlta:date(field(row,['Fecha alta','Alta']))||stamp.slice(0,10),observaciones:field(row,['Observaciones','Notas']),paymentStatus:field(row,['Estado de pago','Estado pago'])||'Pendiente',createdAt:stamp,updatedAt:stamp};
+        clients.push(client);if(k)clientsByName.set(k,client);if(dni)clientsByDni.set(dni,client);
+      });
+      var admin=(Array.isArray(db.users)?db.users:[]).find(function(user){return user.usuario==='admin';});
+      var users=admin?[admin]:[];
+      var userByName=new Map();
+      function teacher(value){var full=trim(value), k=nameKey(full);if(!full||['sin asignar','sin personal','sin profesora','-'].indexOf(norm(full))!==-1)return '';if(userByName.has(k))return userByName.get(k).id;var parts=full.split(/\s+/), user={id:makeId('user',k,users.length+1),apellido:label(parts.shift()||''),nombre:label(parts.join(' ')),dni:'',telefono:'',titulos:'',usuario:'prof.'+norm(full).replace(/\s+/g,'.'),passwordHash:'',rol:'parcial',estado:'Activo',horariosAsignados:[],createdAt:stamp,updatedAt:stamp,importSource:'Excel'};users.push(user);userByName.set(k,user);return user.id;}
+      var classes=[];
+      sourceClasses.forEach(function(row,index){
+        var classDay=day(field(row,['Día','Dia'])), classHour=hour(field(row,['Hora','Horario']));
+        if(!classDay||!classHour){errors.push('CLASES fila '+(index+2)+': día u hora inválidos.');return;}
+        var ids=[], missing=[];split(field(row,['Alumnos','Alumnas','Clientes'])).forEach(function(v){var c=clientsByDni.get(trim(v))||clientsByName.get(nameKey(v));if(!c)missing.push(v);else if(ids.indexOf(c.id)<0)ids.push(c.id);});
+        if(missing.length){errors.push('CLASES fila '+(index+2)+': alumno inexistente en CLIENTES: '+missing.join(', ')+'.');return;}
+        var capacity=Number(field(row,['Cupo','Cupo máximo','Cupo maximo']))||8;if(ids.length>capacity){errors.push('CLASES fila '+(index+2)+': supera el cupo indicado.');return;}
+        var teacherName=field(row,['Profesora','Profesor','Personal']); classes.push({id:makeId('class',classDay+' '+classHour+' '+teacherName,index+1),dia:classDay,hora:classHour,personalId:teacher(teacherName),clientesIds:ids,cupoMaximo:capacity,estado:field(row,['Estado de clase','Estado'])||'Activa',observaciones:field(row,['Observaciones','Notas']),createdAt:stamp,updatedAt:stamp,importSource:'Excel'});
+      });
+      var payments=[];
+      sourcePayments.forEach(function(row,index){
+        var who=field(row,['Cliente','Alumno','Alumna','Paciente']), amountText=field(row,['Monto','Importe','Valor']);
+        if(!who&&!amountText)return;
+        var client=clientsByDni.get(trim(who))||clientsByName.get(nameKey(who)), amount=money(amountText);
+        if(!client){errors.push('PAGOS fila '+(index+2)+': alumno inexistente en CLIENTES.');return;}
+        if(!Number.isFinite(amount)){errors.push('PAGOS fila '+(index+2)+': monto inválido.');return;}
+        payments.push({id:makeId('payment',client.id+' '+field(row,['Mes abonado','Mes'])+' '+index,index+1),clienteId:client.id,planId:planId(field(row,['Plan']))||client.planId,monto:amount,fechaPago:date(field(row,['Fecha','Fecha de pago','Fecha pago'])),mesAbonado:field(row,['Mes abonado','Mes']),medioPago:field(row,['Método','Metodo','Medio','Medio de pago'])||'',estado:field(row,['Estado'])||'Pendiente',observaciones:field(row,['Observaciones','Notas']),createdAt:stamp,updatedAt:stamp,importSource:'Excel'});
+      });
+      if(errors.length)throw new Error(errors.slice(0,7).join(' ')+(errors.length>7?' Hay '+errors.length+' errores en total.':''));
+      var schedules=classes.flatMap(function(cl){return cl.clientesIds.map(function(id){return {id:'schedule_'+cl.id+'_'+id,claseId:cl.id,clienteId:id,personalId:cl.personalId,dia:cl.dia,horario:cl.hora,estado:cl.estado==='Activa'?'Activo':'Cancelado',createdAt:stamp,updatedAt:stamp};});});
+      db.clients=clients;db.classes=classes;db.payments=payments;db.plans=plans;db.users=users;db.schedules=schedules;db.attendance=[];db.paymentReports=[];db.settings=Object.assign({},db.settings||{},{lastWorkbookFile:file.name,lastWorkbookSyncAt:stamp,excelIsSourceOfTruth:true});
+      await saveDB();if(typeof render==='function')render();toast('Excel sincronizado: '+clients.length+' clientes, '+classes.length+' clases, '+users.filter(function(x){return x.rol==='parcial';}).length+' profesoras y '+payments.length+' pagos.');
+    }catch(error){console.error('Sincronización Excel',error);toast('No se actualizó ningún dato. '+error.message);}
+  };
+  window.renderImportar=function(){var synced=(db.settings||{}).lastWorkbookSyncAt?new Date(db.settings.lastWorkbookSyncAt).toLocaleString('es-AR'):'Sin sincronizar';return '<div class="module-toolbar"><div class="toolbar-title"><b>Sincronización con Excel</b></div><div class="toolbar-actions"><button class="btn btn-primary" onclick="openWorkbookImport()">Actualizar desde Excel</button></div></div><section class="card p-5"><h3 class="nih-section-title">Excel como única fuente de datos</h3><p class="nih-muted">El botón reemplaza los clientes, clases, alumnas por clase, profesoras y pagos por lo que esté escrito en el archivo seleccionado. No conserva ni agrega alumnos, clases, profesoras o pagos predeterminados.</p><div class="mt-4 grid gap-3 md:grid-cols-3"><div class="rounded-xl border border-[#DED6C8] p-3"><b>Pestañas requeridas</b><div class="mt-1 text-sm">CLIENTES, CLASES y PAGOS</div></div><div class="rounded-xl border border-[#DED6C8] p-3"><b>Vínculo de clases</b><div class="mt-1 text-sm">CLASES → columna Alumnos</div></div><div class="rounded-xl border border-[#DED6C8] p-3"><b>Última sincronización</b><div class="mt-1 text-sm">'+synced+'</div></div></div></section>';};
+})();
+</script>
 </body>
 </html>
