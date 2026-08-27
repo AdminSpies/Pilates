@@ -12118,6 +12118,37 @@ body,.app-shell,.main{font-family:Montserrat,Inter,Arial,sans-serif!important;co
   if(typeof previousWeeklySlot==='function')window.renderWeeklySlotBlock=renderWeeklySlotBlock=function(slot,date){var html=previousWeeklySlot(slot,date),cl=classForSlot(slot.day,slot.time);return !isGeneral()&&cl&&isLockedForPartial(cl,date)?html.replace('nih-class-cell ','nih-class-cell agenda-class-locked '):html;};
   var previousRender=window.render;
   if(typeof previousRender==='function')window.render=render=function(){var result=previousRender.apply(this,arguments);setTimeout(function(){if(currentSection!=='agenda')return;var nowDay=new Date().toLocaleDateString('es-AR',{weekday:'long'});document.querySelectorAll('.nih-week-table th,.agenda-mobile-day').forEach(function(node){if(dayKey(node.textContent).indexOf(dayKey(nowDay))!==-1)node.classList.add('agenda-current-day');});},0);return result;};
+  /* Backup manual de solo lectura. SheetJS ya está cargado una vez en la app. */
+  function exportRows(){
+    var clientById=new Map((db.clients||[]).map(function(x){return [x.id,x];}));
+    var userById=new Map((db.users||[]).map(function(x){return [x.id,x];}));
+    var planById=new Map((db.plans||[]).map(function(x){return [x.id,x];}));
+    var full=function(x){return x?String((x.nombre||'')+' '+(x.apellido||'')).trim():'';};
+    return {
+      Clientes:(db.clients||[]).map(function(c){return {ID:c.id,Apellido:c.apellido||'',Nombre:c.nombre||'',DNI:c.dni||'',Telefono:c.telefono||'',Email:c.email||'',Direccion:c.direccion||'',Nacimiento:c.fechaNacimiento||'',Estado:c.estado||'',Plan:(planById.get(c.planId)||{}).nombre||'',Alta:c.fechaAlta||'',Observaciones:c.observaciones||''};}),
+      Personal:(db.users||[]).map(function(u){return {ID:u.id,Apellido:u.apellido||'',Nombre:u.nombre||'',DNI:u.dni||'',Telefono:u.telefono||'',Usuario:u.usuario||'',Rol:u.rol||'',Estado:u.estado||'',Titulos:u.titulos||''};}),
+      Planes:(db.plans||[]).map(function(p){return {ID:p.id,Plan:p.nombre||'',Clases_semanales:p.clasesSemanales||'',Precio:p.precio||0,Estado:p.estado||'',Observaciones:p.observaciones||''};}),
+      Clases:(db.classes||[]).map(function(c){return {ID:c.id,Dia:c.dia||'',Hora:c.hora||'',Profesora:full(userById.get(c.personalId)),Cupo:c.cupoMaximo||8,Alumnos:(c.clientesIds||[]).map(function(id){return full(clientById.get(id));}).filter(Boolean).join(', '),Estado:c.estado||'',Observaciones:c.observaciones||''};}),
+      Horarios:(db.schedules||[]).map(function(s){return {ID:s.id,Clase_ID:s.claseId||'',Dia:s.dia||'',Hora:s.horario||s.hora||'',Alumno:full(clientById.get(s.clienteId)),Profesora:full(userById.get(s.personalId)),Estado:s.estado||''};}),
+      Pagos:(db.payments||[]).map(function(p){return {ID:p.id,Alumno:full(clientById.get(p.clienteId)),Plan:(planById.get(p.planId)||{}).nombre||'',Monto:Number(p.monto||0),Fecha:p.fechaPago||'',Mes_abonado:p.mesAbonado||'',Medio:p.medioPago||'',Estado:p.estado||'',Observaciones:p.observaciones||''};})
+    };
+  }
+  window.exportarBackupExcel=async function(){
+    if(!isGeneral())return toast('Solo administrador general');
+    if(!window.XLSX)return toast('No se pudo cargar la librería de Excel.');
+    var book=XLSX.utils.book_new(),sheets=exportRows();
+    Object.keys(sheets).forEach(function(name){var rows=sheets[name],sheet=XLSX.utils.json_to_sheet(rows.length?rows:[{Sin_datos:''}]);sheet['!cols']=Object.keys(rows[0]||{Sin_datos:''}).map(function(key){return {wch:Math.min(42,Math.max(12,key.length+3))};});XLSX.utils.book_append_sheet(book,sheet,name);});
+    var d=new Date(),date=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    XLSX.writeFile(book,'NihuenPilates_backup_'+date+'.xlsx',{bookType:'xlsx',compression:true});
+    db.settings=Object.assign({},db.settings||{},{lastBackupExportAt:new Date().toISOString()});
+    await window.saveDB();refresh();toast('Backup Excel exportado.');
+  };
+  var previousConfig=window.renderConfig;
+  if(typeof previousConfig==='function')window.renderConfig=renderConfig=function(){
+    var base=previousConfig();if(!isGeneral())return base;
+    var stamp=(db.settings||{}).lastBackupExportAt,when=stamp?new Date(stamp).toLocaleString('es-AR'):'Nunca';
+    return base+'<section class="card p-5 mt-4"><h3 class="panel-title">Backup manual</h3><p class="nih-muted mt-2">Exporta una copia de Clientes, Personal, Planes, Clases, Horarios y Pagos. No modifica los datos operativos.</p><div class="mt-4 flex flex-wrap items-center gap-3"><button class="btn btn-primary !w-auto" onclick="exportarBackupExcel()">Exportar backup Excel</button><span class="nih-muted"><b>Último backup:</b> '+esc(when)+'</span></div></section>';
+  };
   refresh();
 })();
 </script>
