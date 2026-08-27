@@ -11322,7 +11322,7 @@ window.NIHUEN_GOOGLE_SHEETS = {
       return updated;
     });
   };
-  window.addEventListener('online',function(){ pull(); });
+  /* La antigua sincronización con Sheets ya no se reanuda al reconectar. */
   setTimeout(pull,900);
   setInterval(pull,15000);
 })();
@@ -11416,8 +11416,9 @@ window.NIHUEN_GOOGLE_SHEETS = {
   window.saveDB=saveDB=function(){ if(typeof db==='undefined')return Promise.resolve(false); db=window.db=normalize(db); cache(db); queueWrite(); return Promise.resolve(true); };
   window.syncGoogleSheetsNow=function(){return pull(false);};
   window.forceGoogleSheetsSync=function(){return pull(false).then(function(ok){if(typeof window.toast==='function')window.toast(ok?'Datos restaurados desde el backup.':'El backup está conectado pero no contiene datos.');return ok;});};
-  window.addEventListener('online',function(){pull(true);});
-  setTimeout(function(){pull(true);},200);
+  /* Retirado: una lectura automática del respaldo podía sobrescribir una
+     edición que aún no había confirmado Firestore. Firestore es la única
+     fuente de verdad; el backup queda únicamente como código histórico. */
 })();
 </script>
 <script>
@@ -12148,168 +12149,129 @@ body,.app-shell,.main{font-family:Montserrat,Inter,Arial,sans-serif!important;co
   window.renderImportar=function(){var s=(db.settings||{}).lastWorkbookSyncAt?new Date(db.settings.lastWorkbookSyncAt).toLocaleString('es-AR'):'Sin sincronizar';return '<div class="module-toolbar"><div class="toolbar-title"><b>Sincronización con Excel</b></div><div class="toolbar-actions"><button class="btn btn-primary" onclick="openWorkbookImport()">Actualizar desde Excel</button></div></div><section class="card p-5"><h3 class="nih-section-title">Excel como única fuente de datos</h3><p class="nih-muted">La actualización reemplaza alumnos, clases, asignaciones por horario, profesoras y pagos con las pestañas del Excel. Las asistencias de alumnos que permanecen se conservan.</p><div class="mt-4 grid gap-3 md:grid-cols-4"><div class="rounded-xl border border-[#DED6C8] p-3"><b>CLIENTES</b><div class="mt-1 text-sm">Alumnos y datos</div></div><div class="rounded-xl border border-[#DED6C8] p-3"><b>CLASES</b><div class="mt-1 text-sm">Día, hora, profesora y alumnos</div></div><div class="rounded-xl border border-[#DED6C8] p-3"><b>PAGOS</b><div class="mt-1 text-sm">Historial completo</div></div><div class="rounded-xl border border-[#DED6C8] p-3"><b>PROFESORAS</b><div class="mt-1 text-sm">Accesos y personal</div></div></div><div class="mt-4 rounded-xl border border-[#DED6C8] bg-[#F7F4EF] p-3 text-sm"><b>Última sincronización:</b> '+s+'. Los nombres abreviados de CLASES se vinculan cuando la coincidencia es segura; los restantes se conservan como alumnos a verificar.</div></section>';};
 })();
 </script>
-<!-- SINCRONIZACION_HORARIO_E_HISTORIAL_2026_08_19 -->
+<!--
+  NIH_CLEAN_BASE_2026_08_27
+  Consolidación final: Firestore es la única fuente de verdad. Se retiró la
+  recuperación automática desde Google Sheets y se reemplazaron los parches
+  de permisos de clases por una única capa de instancias y suplencias.
+-->
+<style>
+  .attendance-nav-callout{background:linear-gradient(135deg,#0f766e,#16a34a)!important;color:#fff!important;border:1px solid #047857!important;box-shadow:0 10px 22px rgba(5,150,105,.28)!important;font-weight:900!important}
+  .attendance-nav-callout .nav-icon{font-size:20px!important}.attendance-nav-callout .nav-label:after{content:'Nuevo';margin-left:7px;padding:2px 6px;border-radius:99px;background:#fff;color:#047857;font-size:10px;font-weight:950}
+  .class-readonly{opacity:.72;filter:saturate(.72)}.class-readonly-note{display:inline-block;margin-top:8px;padding:4px 8px;border-radius:99px;background:#eef2f7;color:#526176;font-size:11px;font-weight:800}
+  .class-now{border-color:#16a34a!important;box-shadow:0 0 0 2px rgba(22,163,74,.15)}
+</style>
 <script>
-/* Importa y exporta la grilla semanal "Horario" y conserva un respaldo navegable
-   de toda modificación hecha desde la aplicación. */
+/* Base consolidada: permisos por instancia, suplencias y persistencia Firestore. */
 (function(){
   'use strict';
-  var HISTORY_LIMIT=1000, originalSave=window.saveDB, previousSnapshot=null, skipNextDiff=false;
-  function text(v){return String(v==null?'':v).trim();}
-  function norm(v){return text(v).toLocaleLowerCase('es-AR').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,' ').replace(/\s+/g,' ').trim();}
+  var STORAGE_KEY='nihuenPilatesDB-clean-20260815';
+  var COLS=['users','clients','plans','classes','payments','attendance','paymentReports','deletedRecords'];
+  var baseline=null, writeQueue=Promise.resolve(), applying=false, started=false;
   function clone(v){return JSON.parse(JSON.stringify(v||{}));}
-  function stamp(){return typeof now==='function'?now():new Date().toISOString();}
-  function nameOf(client){return client?text((client.apellido||'')+' '+(client.nombre||'')):'';}
-  function teacherName(id){var u=(db.users||[]).find(function(x){return x.id===id;});return u?text((u.nombre||'')+' '+(u.apellido||'')):'';}
-  function esc(v){return text(v).replace(/[&<>"']/g,function(ch){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch];});}
-  function localDate(v){try{return new Date(v).toLocaleString('es-AR');}catch(_){return text(v);}}
-  function dayLabel(v){var map={lunes:'Lunes',martes:'Martes',miercoles:'Miércoles',jueves:'Jueves',viernes:'Viernes'};return map[norm(v)]||text(v);}
-  function timeLabel(v){var m=text(v).match(/^(\d{1,2})(?::(\d{2}))?$/);return m?String(+m[1]).padStart(2,'0')+':'+String(+(m[2]||0)).padStart(2,'0'):'';}
-  function fullName(value){var p=text(value).split(/\s+/);return p.length>1?{apellido:p.shift(),nombre:p.join(' ')}:{apellido:p[0]||'Sin apellido',nombre:''};}
-  function history(){return Array.isArray(db.history)?db.history:[];}
-  window.addHistoryEntry=function(action,detail,category){
-    if(!db)return;
-    db.history=history();
-    db.history.unshift({id:'history_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),action:text(action),detail:text(detail),category:text(category||'Sistema'),user:currentUser?(currentUser.nombre+' '+currentUser.apellido):'Sistema',role:currentUser?(currentUser.rol==='general'?'Administrador':'Profesora'):'Sistema',createdAt:stamp()});
-    db.history=db.history.slice(0,HISTORY_LIMIT);
-  };
-  function collectionCount(data,key){return Array.isArray(data&&data[key])?data[key].length:0;}
-  function shortDiff(before,after){
-    var labels={clients:'alumnos',classes:'clases',users:'profesoras',payments:'pagos',plans:'planes',schedules:'asignaciones',attendance:'asistencias'};
-    var diffs=[];
-    Object.keys(labels).forEach(function(key){var a=collectionCount(before,key),b=collectionCount(after,key);if(a!==b)diffs.push(labels[key]+': '+a+' → '+b);});
-    return diffs.join(' · ');
-  }
-  previousSnapshot=clone(db);
-  window.saveDB=saveDB=async function(){
-    var before=previousSnapshot, after=clone(db), diff=shortDiff(before,after);
-    if(!skipNextDiff && diff) window.addHistoryEntry('Actualización de datos',diff,'Aplicación');
-    skipNextDiff=false;
-    var result=originalSave?originalSave.apply(this,arguments):Promise.resolve(true);
-    previousSnapshot=clone(db);
-    return result;
-  };
-  function findSheet(book,name){return book.SheetNames.find(function(s){return norm(s)===norm(name);});}
-  function isScheduleBook(book){var s=findSheet(book,'Horario');if(!s)return false;var m=XLSX.utils.sheet_to_json(book.Sheets[s],{header:1,defval:'',raw:false});return m.length&&m[0].some(function(v){return ['lunes','martes','miercoles','miércoles','jueves','viernes'].indexOf(norm(v))>=0;});}
-  function importSchedule(book,fileName){
-    var sheet=book.Sheets[findSheet(book,'Horario')], rows=XLSX.utils.sheet_to_json(sheet,{header:1,defval:'',raw:false}), headers=rows[0]||[], days=[];
-    for(var col=1;col<headers.length;col++){var d=dayLabel(headers[col]);if(['Lunes','Martes','Miércoles','Jueves','Viernes'].indexOf(d)>=0)days.push({col:col,day:d});}
-    if(!days.length)throw new Error('La pestaña Horario no contiene los días de la semana.');
-    var oldClients=(db.clients||[]).slice(), oldUsers=(db.users||[]).slice(), clients=oldClients.slice(), users=oldUsers.slice(), byClient={}, byUser={};
-    clients.forEach(function(c){byClient[norm(nameOf(c))]=c;});users.forEach(function(u){byUser[norm((u.nombre||'')+' '+(u.apellido||''))]=u;});
-    function clientFor(raw){var key=norm(raw), found=byClient[key];if(found)return found;var parts=fullName(raw), created={id:'client_excel_'+key.replace(/\s+/g,'_')+'_'+clients.length,apellido:parts.apellido,nombre:parts.nombre,dni:'',telefono:'',fechaNacimiento:'',direccion:'',estado:'Activo',planId:'',fechaAlta:stamp().slice(0,10),observaciones:'Creado desde la grilla Horario. Verificar datos.',paymentStatus:'Pendiente',createdAt:stamp(),updatedAt:stamp(),importSource:'Excel Horario'};clients.push(created);byClient[key]=created;return created;}
-    function teacherFor(raw){var key=norm(raw), found=byUser[key];if(found)return found;var parts=fullName(raw), created={id:'user_excel_'+key.replace(/\s+/g,'_')+'_'+users.length,nombre:parts.nombre,apellido:parts.apellido,dni:'',telefono:'',titulos:'',usuario:'',passwordHash:'',rol:'parcial',estado:'Activo',horariosAsignados:[],createdAt:stamp(),updatedAt:stamp(),importSource:'Excel Horario'};users.push(created);byUser[key]=created;return created;}
-    var classes=[];
-    days.forEach(function(info){
-      var currentTeacher='', currentTime='', roster=[];
-      function commit(){if(!currentTime)return;var unique=[];roster.forEach(function(id){if(unique.indexOf(id)<0)unique.push(id);});var teacher=currentTeacher?teacherFor(currentTeacher):null;classes.push({id:'class_excel_'+norm(info.day+'_'+currentTime+'_'+currentTeacher).replace(/\s+/g,'_')+'_'+classes.length,dia:info.day,hora:currentTime,personalId:teacher?teacher.id:'',clientesIds:unique,cupoMaximo:Math.max(8,unique.length),estado:'Activa',observaciones:'Importada desde '+fileName,createdAt:stamp(),updatedAt:stamp(),importSource:'Excel Horario'});}
-      for(var row=1;row<rows.length;row++){
-        var left=norm(rows[row][0]), cell=text(rows[row][info.col]);
-        if(left==='instructora'){commit();currentTeacher=cell;currentTime='';roster=[];continue;}
-        var candidate=timeLabel(rows[row][0]);
-        if(candidate){commit();currentTime=candidate;roster=[];if(cell)roster.push(clientFor(cell).id);continue;}
-        if(cell&&currentTime)roster.push(clientFor(cell).id);
-      }
-      commit();
-    });
-    if(!classes.length)throw new Error('No se encontraron clases en la grilla Horario.');
-    var schedules=[];classes.forEach(function(cl){(cl.clientesIds||[]).forEach(function(cid){schedules.push({id:'schedule_'+cl.id+'_'+cid,claseId:cl.id,clienteId:cid,personalId:cl.personalId,dia:cl.dia,horario:cl.hora,estado:'Activo',createdAt:stamp(),updatedAt:stamp()});});});
-    db.clients=clients;db.users=users;db.classes=classes;db.schedules=schedules;db.settings=Object.assign({},db.settings||{},{lastWorkbookFile:fileName,lastWorkbookSyncAt:stamp(),lastWorkbookFormat:'Horario'});
-    skipNextDiff=true;window.addHistoryEntry('Importación desde Excel','Se actualizaron '+classes.length+' clases y '+schedules.length+' asignaciones desde '+fileName+'. Alumnos y pagos existentes se conservaron.','Excel');
-  }
-  var priorImport=window.importWorkbook;
-  window.openWorkbookImport=function(){var input=document.createElement('input');input.type='file';input.accept='.xlsx,.xls';input.hidden=true;input.onchange=function(){if(input.files&&input.files[0])window.importWorkbook(input.files[0]);input.remove();};document.body.appendChild(input);input.click();};
-  window.importWorkbook=async function(file){
-    if(!window.XLSX)return toast('No se pudo cargar el lector de Excel.');
-    try{var book=XLSX.read(await file.arrayBuffer(),{type:'array'});if(!isScheduleBook(book))return priorImport(file);importSchedule(book,file.name);await window.saveDB();if(typeof render==='function')render();toast('Horario importado: se conservaron alumnos, pagos y demás datos.');}catch(error){console.error('Importación de horario',error);toast('No se actualizó ningún dato. '+error.message);}
-  };
-  function scheduleRows(){
-    var ordered=['Lunes','Martes','Miércoles','Jueves','Viernes'], rows=[], byDay={};ordered.forEach(function(d){byDay[d]=(db.classes||[]).filter(function(c){return dayLabel(c.dia)===d&&c.estado!=='Cancelada';}).sort(function(a,b){return text(a.hora).localeCompare(text(b.hora));});});
-    var times=[];ordered.forEach(function(d){byDay[d].forEach(function(c){if(times.indexOf(c.hora)<0)times.push(c.hora);});});times.sort();
-    times.forEach(function(hour){var groups={};ordered.forEach(function(d){groups[d]=byDay[d].filter(function(c){return c.hora===hour;});});var height=Math.max.apply(null,ordered.map(function(d){return groups[d].reduce(function(sum,c){return sum+1+Math.max(1,(c.clientesIds||[]).length);},0);}));
-      for(var r=0;r<height;r++){var line=[r===0?'Instructora':(r===1?hour:'')];ordered.forEach(function(d){var cells=[];groups[d].forEach(function(c){cells.push(teacherName(c.personalId)||'Sin asignar');var list=c.clientesIds||[];if(list.length)list.forEach(function(cid){var cl=(db.clients||[]).find(function(x){return x.id===cid;});cells.push(nameOf(cl));});else cells.push('');});line.push(cells[r]||'');});rows.push(line);}
-    });
-    return rows;
-  }
-  window.exportarHorarioExcel=function(){
-    if(!window.XLSX)return toast('No se pudo cargar el generador de Excel.');
-    var data=[['','LUNES','MARTES','MIERCOLES','JUEVES','VIERNES']].concat(scheduleRows()), ws=XLSX.utils.aoa_to_sheet(data), wb=XLSX.utils.book_new();
-    ws['!cols']=[{wch:12},{wch:24},{wch:24},{wch:24},{wch:24},{wch:24}];ws['!sheetViews']=[{showGridLines:false}];
-    for(var c=1;c<=5;c++){var header=XLSX.utils.encode_cell({r:0,c:c});ws[header].s={font:{bold:true,color:{rgb:'FFFFFF'}},fill:{fgColor:{rgb:'78909C'}},alignment:{horizontal:'center',vertical:'center'}};}
-    for(var row=1;row<data.length;row++){for(c=0;c<=5;c++){var addr=XLSX.utils.encode_cell({r:row,c:c});if(ws[addr])ws[addr].s={alignment:{vertical:'top',wrapText:true},border:{bottom:{style:'thin',color:{rgb:'D9E1E8'}}}};}}
-    XLSX.utils.book_append_sheet(wb,ws,'Horario');XLSX.writeFile(wb,'CLASES_actualizado_'+new Date().toISOString().slice(0,10)+'.xlsx',{bookType:'xlsx',cellStyles:true,compression:true});window.addHistoryEntry('Exportación a Excel','Se exportó la grilla Horario actualizada.','Excel');window.saveDB();toast('Excel de horarios exportado.');
-  };
-  window.renderHistory=function(){
-    if(typeof isGeneral==='function'&&!isGeneral())return typeof denied==='function'?denied():'Acceso restringido.';
-    var logs=history(), q=norm((filters&&filters.historyQuery)||'');if(q)logs=logs.filter(function(l){return norm(l.action+' '+l.detail+' '+l.user+' '+l.category).indexOf(q)>=0;});
-    return '<div class="module-toolbar"><div class="toolbar-title"><b>Historial</b></div><div class="toolbar-actions"><button class="btn btn-secondary" onclick="exportarExcelActualizado()">Exportar base completa</button></div></div><section class="card p-5"><div class="flex flex-wrap items-center justify-between gap-3"><div><h3 class="nih-section-title">Respaldo de movimientos</h3><p class="nih-muted">Se conservan hasta '+HISTORY_LIMIT+' movimientos: importaciones, cambios de datos, pagos y exportaciones.</p></div><b>'+logs.length+' registros</b></div><input class="input mt-4" placeholder="Buscar por acción, usuario o detalle" value="'+esc((filters&&filters.historyQuery)||'')+'" oninput="filters.historyQuery=this.value;render()"><div class="audit-list">'+(logs.length?logs.map(function(l){return '<div class="audit-item"><b>'+esc(l.action)+' · '+esc(l.category)+'</b><small>'+esc(localDate(l.createdAt))+' · '+esc(l.user)+' · '+esc(l.role)+'</small><div>'+esc(l.detail)+'</div></div>';}).join(''):'<div class="empty-state">Todavía no hay movimientos registrados.</div>')+'</div></section>';
-  };
-  var oldAllowed=window.allowedSections;
-  window.allowedSections=function(){var list=oldAllowed?oldAllowed():sections.slice();if(!list.some(function(x){return x[0]==='historial';})&&(typeof isGeneral!=='function'||isGeneral()))list.push(['historial','Historial','Respaldo de movimientos','']);return list;};
-  var oldRender=window.render;
-  window.render=function(){var result=oldRender?oldRender.apply(this,arguments):null;if(currentSection==='historial'){var title=document.getElementById('pageTitle'),sub=document.getElementById('pageSubtitle'),content=document.getElementById('content');if(title)title.textContent='Historial';if(sub)sub.textContent='Respaldo de movimientos';if(content)content.innerHTML=window.renderHistory();}return result;};
-  window.renderImportar=function(){var s=(db.settings||{}).lastWorkbookSyncAt?localDate(db.settings.lastWorkbookSyncAt):'Sin sincronizar';return '<div class="module-toolbar"><div class="toolbar-title"><b>Sincronización con Excel</b></div><div class="toolbar-actions"><button class="btn btn-primary" onclick="openWorkbookImport()">Importar desde Excel</button><button class="btn btn-secondary" onclick="exportarHorarioExcel()">Exportar Excel</button></div></div><section class="card p-5"><h3 class="nih-section-title">Importación y exportación</h3><p class="nih-muted">Admite la grilla semanal <b>Horario</b> y la base completa con CLIENTES, CLASES, PAGOS y PROFESORAS. La grilla actualiza clases, docentes y asignaciones sin borrar alumnos, pagos ni configuraciones. La exportación genera la grilla Horario con el estado actual de la aplicación.</p><div class="mt-4 grid gap-3 md:grid-cols-4"><div class="rounded-xl border border-[#DED6C8] p-3"><b>ALUMNOS</b><div class="mt-1 text-sm">'+(db.clients||[]).length+' registrados</div></div><div class="rounded-xl border border-[#DED6C8] p-3"><b>CLASES</b><div class="mt-1 text-sm">'+(db.classes||[]).length+' horarios</div></div><div class="rounded-xl border border-[#DED6C8] p-3"><b>PAGOS</b><div class="mt-1 text-sm">'+(db.payments||[]).length+' movimientos</div></div><div class="rounded-xl border border-[#DED6C8] p-3"><b>PROFESORAS</b><div class="mt-1 text-sm">'+(db.users||[]).filter(function(u){return u.rol==='parcial';}).length+' activas</div></div></div><div class="mt-4 rounded-xl border border-[#DED6C8] bg-[#F7F4EF] p-3 text-sm"><b>Última sincronización:</b> '+esc(s)+'. Cada modificación queda registrada en Historial.</div></section>';};
-})();
-</script>
-<!-- LIBRO_COMPLETO_NIHUEN_2026_08_19 -->
-<script>
-/* El archivo de intercambio es una copia completa: la grilla Horario se suma a
-   todas las tablas operativas para que no se pierdan pagos, alumnas ni historial. */
-(function(){
-  'use strict';
-  function t(v){return String(v==null?'':v).trim();}
-  function n(v){return t(v).toLocaleLowerCase('es-AR').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,' ').replace(/\s+/g,' ').trim();}
   function iso(){return new Date().toISOString();}
-  function escx(v){return t(v).replace(/[&<>"']/g,function(ch){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch];});}
-  function student(id){return (db.clients||[]).find(function(c){return c.id===id;})||{};}
-  function studentName(id){var c=student(id);return t((c.apellido||'')+' '+(c.nombre||''));}
-  function staff(id){return (db.users||[]).find(function(u){return u.id===id;})||{};}
-  function staffName(id){var u=staff(id);return t((u.nombre||'')+' '+(u.apellido||''));}
-  function plan(id){return (db.plans||[]).find(function(p){return p.id===id;})||{};}
-  function dateLabel(){return new Date().toISOString().slice(0,10);}
-  function aoa(rows,widths){var ws=XLSX.utils.aoa_to_sheet(rows);ws['!cols']=(widths||[]).map(function(w){return {wch:w};});ws['!sheetViews']=[{showGridLines:false}];if(rows.length){for(var c=0;c<rows[0].length;c++){var a=XLSX.utils.encode_cell({r:0,c:c});if(ws[a])ws[a].s={font:{bold:true,color:{rgb:'FFFFFF'}},fill:{fgColor:{rgb:'607D8B'}},alignment:{horizontal:'center',vertical:'center',wrapText:true}};}for(var r=1;r<rows.length;r++)for(c=0;c<rows[r].length;c++){a=XLSX.utils.encode_cell({r:r,c:c});if(ws[a])ws[a].s={alignment:{vertical:'top',wrapText:true},border:{bottom:{style:'thin',color:{rgb:'D9E1E8'}}}};}}return ws;}
-  function scheduleSheet(){var rows=[['','LUNES','MARTES','MIERCOLES','JUEVES','VIERNES']], days=['Lunes','Martes','Miércoles','Jueves','Viernes'], by={};days.forEach(function(day){by[day]=(db.classes||[]).filter(function(cl){return cl.dia===day&&cl.estado!=='Cancelada';}).sort(function(a,b){return t(a.hora).localeCompare(t(b.hora));});});var hours=[];days.forEach(function(day){by[day].forEach(function(cl){if(hours.indexOf(cl.hora)<0)hours.push(cl.hora);});});hours.sort();hours.forEach(function(hour){var groups={};days.forEach(function(day){groups[day]=by[day].filter(function(cl){return cl.hora===hour;});});var h=Math.max.apply(null,days.map(function(day){return groups[day].reduce(function(total,cl){return total+1+Math.max(1,(cl.clientesIds||[]).length);},0);}));for(var r=0;r<h;r++){var line=[r===0?'Instructora':(r===1?hour:'')];days.forEach(function(day){var cells=[];groups[day].forEach(function(cl){cells.push(staffName(cl.personalId)||'Sin asignar');var ids=cl.clientesIds||[];if(ids.length)ids.forEach(function(id){cells.push(studentName(id));});else cells.push('');});line.push(cells[r]||'');});rows.push(line);}});return aoa(rows,[12,24,24,24,24,24]);}
-  function exportComplete(){
-    if(!window.XLSX)return toast('No se pudo cargar el generador de Excel.');
-    var wb=XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb,scheduleSheet(),'Horario');
-    XLSX.utils.book_append_sheet(wb,aoa([['ID','Apellido','Nombre','DNI','Teléfono','Nacimiento','Dirección','Estado','Plan ID','Fecha alta','Estado pago','Observaciones']].concat((db.clients||[]).map(function(c){return [c.id,c.apellido,c.nombre,c.dni,c.telefono,c.fechaNacimiento,c.direccion,c.estado,c.planId,c.fechaAlta,c.paymentStatus,c.observaciones];})),[26,18,18,14,18,14,28,14,22,14,16,36]),'CLIENTES');
-    XLSX.utils.book_append_sheet(wb,aoa([['ID','Día','Hora','Profesora ID','Profesora','Alumnos ID','Alumnos','Cupo','Estado','Observaciones']].concat((db.classes||[]).map(function(c){return [c.id,c.dia,c.hora,c.personalId,staffName(c.personalId),(c.clientesIds||[]).join('|'),(c.clientesIds||[]).map(studentName).join(', '),c.cupoMaximo,c.estado,c.observaciones];})),[28,14,10,24,25,56,58,10,14,36]),'CLASES');
-    XLSX.utils.book_append_sheet(wb,aoa([['ID','Cliente ID','Cliente','Plan ID','Monto','Fecha de pago','Mes abonado','Medio de pago','Estado','Observaciones','Origen']].concat((db.payments||[]).map(function(p){return [p.id,p.clienteId,studentName(p.clienteId),p.planId,Number(p.monto)||0,p.fechaPago,p.mesAbonado,p.medioPago,p.estado,p.observaciones,p.origen];})),[28,26,30,24,14,16,16,18,14,36,22]),'PAGOS');
-    XLSX.utils.book_append_sheet(wb,aoa([['ID','Nombre','Apellido','DNI','Teléfono','Títulos','Usuario','Clave','Rol','Estado']].concat((db.users||[]).map(function(u){return [u.id,u.nombre,u.apellido,u.dni,u.telefono,u.titulos,u.usuario,u.claveExcel||'',u.rol,u.estado];})),[28,18,18,14,18,30,20,22,18,14]),'PROFESORAS');
-    XLSX.utils.book_append_sheet(wb,aoa([['ID','Nombre','Clases semanales','Precio','Estado','Descripción']].concat((db.plans||[]).map(function(p){return [p.id,p.nombre,p.clasesSemanales,Number(p.precio)||0,p.estado,p.descripcion];})),[28,25,20,16,14,40]),'PLANES');
-    XLSX.utils.book_append_sheet(wb,aoa([['ID','Alumno ID','Alumno','Clase ID','Fecha','Día','Horario','Profesora ID','Profesora','Estado','Observaciones']].concat((db.attendance||[]).map(function(a){return [a.id,a.clientId,a.clientName||studentName(a.clientId),a.classId,a.date,a.day,a.time,a.teacherId,a.teacherName||staffName(a.teacherId),a.status,a.observaciones||''];})),[30,28,30,28,14,14,12,28,28,16,34]),'ASISTENCIAS');
-    XLSX.utils.book_append_sheet(wb,aoa([['ID','Fecha','Acción','Categoría','Usuario','Rol','Detalle']].concat((db.history||[]).map(function(h){return [h.id,h.createdAt,h.action,h.category,h.user,h.role,h.detail];})),[30,22,28,18,26,20,65]),'HISTORIAL');
-    XLSX.utils.book_append_sheet(wb,aoa([['ID','Cliente ID','Alumno','Monto','Fecha','Método','Estado','Profesora','Observaciones']].concat((db.paymentReports||[]).map(function(p){return [p.id,p.clientId,p.clientName,Number(p.amount)||0,p.date,p.method,p.status,p.teacherName,p.note];})),[30,28,30,14,16,18,16,28,44]),'REPORTES_PAGO');
-    XLSX.utils.book_append_sheet(wb,aoa([['Clave','Valor JSON'],['settings',JSON.stringify(db.settings||{})],['exportado en',iso()],['versión','Nihuen completo 2026-08-19']],[22,110]),'CONFIGURACION');
-    XLSX.writeFile(wb,'NIHUEN_PILATES_COMPLETO_'+dateLabel()+'.xlsx',{bookType:'xlsx',cellStyles:true,compression:true});if(typeof addHistoryEntry==='function')addHistoryEntry('Exportación a Excel','Se exportó la base completa con todas las pestañas.','Excel');window.saveDB();toast('Excel completo exportado.');
+  function time(v){var n=Date.parse(String(v||''));return Number.isFinite(n)?n:0;}
+  function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  function dayKey(v){return String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();}
+  function today(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+  function todayDay(){return ['domingo','lunes','martes','miercoles','jueves','viernes','sabado'][new Date().getDay()];}
+  function normalize(data){return typeof window.normalizeDB==='function'?window.normalizeDB(clone(data)):clone(data);}
+  function entityTime(x){return time(x&&(x.updatedAt||x.createdAt));}
+  function mergeRows(remote,local){
+    var out=new Map();
+    (remote||[]).forEach(function(x){if(x&&x.id)out.set(String(x.id),clone(x));});
+    (local||[]).forEach(function(x){if(!x||!x.id)return;var old=out.get(String(x.id));if(!old||entityTime(x)>=entityTime(old))out.set(String(x.id),clone(x));});
+    return Array.from(out.values());
   }
-  function sheetRows(book,name){var actual=book.SheetNames.find(function(s){return n(s)===n(name);});if(!actual)return null;return XLSX.utils.sheet_to_json(book.Sheets[actual],{defval:'',raw:false});}
-  function v(row,keys){var own=Object.keys(row||{});for(var i=0;i<keys.length;i++){var key=own.find(function(h){return n(h)===n(keys[i]);});if(key!==undefined)return t(row[key]);}return '';}
-  function list(v){return t(v).split(/[|,;\n]+/).map(t).filter(Boolean);}
-  function num(v){var x=t(v).replace(/\$/g,'').replace(/\./g,'').replace(',','.');var q=Number(x);return Number.isFinite(q)?q:0;}
-  var previousImport=window.importWorkbook;
-  window.importWorkbook=async function(file){
-    if(!window.XLSX)return toast('No se pudo cargar el lector de Excel.');
-    try{
-      var book=XLSX.read(await file.arrayBuffer(),{type:'array'}), clientsRows=sheetRows(book,'CLIENTES'), configRows=sheetRows(book,'CONFIGURACION');
-      if(!clientsRows||!configRows)return previousImport(file);
-      var at=iso(), clients=clientsRows.map(function(r,i){return {id:v(r,['ID'])||'client_import_'+i,apellido:v(r,['Apellido']),nombre:v(r,['Nombre']),dni:v(r,['DNI']),telefono:v(r,['Teléfono','Telefono']),fechaNacimiento:v(r,['Nacimiento']),direccion:v(r,['Dirección','Direccion']),estado:v(r,['Estado'])||'Activo',planId:v(r,['Plan ID']),fechaAlta:v(r,['Fecha alta'])||at.slice(0,10),paymentStatus:v(r,['Estado pago'])||'Pendiente',observaciones:v(r,['Observaciones']),createdAt:at,updatedAt:at,importSource:'Excel completo'};});
-      var users=(sheetRows(book,'PROFESORAS')||[]).map(function(r,i){var existing=(db.users||[]).find(function(u){return u.id===v(r,['ID']);});return {id:v(r,['ID'])||'user_import_'+i,nombre:v(r,['Nombre']),apellido:v(r,['Apellido']),dni:v(r,['DNI']),telefono:v(r,['Teléfono','Telefono']),titulos:v(r,['Títulos','Titulos']),usuario:v(r,['Usuario']),claveExcel:v(r,['Clave']),passwordHash:existing?existing.passwordHash:'',rol:v(r,['Rol'])||'parcial',estado:v(r,['Estado'])||'Activo',horariosAsignados:[],createdAt:at,updatedAt:at,importSource:'Excel completo'};});
-      var plans=(sheetRows(book,'PLANES')||[]).map(function(r,i){return {id:v(r,['ID'])||'plan_import_'+i,nombre:v(r,['Nombre']),clasesSemanales:num(v(r,['Clases semanales']))||1,precio:num(v(r,['Precio'])),estado:v(r,['Estado'])||'Activo',descripcion:v(r,['Descripción','Descripcion']),createdAt:at,updatedAt:at};});
-      var ids={};clients.forEach(function(c){ids[c.id]=c;});var nameIds={};clients.forEach(function(c){nameIds[n((c.apellido||'')+' '+(c.nombre||''))]=c.id;});
-      var classes=(sheetRows(book,'CLASES')||[]).map(function(r,i){var roster=list(v(r,['Alumnos ID'])).map(function(id){return ids[id]?id:null;}).filter(Boolean);if(!roster.length)roster=list(v(r,['Alumnos'])).map(function(x){return nameIds[n(x)];}).filter(Boolean);return {id:v(r,['ID'])||'class_import_'+i,dia:v(r,['Día','Dia']),hora:v(r,['Hora']),personalId:v(r,['Profesora ID']),clientesIds:Array.from(new Set(roster)),cupoMaximo:num(v(r,['Cupo']))||8,estado:v(r,['Estado'])||'Activa',observaciones:v(r,['Observaciones']),createdAt:at,updatedAt:at,importSource:'Excel completo'};});
-      var payments=(sheetRows(book,'PAGOS')||[]).map(function(r,i){return {id:v(r,['ID'])||'payment_import_'+i,clienteId:v(r,['Cliente ID']),planId:v(r,['Plan ID']),monto:num(v(r,['Monto'])),fechaPago:v(r,['Fecha de pago','Fecha']),mesAbonado:v(r,['Mes abonado','Mes']),medioPago:v(r,['Medio de pago','Método','Metodo']),estado:v(r,['Estado'])||'Pendiente',observaciones:v(r,['Observaciones']),origen:v(r,['Origen']),createdAt:at,updatedAt:at};});
-      var attendance=(sheetRows(book,'ASISTENCIAS')||[]).map(function(r,i){return {id:v(r,['ID'])||'attendance_import_'+i,clientId:v(r,['Alumno ID']),clientName:v(r,['Alumno']),classId:v(r,['Clase ID']),date:v(r,['Fecha']),day:v(r,['Día','Dia']),time:v(r,['Horario']),teacherId:v(r,['Profesora ID']),teacherName:v(r,['Profesora']),status:v(r,['Estado']),observaciones:v(r,['Observaciones']),createdAt:at,updatedAt:at};});
-      var historyRows=(sheetRows(book,'HISTORIAL')||[]).map(function(r,i){return {id:v(r,['ID'])||'history_import_'+i,createdAt:v(r,['Fecha'])||at,action:v(r,['Acción','Accion']),category:v(r,['Categoría','Categoria']),user:v(r,['Usuario']),role:v(r,['Rol']),detail:v(r,['Detalle'])};});
-      var reports=(sheetRows(book,'REPORTES_PAGO')||[]).map(function(r,i){return {id:v(r,['ID'])||'report_import_'+i,clientId:v(r,['Cliente ID']),clientName:v(r,['Alumno']),amount:num(v(r,['Monto'])),date:v(r,['Fecha']),method:v(r,['Método','Metodo']),status:v(r,['Estado']),teacherName:v(r,['Profesora']),note:v(r,['Observaciones']),createdAt:at,updatedAt:at};});
-      var settingRow=configRows.find(function(r){return n(v(r,['Clave']))==='settings';}), settings={};try{settings=settingRow?JSON.parse(v(settingRow,['Valor JSON'])):{};}catch(_){settings={};}
-      var schedules=[];classes.forEach(function(cl){(cl.clientesIds||[]).forEach(function(cid){schedules.push({id:'schedule_'+cl.id+'_'+cid,claseId:cl.id,clienteId:cid,personalId:cl.personalId,dia:cl.dia,horario:cl.hora,estado:cl.estado==='Activa'?'Activo':'Cancelado',createdAt:at,updatedAt:at});});});
-      db.clients=clients;db.users=users;db.plans=plans;db.classes=classes;db.payments=payments;db.attendance=attendance;db.history=historyRows;db.paymentReports=reports;db.schedules=schedules;db.settings=Object.assign({},settings,{lastWorkbookFile:file.name,lastWorkbookSyncAt:at,lastWorkbookFormat:'Completo'});if(typeof addHistoryEntry==='function')addHistoryEntry('Importación desde Excel','Se restauró la base completa desde '+file.name+'.','Excel');await window.saveDB();if(typeof render==='function')render();toast('Excel completo importado: se actualizaron todas las pestañas y datos.');
-    }catch(error){console.error('Importación completa Excel',error);toast('No se actualizó ningún dato. '+error.message);}
+  function merge(remote,local){
+    var a=normalize(remote),b=normalize(local),out=clone(a);
+    COLS.forEach(function(k){out[k]=mergeRows(a[k],b[k]);});
+    /* settings se versiona al guardar, por eso evita que un listener antiguo lo revierta. */
+    out.settings=entityTime(b.settings)>=entityTime(a.settings)?Object.assign({},a.settings,b.settings):Object.assign({},b.settings,a.settings);
+    out.syncMeta={schemaVersion:'firestore-single-writer-2026-08-27',updatedAt:iso()};
+    return normalize(out);
+  }
+  function cache(data){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(data));}catch(e){console.error('Cache local',e);}}
+  function setStatus(message){var e=document.getElementById('syncStatus');if(e)e.textContent=message;}
+  function refresh(){if(currentUser&&typeof window.render==='function')window.render();}
+  function currentTeacherId(cl,date){var o=cl&&cl.instanceOverrides&&cl.instanceOverrides[date];return o&&o.teacherId?o.teacherId:(cl&&cl.personalId)||'';}
+  function effectiveTeacher(cl,date){return currentTeacherId(cl,date||today());}
+  function isCurrent(cl,date){
+    if(!cl||String(date||today())!==today()||dayKey(cl.dia)!==todayDay())return false;
+    var p=String(cl.hora||'').split(':').map(Number), start=new Date();start.setHours(p[0]||0,p[1]||0,0,0);
+    var duration=Number((db.settings||{}).classDurationMinutes)||60, end=new Date(start.getTime()+duration*60000);
+    return new Date()>=start&&new Date()<end&&cl.estado==='Activa';
+  }
+  window.getEffectiveTeacherId=effectiveTeacher;
+  window.canSeeClass=canSeeClass=function(cl){return !!(isGeneral()||currentTeacherId(cl,today())===(currentUser&&currentUser.id)||cl.personalId===(currentUser&&currentUser.id));};
+  window.canManageClassInstance=function(cl,date){return !!(isGeneral()||((currentUser&&currentUser.id)===effectiveTeacher(cl,date||today())&&isCurrent(cl,date||today())));};
+
+  /* La única función de guardado activa. La cola conserva el orden y cada
+     escritura hace merge transaccional contra la versión más reciente. */
+  window.saveDB=saveDB=function(){
+    if(typeof db==='undefined'||applying)return Promise.resolve(true);
+    db=normalize(db);db.settings=Object.assign({},db.settings||{},{updatedAt:iso()});db.syncMeta={schemaVersion:'firestore-single-writer-2026-08-27',updatedAt:iso()};
+    var snapshot=clone(db);cache(snapshot);
+    writeQueue=writeQueue.catch(function(){return true;}).then(async function(){
+      if(!(window.firebase&&firestore&&firebaseOnline)){setStatus('Cambios guardados localmente: Firestore no disponible');return false;}
+      var resolved=snapshot;
+      await firestore.runTransaction(async function(tx){var ref=firestore.doc(FIRESTORE_DOC_PATH),s=await tx.get(ref),remote=s.exists&&s.data()&&s.data().payload?s.data().payload:{};resolved=merge(remote,snapshot);tx.set(ref,{payload:clone(resolved),updatedAt:firebase.firestore.FieldValue.serverTimestamp(),schemaVersion:'firestore-single-writer-2026-08-27'},{merge:false});});
+      baseline=clone(resolved);applying=true;db=resolved;cache(db);applying=false;setStatus('Firebase conectado: cambios sincronizados');return true;
+    }).catch(function(error){console.error('Firestore write',error);setStatus('Cambios guardados localmente: sincronización pendiente');return false;});
+    return writeQueue;
   };
-  window.exportarExcelActualizado=exportComplete;window.exportarHorarioExcel=exportComplete;
-  window.renderImportar=function(){var s=(db.settings||{}).lastWorkbookSyncAt?new Date(db.settings.lastWorkbookSyncAt).toLocaleString('es-AR'):'Sin sincronizar';return '<div class="module-toolbar"><div class="toolbar-title"><b>Sincronización con Excel</b></div><div class="toolbar-actions"><button class="btn btn-primary" onclick="openWorkbookImport()">Importar Excel completo</button><button class="btn btn-secondary" onclick="exportarExcelActualizado()">Exportar Excel completo</button></div></div><section class="card p-5"><h3 class="nih-section-title">Base completa de Nihuen Pilates</h3><p class="nih-muted">El mismo archivo contiene todas las pestañas y funciona como copia de respaldo e intercambio de la aplicación. Incluye Horario, Clientes, Clases, Pagos, Profesoras, Planes, Asistencias, Historial, Reportes de pago y Configuración.</p><div class="mt-4 grid gap-3 md:grid-cols-4"><div class="rounded-xl border border-[#DED6C8] p-3"><b>ALUMNOS</b><div class="mt-1 text-sm">'+(db.clients||[]).length+' registrados</div></div><div class="rounded-xl border border-[#DED6C8] p-3"><b>CLASES</b><div class="mt-1 text-sm">'+(db.classes||[]).length+' horarios</div></div><div class="rounded-xl border border-[#DED6C8] p-3"><b>PAGOS</b><div class="mt-1 text-sm">'+(db.payments||[]).length+' movimientos</div></div><div class="rounded-xl border border-[#DED6C8] p-3"><b>HISTORIAL</b><div class="mt-1 text-sm">'+(db.history||[]).length+' registros</div></div></div><div class="mt-4 rounded-xl border border-[#DED6C8] bg-[#F7F4EF] p-3 text-sm"><b>Última sincronización:</b> '+escx(s)+'. Al importar este archivo, se actualizan todas sus pestañas.</div></section>';};
+  window.subscribeRealtime=subscribeRealtime=function(){
+    if(!firestore)return;if(typeof unsubscribeRealtime==='function')unsubscribeRealtime();
+    unsubscribeRealtime=firestore.doc(FIRESTORE_DOC_PATH).onSnapshot(function(s){
+      if(!s.exists){window.saveDB();return;}var remote=s.data()&&s.data().payload;if(!remote||applying||s.metadata.hasPendingWrites)return;
+      applying=true;db=merge(remote,db);cache(db);baseline=clone(remote);applying=false;setStatus('Firebase conectado: sincronización activa');refresh();
+    },function(error){console.error('Firestore listener',error);setStatus('Cambios guardados localmente: sincronización pendiente');});
+  };
+  window.initFirebaseRealtime=initFirebaseRealtime=async function(){
+    if(started&&firestore)return true;try{if(!window.firebase)throw new Error('SDK Firebase no disponible');if(!firebase.apps.length)firebase.initializeApp(firebaseConfig);firestore=firebase.firestore();firebaseOnline=true;started=true;window.subscribeRealtime();return true;}catch(error){firebaseOnline=false;setStatus('Cambios guardados localmente: Firestore no disponible');console.error('Firebase init',error);return false;}
+  };
+  setTimeout(window.initFirebaseRealtime,0);
+
+  function instanceDateForClass(cl){
+    var base=new Date(),target=['domingo','lunes','martes','miercoles','jueves','viernes','sabado'].indexOf(dayKey(cl.dia)),delta=(target-base.getDay()+7)%7;
+    base.setDate(base.getDate()+delta);return base.getFullYear()+'-'+String(base.getMonth()+1).padStart(2,'0')+'-'+String(base.getDate()).padStart(2,'0');
+  }
+  window.openTeacherSubstitution=function(id){
+    if(!isGeneral())return toast('Solo administrador general');var cl=(db.classes||[]).find(function(x){return x.id===id;});if(!cl)return;
+    var date=instanceDateForClass(cl),options=(db.users||[]).filter(function(u){return u.estado!=='Inactivo';}).map(function(u){return '<option value="'+esc(u.id)+'" '+(effectiveTeacher(cl,date)===u.id?'selected':'')+'>'+esc((u.nombre||'')+' '+(u.apellido||''))+'</option>';}).join('');
+    var html='<form onsubmit="saveTeacherSubstitution(event,\''+esc(id)+'\')"><label class="label">Fecha de esta clase</label><input required class="input" type="date" name="date" value="'+date+'"><label class="label mt-3">Profesora para esta instancia</label><select required class="input" name="teacherId">'+options+'</select><p class="nih-muted mt-3">No modifica el profesor titular del cronograma general.</p><button class="btn btn-primary mt-5">Guardar suplencia</button></form>';
+    if(typeof showModal==='function')showModal('Asignar suplente','Cambio puntual por fecha',html);else openModal('Asignar suplente','Cambio puntual por fecha',html);
+  };
+  window.saveTeacherSubstitution=async function(event,id){
+    event.preventDefault();if(!isGeneral())return;var cl=(db.classes||[]).find(function(x){return x.id===id;});if(!cl)return;var f=new FormData(event.target),date=String(f.get('date')||''),teacherId=String(f.get('teacherId')||'');if(!date||!teacherId)return;
+    cl.instanceOverrides=Object.assign({},cl.instanceOverrides||{});cl.instanceOverrides[date]={teacherId:teacherId,updatedAt:iso()};cl.updatedAt=iso();await window.saveDB();if(typeof closeModal==='function')closeModal();refresh();toast('Suplencia guardada para esa única clase.');
+  };
+  var oldMenu=window.renderActionsMenu;
+  window.renderActionsMenu=function(type,item){var html=oldMenu?oldMenu(type,item):'';if(type==='classes'&&isGeneral()&&item&&item.id){var btn='<button type="button" class="action-option" onclick="event.stopPropagation();closeActionsMenu();openTeacherSubstitution(\''+esc(item.id)+'\')">Asignar suplente</button>';html=html.replace('</div></div>',''+btn+'</div></div>');}return html;};
+
+  var oldRenderClases=window.renderClases;
+  window.renderClases=function(){
+    if(isGeneral())return oldRenderClases();
+    var own=(db.classes||[]).filter(function(cl){return effectiveTeacher(cl,today())===(currentUser&&currentUser.id)||cl.personalId===(currentUser&&currentUser.id);}).sort(function(a,b){return (isCurrent(b,today())?1:0)-(isCurrent(a,today())?1:0)||String(a.hora).localeCompare(String(b.hora));});
+    var active=own.filter(function(cl){return isCurrent(cl,today())&&effectiveTeacher(cl,today())===(currentUser&&currentUser.id);}),rest=own.filter(function(cl){return active.indexOf(cl)===-1;});
+    function card(cl,editable){var teacher=(db.users||[]).find(function(u){return u.id===effectiveTeacher(cl,today());});return '<article class="card p-4 '+(editable?'class-now':'class-readonly')+'"><div class="flex justify-between gap-3"><b>'+esc(cl.dia)+' '+esc(cl.hora)+'</b><span class="badge '+(editable?'badge-ok':'badge-muted')+'">'+(editable?'Vigente ahora':'Solo lectura')+'</span></div><div class="nih-muted mt-2">Profesora: '+esc(teacher?teacher.nombre+' '+teacher.apellido:'Sin asignar')+'</div><div class="nih-muted mt-1">'+esc((cl.clientesIds||[]).map(function(id){return typeof clientName==='function'?clientName(id):id;}).join(', ')||'Sin alumnos')+'</div><div class="mt-3"><button class="btn '+(editable?'btn-primary':'btn-soft')+' !w-auto" onclick="viewClass(\''+esc(cl.id)+'\')">'+(editable?'Gestionar clase':'Ver detalle')+'</button></div>'+(!editable?'<span class="class-readonly-note">La edición se habilita solo durante el horario actual.</span>':'')+'</article>';}
+    return '<section class="clases-panel"><div class="clases-header"><div><h1 class="clases-title">Mis clases</h1><p class="clases-subtitle">Solo la clase en curso permite asistencias y cambios.</p></div></div><h3 class="panel-title">Clase vigente</h3><div class="grid gap-3">'+(active.length?active.map(function(cl){return card(cl,true);}).join(''):'<div class="card p-4 nih-muted">No tenés una clase vigente en este momento.</div>')+'</div><h3 class="panel-title mt-5">Clases pasadas o futuras</h3><div class="grid gap-3">'+(rest.length?rest.map(function(cl){return card(cl,false);}).join(''):'<div class="nih-muted">No hay otras clases asignadas.</div>')+'</div></section>';
+  };
+  var priorView=window.viewClass;
+  window.viewClass=function(id){
+    var cl=(db.classes||[]).find(function(x){return x.id===id;});if(!cl)return priorView?id&&priorView(id):undefined;
+    if(isGeneral())return priorView(id);
+    var editable=window.canManageClassInstance(cl,today());
+    var rows=(cl.clientesIds||[]).map(function(cid){var c=(db.clients||[]).find(function(x){return x.id===cid;})||{},a=(db.attendance||[]).find(function(x){return x.date===today()&&x.clientId===cid&&dayKey(x.day)===dayKey(cl.dia)&&String(x.time)===String(cl.hora);});var actions=editable?'<div class="attendance-actions"><button class="btn attendance-present" onclick="markAttendance(\''+today()+'\',\''+esc(cl.dia)+'\',\''+esc(cl.hora)+'\',\''+esc(cid)+'\',\'Presente\',\''+esc(effectiveTeacher(cl,today()))+'\')">Presente</button><button class="btn attendance-absent" onclick="markAttendance(\''+today()+'\',\''+esc(cl.dia)+'\',\''+esc(cl.hora)+'\',\''+esc(cid)+'\',\'Ausente\',\''+esc(effectiveTeacher(cl,today()))+'\')">Ausente</button></div>':'<span class="class-readonly-note">'+esc(a?a.status:'Sin asistencia')+'</span>';return '<div class="attendance-student-card"><div><div class="attendance-student-name">'+esc((c.nombre||'')+' '+(c.apellido||''))+'</div><div class="attendance-student-state">'+esc(a?a.status:'Sin marcar')+'</div></div>'+actions+'</div>';}).join('')||'<p class="nih-muted">Sin alumnos asignados.</p>';
+    var note=editable?'Podés registrar asistencia únicamente durante la clase vigente.':'Esta clase está fuera de su horario vigente. El contenido es de solo lectura.';
+    if(typeof showModal==='function')showModal('Detalle de clase',cl.dia+' '+cl.hora,'<p class="nih-muted mb-3">'+note+'</p><div class="attendance-modal-list">'+rows+'</div>');else openModal('Detalle de clase',cl.dia+' '+cl.hora,'<p>'+note+'</p>'+rows);
+  };
+  var oldMark=window.markAttendance;
+  window.markAttendance=function(date,day,hour,clientId,status,teacherId){var cl=(db.classes||[]).find(function(x){return dayKey(x.dia)===dayKey(day)&&String(x.hora)===String(hour)&&(x.clientesIds||[]).indexOf(clientId)>=0;});if(!cl||!window.canManageClassInstance(cl,date))return toast('Solo podés registrar asistencia en la clase vigente del día.');return oldMark(date,day,hour,clientId,status,teacherId);};
+  ['addClientToClass','removeClientFromClass','assignClient','editClass'].forEach(function(name){var old=window[name];if(typeof old!=='function')return;window[name]=function(){var cl=(db.classes||[]).find(function(x){return x.id===arguments[0]||x.id===arguments[1];});if(!isGeneral()&&cl&&!window.canManageClassInstance(cl,today()))return toast('Esta clase está fuera de horario y es de solo lectura.');return old.apply(this,arguments);};});
+  var oldNav=window.renderNav;
+  window.renderNav=function(){if(oldNav)oldNav();var link=document.querySelector('.tab[data-section="asistencias"],.tab[title="Asistencias"]');if(link){link.classList.add('attendance-nav-callout');var icon=link.querySelector('.nav-icon');if(icon)icon.textContent='✓';}};
+  refresh();
 })();
 </script>
 </body>
