@@ -10314,7 +10314,7 @@ const STORAGE_KEY = 'nihuenPilatesDB-clean-20260815';
   if(typeof unsubscribeRealtime === 'function') unsubscribeRealtime();
   db = baseNormalize(db);
   saveLocal();
-  if(firebaseOnline && firestore) subscribeRealtime();
+  if(firebaseOnline && firestore && typeof window.subscribeRealtime === 'function') window.subscribeRealtime();
   if(typeof render === 'function' && currentUser) render();
 })();
 </script>
@@ -11842,7 +11842,7 @@ body,.app-shell,.main{font-family:Montserrat,Inter,Arial,sans-serif!important;co
     }).catch(function(error){console.error('Firestore write',error);setStatus('Cambios guardados localmente: sincronización pendiente');return false;});
     return writeQueue;
   };
-  window.subscribeRealtime=subscribeRealtime=function(){
+  window.subscribeRealtime=function(){
     if(!firestore)return;if(typeof unsubscribeRealtime==='function')unsubscribeRealtime();
     unsubscribeRealtime=firestore.doc(FIRESTORE_DOC_PATH).onSnapshot(function(s){
       if(!s.exists){window.saveDB();return;}var remote=s.data()&&s.data().payload;if(!remote||applying||writeInFlight||s.metadata.hasPendingWrites)return;
@@ -11851,7 +11851,7 @@ body,.app-shell,.main{font-family:Montserrat,Inter,Arial,sans-serif!important;co
       applying=true;db=normalize(remote);cache(db);baseline=clone(db);applying=false;setStatus('Firebase conectado: sincronización activa');refresh();
     },function(error){console.error('Firestore listener',error);setStatus('Cambios guardados localmente: sincronización pendiente');});
   };
-  window.initFirebaseRealtime=initFirebaseRealtime=async function(){
+  window.initFirebaseRealtime=async function(){
     if(started&&firestore)return true;try{if(!window.firebase)throw new Error('SDK Firebase no disponible');if(!firebase.apps.length)firebase.initializeApp(firebaseConfig);firestore=firebase.firestore();firebaseOnline=true;started=true;window.subscribeRealtime();return true;}catch(error){firebaseOnline=false;setStatus('Cambios guardados localmente: Firestore no disponible');console.error('Firebase init',error);return false;}
   };
   setTimeout(window.initFirebaseRealtime,0);
