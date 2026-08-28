@@ -11760,7 +11760,7 @@ body,.app-shell,.main{font-family:Montserrat,Inter,Arial,sans-serif!important;co
   'use strict';
   var STORAGE_KEY='nihuenPilatesDB-clean-20260815';
   var COLS=['users','clients','plans','classes','payments','attendance','paymentReports','deletedRecords'];
-  var baseline=null, writeQueue=Promise.resolve(), applying=false, started=false, writeInFlight=0;
+  var baseline=null, writeQueue=Promise.resolve(), applying=false, started=false, writeInFlight=0, saveDB;
   function clone(v){return JSON.parse(JSON.stringify(v||{}));}
   function iso(){return new Date().toISOString();}
   function time(v){var n=Date.parse(String(v||''));return Number.isFinite(n)?n:0;}
